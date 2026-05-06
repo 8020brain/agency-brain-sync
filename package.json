@@ -1,0 +1,26 @@
+{
+  "name": "brain-sync",
+  "productName": "Brain Sync",
+  "version": "0.2.0",
+  "description": "Keeps your team brain folder in sync across the team. Runs quietly in the menu bar.",
+  "main": "main.js",
+  "author": {
+    "name": "8020brain",
+    "email": "mike@mikerhodes.com.au"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:all": "electron-builder --mac --win --publish never"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

@@ -1,0 +1,56 @@
+appId: com.8020brain.brainsync
+productName: Brain Sync
+copyright: Copyright (c) 2026 8020brain
+directories:
+  output: dist
+  buildResources: build
+
+# Files to include in the packaged app
+files:
+  - main.js
+  - preload.js
+  - src/**/*
+  - watcher/**/*
+  - assets/**/*
+  - node_modules/**/*
+  - package.json
+
+# Mac
+mac:
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  category: public.app-category.utilities
+  icon: assets/brain-512.png
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  identity: null  # set to null = unsigned for v1; later swap for Developer ID
+  extendInfo:
+    LSUIElement: 1   # menu bar only, no dock icon
+
+dmg:
+  title: Brain Sync ${version}
+  iconSize: 96
+  window:
+    width: 540
+    height: 360
+
+# Windows
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.ico
+  publisherName: 8020brain
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: Brain Sync
+  artifactName: Brain-Sync-Setup-${version}.${ext}

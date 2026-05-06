@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Brain Sync</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #D64C00;
+    --border: #d8d8d8;
+    --paper: #ffffff;
+  }
+  html, body {
+    font-family: 'Oxanium', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 36px 24px;
+    gap: 0;
+  }
+  .footer {
+    margin-top: 24px;
+    padding-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .lede {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+  .field {
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .picker {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .path-display {
+    flex: 1;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'Menlo', 'Monaco', monospace;
+    border-radius: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .path-display.empty { color: var(--muted); font-style: italic; }
+  button {
+    font-family: inherit;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 0.02em;
+  }
+  button:hover { opacity: 0.9; }
+  button:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  button.secondary {
+    background: var(--paper);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .interval-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  input[type="number"] {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    border-radius: 2px;
+    width: 100%;
+  }
+  .help {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .branding {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .branding img {
+    width: 28px;
+    height: 28px;
+  }
+  .branding span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="branding">
+    <img src="../assets/brain.png" alt="">
+    <span>BRAIN SYNC</span>
+  </div>
+  <h1>Set up your team brain folder</h1>
+  <p class="lede">Pick the folder you cloned from GitHub. Brain Sync will keep it up to date with your teammates by quietly committing your edits and pulling theirs every minute.</p>
+
+  <div class="field">
+    <label>Brain folder</label>
+    <div class="picker">
+      <div class="path-display empty" id="pathDisplay">No folder chosen yet</div>
+      <button class="secondary" id="pickBtn">Choose folder...</button>
+    </div>
+    <div class="help">It must be a git repository. Usually somewhere like /Users/you/Projects/team-brain.</div>
+  </div>
+
+  <div class="field">
+    <label>Timing (advanced — defaults are fine)</label>
+    <div class="interval-row">
+      <div>
+        <input type="number" id="debounce" value="30" min="5" max="600">
+        <div class="help">Commit your edits after this many seconds of no typing.</div>
+      </div>
+      <div>
+        <input type="number" id="pull" value="60" min="30" max="3600">
+        <div class="help">Check for teammates' edits every this many seconds.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="secondary" id="cancelBtn">Cancel</button>
+    <button id="saveBtn" disabled>Start syncing</button>
+  </div>
+</div>
+
+<script>
+  const pathDisplay = document.getElementById('pathDisplay');
+  const pickBtn = document.getElementById('pickBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const debounceInput = document.getElementById('debounce');
+  const pullInput = document.getElementById('pull');
+  let chosenPath = null;
+
+  async function init() {
+    const cfg = await window.brainSync.getConfig();
+    if (cfg && cfg.brainPath) {
+      chosenPath = cfg.brainPath;
+      pathDisplay.textContent = cfg.brainPath;
+      pathDisplay.classList.remove('empty');
+      saveBtn.disabled = false;
+    }
+    if (cfg && cfg.debounceMs) debounceInput.value = Math.round(cfg.debounceMs / 1000);
+    if (cfg && cfg.pullIntervalMs) pullInput.value = Math.round(cfg.pullIntervalMs / 1000);
+  }
+  init();
+
+  pickBtn.addEventListener('click', async () => {
+    const picked = await window.brainSync.pickFolder();
+    if (picked) {
+      chosenPath = picked;
+      pathDisplay.textContent = picked;
+      pathDisplay.classList.remove('empty');
+      saveBtn.disabled = false;
+    }
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    if (!chosenPath) return;
+    await window.brainSync.saveConfig({
+      brainPath: chosenPath,
+      debounceMs: parseInt(debounceInput.value, 10) * 1000,
+      pullIntervalMs: parseInt(pullInput.value, 10) * 1000,
+    });
+  });
+
+  cancelBtn.addEventListener('click', () => window.close());
+</script>
+</body>
+</html>
