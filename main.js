@@ -1,10 +1,21 @@
 // Brain Sync — main process.
 // Tray app that supervises the sync watcher child process.
+//
+// V1 adds agency-mode support on top of the v0.2 personal sync:
+//   - First-run wizard branches into personal or agency setup
+//   - Agency mode talks to api.ads2ai.com for OTP, invite resolution, and
+//     GitHub App installation tokens (so team members never need a GitHub
+//     account)
+//   - brainsync://join?token=... URL scheme deep-links the invite token
+//     into the wizard
+//   - Watcher runs with mode-aware env so it can mint fresh tokens on the fly
+//     when the team's git remote is the agency brain
 
-const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain, nativeTheme } = require('electron');
+const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const os = require('os');
+const { spawn, execFile } = require('child_process');
 
 const APP_NAME = 'Brain Sync';
 const USER_DATA = app.getPath('userData');
@@ -16,18 +27,60 @@ const ICON_ON  = path.join(__dirname, 'assets', 'brain-44.png');
 const ICON_OFF = path.join(__dirname, 'assets', 'brain-44-off.png');
 const WATCHER_PATH = path.join(__dirname, 'watcher', 'team-brain-sync.js');
 
+// 8020api endpoints
+const API_BASE = process.env.BRAIN_SYNC_API_BASE || 'https://api.ads2ai.com';
+
 let tray = null;
 let setupWindow = null;
 let watcherProcess = null;
-let watcherState = 'stopped'; // stopped | running | paused | error
+let watcherState = 'stopped';
 let lastEventLine = '';
 let lastSyncTime = null;
+
+// Pending invite token from deep-link, set before window opens
+let pendingInviteToken = null;
 
 // ---------- single instance ----------
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
   process.exit(0);
+}
+
+// Surface deep-link tokens from a 2nd-instance launch into pendingInviteToken
+app.on('second-instance', (_event, argv) => {
+  for (const arg of argv) {
+    const token = parseInviteUrl(arg);
+    if (token) {
+      pendingInviteToken = token;
+      showSetupWindow();
+    }
+  }
+});
+
+// ---------- url scheme ----------
+if (!app.isDefaultProtocolClient('brainsync')) {
+  app.setAsDefaultProtocolClient('brainsync');
+}
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  const token = parseInviteUrl(url);
+  if (token) {
+    pendingInviteToken = token;
+    showSetupWindow();
+  }
+});
+
+function parseInviteUrl(s) {
+  if (!s || typeof s !== 'string') return null;
+  if (!s.startsWith('brainsync://')) return null;
+  try {
+    const u = new URL(s);
+    if (u.host !== 'join' && u.pathname !== '/join') return null;
+    return u.searchParams.get('token');
+  } catch {
+    return null;
+  }
 }
 
 // ---------- config ----------
@@ -51,9 +104,8 @@ function startWatcher() {
     updateTray();
     return;
   }
-  if (watcherProcess) {
-    return; // already running
-  }
+  if (watcherProcess) return;
+
   const pathExtra = process.platform === 'win32'
     ? `${process.env.PATH || ''};C:\\Program Files\\Git\\cmd;C:\\Program Files (x86)\\Git\\cmd`
     : `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin`;
@@ -64,10 +116,20 @@ function startWatcher() {
     DEBOUNCE_MS: String(config.debounceMs || 30000),
     PULL_INTERVAL_MS: String(config.pullIntervalMs || 60000),
     PATH: pathExtra,
-    // Use Electron's bundled node to run the script (members don't need
-    // a separate Node install).
     ELECTRON_RUN_AS_NODE: '1',
   };
+
+  // Agency-mode: pass identity + a way to mint fresh tokens
+  if (config.mode === 'agency') {
+    env.BRAIN_SYNC_MODE = 'agency';
+    env.AGENCY_TEAM_SLUG = config.teamSlug || '';
+    env.AGENCY_MEMBER_EMAIL = config.memberEmail || '';
+    env.AGENCY_MEMBER_ROLE = config.memberRole || 'team';
+    env.AGENCY_MEMBER_TOKEN = config.memberToken || '';
+    env.AGENCY_API_BASE = API_BASE;
+  } else {
+    env.BRAIN_SYNC_MODE = 'personal';
+  }
 
   watcherProcess = spawn(process.execPath, [WATCHER_PATH], {
     env,
@@ -82,23 +144,18 @@ function startWatcher() {
     logStream.write(text);
     parseWatcherOutput(text);
   });
-  watcherProcess.stderr.on('data', (chunk) => {
-    errStream.write(chunk);
-  });
+  watcherProcess.stderr.on('data', (chunk) => errStream.write(chunk));
   watcherProcess.on('exit', (code) => {
     logStream.end();
     errStream.end();
     watcherProcess = null;
     if (watcherState === 'paused') {
-      // intentional stop, leave state
+      // intentional stop
     } else if (code === 0) {
       watcherState = 'stopped';
     } else {
       watcherState = 'error';
-      // auto-restart after 5 seconds, unless paused
-      setTimeout(() => {
-        if (watcherState === 'error') startWatcher();
-      }, 5000);
+      setTimeout(() => { if (watcherState === 'error') startWatcher(); }, 5000);
     }
     updateTray();
   });
@@ -113,22 +170,11 @@ function stopWatcher() {
   watcherProcess.kill('SIGINT');
 }
 
-function restartWatcher() {
-  if (watcherProcess) {
-    watcherProcess.once('exit', () => startWatcher());
-    watcherProcess.kill('SIGINT');
-  } else {
-    startWatcher();
-  }
-}
-
 function parseWatcherOutput(text) {
   const lines = text.split('\n').filter(Boolean);
   for (const line of lines) {
     lastEventLine = line.replace(/^\[[^\]]+\]\s*/, '');
-    if (line.includes('pushed.')) {
-      lastSyncTime = new Date();
-    }
+    if (line.includes('pushed.')) lastSyncTime = new Date();
   }
   updateTray();
 }
@@ -151,12 +197,9 @@ function statusLabel() {
         return `Syncing.  Last push: ${human}`;
       }
       return 'Syncing.  No pushes yet.';
-    case 'paused':
-      return 'Paused.';
-    case 'error':
-      return 'Error.  Restarting...';
-    default:
-      return 'Stopped.';
+    case 'paused': return 'Paused.';
+    case 'error':  return 'Error.  Restarting...';
+    default:       return 'Stopped.';
   }
 }
 
@@ -164,10 +207,14 @@ function buildMenu() {
   const config = loadConfig();
   const folder = config && config.brainPath ? config.brainPath : '(not set)';
   const homeRel = folder.startsWith(app.getPath('home')) ? '~' + folder.slice(app.getPath('home').length) : folder;
+  const modeBadge = config && config.mode === 'agency'
+    ? `Agency: ${config.teamSlug || 'unknown'} (${config.memberRole || 'team'})`
+    : config && config.mode === 'personal' ? 'Personal sync' : '';
 
   const items = [
     { label: APP_NAME, enabled: false },
     { label: statusLabel(), enabled: false },
+    ...(modeBadge ? [{ label: modeBadge, enabled: false }] : []),
     { type: 'separator' },
     { label: `Folder:  ${homeRel}`, enabled: false },
     { label: lastEventLine ? `Last:  ${lastEventLine}` : 'Last:  (no activity yet)', enabled: false },
@@ -185,7 +232,7 @@ function buildMenu() {
     { label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
     { label: 'Show log',          click: () => shell.openPath(LOG_FILE) },
     { type: 'separator' },
-    { label: 'Change folder...',  click: () => showSetupWindow() },
+    { label: 'Set up...',         click: () => showSetupWindow() },
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
     { type: 'separator' },
     { label: 'About Brain Sync',  click: () => showAbout() },
@@ -203,9 +250,7 @@ function updateTray() {
 }
 
 // ---------- login item ----------
-function getLoginItem() {
-  return app.getLoginItemSettings().openAtLogin;
-}
+function getLoginItem() { return app.getLoginItemSettings().openAtLogin; }
 function toggleLoginItem() {
   const next = !getLoginItem();
   app.setLoginItemSettings({ openAtLogin: next, openAsHidden: true });
@@ -220,11 +265,11 @@ function showSetupWindow() {
     return;
   }
   setupWindow = new BrowserWindow({
-    width: 580,
-    height: 600,
+    width: 620,
+    height: 680,
     resizable: true,
-    minWidth: 480,
-    minHeight: 520,
+    minWidth: 520,
+    minHeight: 600,
     minimizable: false,
     maximizable: false,
     title: APP_NAME,
@@ -239,76 +284,193 @@ function showSetupWindow() {
 }
 
 function showAbout() {
-  dialog.showMessageBox({
-    type: 'info',
-    title: APP_NAME,
-    message: APP_NAME,
-    detail: `Version 0.1.0\n\nKeeps your team brain folder in sync across the team. Runs quietly in the menu bar.\n\nLogs: ${LOG_FILE}`,
-    buttons: ['OK'],
-  });
+  const cfg = loadConfig();
+  const detail = [
+    `Version ${require('./package.json').version}`,
+    '',
+    'Keeps your brain folder in sync with GitHub. Runs quietly in the menu bar.',
+    '',
+    `Mode: ${cfg?.mode || 'not configured'}`,
+    cfg?.teamSlug ? `Team: ${cfg.teamSlug}` : null,
+    `Logs: ${LOG_FILE}`,
+  ].filter(Boolean).join('\n');
+  dialog.showMessageBox({ type: 'info', title: APP_NAME, message: APP_NAME, detail, buttons: ['OK'] });
 }
 
-// ---------- IPC from setup window ----------
-ipcMain.handle('pick-folder', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-    title: 'Choose your team brain folder',
-  });
-  if (result.canceled || !result.filePaths[0]) return null;
-  const picked = result.filePaths[0];
-  if (!fs.existsSync(path.join(picked, '.git'))) {
-    dialog.showErrorBox('Not a git folder', `${picked} is not a git repository.\n\nThe team brain folder must be a clone from GitHub.`);
-    return null;
-  }
-  return picked;
-});
+// ---------- IPC handlers ----------
+ipcMain.handle('get-config', () => loadConfig() || {});
 
 ipcMain.handle('save-config', async (_evt, config) => {
   saveConfig(config);
-  // restart watcher with new config
   if (watcherProcess) {
     watcherProcess.once('exit', () => startWatcher());
     watcherProcess.kill('SIGINT');
   } else {
     startWatcher();
   }
-  if (setupWindow) setupWindow.close();
   return true;
 });
 
-ipcMain.handle('get-config', () => loadConfig() || {});
+ipcMain.handle('pick-folder', async (_evt, opts) => {
+  const requireGit = !!(opts && opts.requireGit);
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Choose folder',
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const picked = result.filePaths[0];
+  if (requireGit && !fs.existsSync(path.join(picked, '.git'))) {
+    dialog.showErrorBox('Not a git folder', `${picked} is not a git repository.\n\nThe brain folder must be a clone from GitHub.`);
+    return null;
+  }
+  return picked;
+});
+
+ipcMain.handle('get-home-path', () => os.homedir());
+
+ipcMain.handle('peek-pending-invite-token', () => pendingInviteToken);
+
+ipcMain.handle('consume-pending-invite-token', () => {
+  const t = pendingInviteToken;
+  pendingInviteToken = null;
+  return t;
+});
+
+ipcMain.handle('resolve-invite-token', async (_evt, token) => {
+  const r = await fetch(`${API_BASE}/api/team-brain/invite-resolve?token=${encodeURIComponent(token)}`);
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`HTTP ${r.status}${body ? ': ' + body.slice(0, 200) : ''}`);
+  }
+  return r.json();
+});
+
+ipcMain.handle('request-otp-code', async (_evt, email) => {
+  const r = await fetch(`${API_BASE}/api/auth/request-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  return r.json();
+});
+
+ipcMain.handle('verify-otp-code', async (_evt, email, code) => {
+  const r = await fetch(`${API_BASE}/api/auth/verify-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  const json = await r.json();
+  return { token: json.token, member: json.member };
+});
+
+ipcMain.handle('clone-agency-brain', async (_evt, args) => {
+  const { memberToken, teamSlug, repoUrl, targetFolder } = args;
+  // Mint a fresh installation token to embed in the clone URL.
+  const tok = await fetch(`${API_BASE}/api/team-brain/git-token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${memberToken}`,
+    },
+    body: JSON.stringify({ teamSlug }),
+  });
+  if (!tok.ok) {
+    const body = await tok.json().catch(() => ({}));
+    throw new Error(body.error || `git-token mint failed (HTTP ${tok.status})`);
+  }
+  const { token, repoUrl: tokenRepoUrl } = await tok.json();
+  const cloneUrl = (repoUrl || tokenRepoUrl || '').replace(
+    /^https:\/\//,
+    `https://x-access-token:${token}@`
+  );
+  if (!cloneUrl.startsWith('https://x-access-token:')) {
+    throw new Error('No repo URL configured for this team. Have your owner finish setup.');
+  }
+  // Make sure the target's parent exists
+  fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
+  if (fs.existsSync(targetFolder)) {
+    throw new Error(`${targetFolder} already exists. Pick another location.`);
+  }
+  await runGit(['clone', cloneUrl, targetFolder]);
+  // Rewrite the remote URL back to the token-less form so we don't keep a
+  // 1-hour token on disk; the watcher will mint fresh tokens on each sync.
+  const cleanRemote = (repoUrl || tokenRepoUrl).startsWith('https://')
+    ? (repoUrl || tokenRepoUrl)
+    : `https://github.com/${(repoUrl || tokenRepoUrl).replace(/^.*github.com[:/]/, '')}`;
+  await runGit(['-C', targetFolder, 'remote', 'set-url', 'origin', cleanRemote]);
+  return { ok: true };
+});
+
+ipcMain.handle('configure-identity', async (_evt, args) => {
+  const { brainPath, memberEmail, memberName } = args;
+  if (memberName) await runGit(['-C', brainPath, 'config', 'user.name', memberName]);
+  if (memberEmail) await runGit(['-C', brainPath, 'config', 'user.email', memberEmail]);
+  return { ok: true };
+});
+
+ipcMain.handle('mark-install-complete', async (_evt, args) => {
+  const { memberToken, teamSlug } = args;
+  const r = await fetch(`${API_BASE}/api/team-brain/install-complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${memberToken}`,
+    },
+    body: JSON.stringify({ teamSlug, platform: process.platform }),
+  });
+  // Don't throw on failure — this is a metric, not a gate.
+  if (!r.ok) console.warn('[brain-sync] install-complete returned', r.status);
+  return { ok: r.ok };
+});
+
+function runGit(args) {
+  return new Promise((resolve, reject) => {
+    execFile('git', args, { env: process.env, maxBuffer: 1024 * 1024 * 50 }, (err, stdout, stderr) => {
+      if (err) {
+        const msg = (stderr || err.message || '').toString().trim();
+        reject(new Error(`git ${args[0]} failed: ${msg.slice(0, 300)}`));
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
+}
 
 // ---------- app lifecycle ----------
 app.whenReady().then(() => {
-  // Hide dock icon on Mac so we appear only in the menu bar.
+  // Capture deep-link from initial launch argv (Windows + Linux pattern;
+  // macOS uses the open-url event which is registered above).
+  for (const arg of process.argv.slice(1)) {
+    const token = parseInviteUrl(arg);
+    if (token) pendingInviteToken = token;
+  }
+
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
 
   tray = new Tray(makeTrayIcon('stopped'));
   tray.setToolTip(APP_NAME);
   updateTray();
-
-  // Periodic refresh so the "Last push: X ago" string ticks
   setInterval(updateTray, 15000);
 
   const config = loadConfig();
-  if (!config || !config.brainPath) {
+  if (!config || !config.brainPath || pendingInviteToken) {
     showSetupWindow();
   } else {
     startWatcher();
-    // Default to auto-start at login on first launch
     if (!app.getLoginItemSettings().openAtLogin) {
       app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
     }
   }
 });
 
-app.on('window-all-closed', (e) => {
-  // Don't quit when the setup window closes; we live in the tray.
-  e.preventDefault();
-});
-
-app.on('before-quit', () => {
-  if (watcherProcess) {
-    watcherProcess.kill('SIGINT');
-  }
-});
+app.on('window-all-closed', (e) => { e.preventDefault(); });
+app.on('before-quit', () => { if (watcherProcess) watcherProcess.kill('SIGINT'); });

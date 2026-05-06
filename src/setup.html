@@ -15,6 +15,8 @@
     --accent: #D64C00;
     --border: #d8d8d8;
     --paper: #ffffff;
+    --error: #b91c1c;
+    --success: #15803d;
   }
   html, body {
     font-family: 'Oxanium', system-ui, sans-serif;
@@ -27,14 +29,18 @@
     display: flex;
     flex-direction: column;
     padding: 28px 36px 24px;
-    gap: 0;
   }
-  .footer {
-    margin-top: 24px;
-    padding-top: 8px;
+  .branding {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 10px;
+    margin-bottom: 18px;
+  }
+  .branding img { width: 28px; height: 28px; }
+  .branding span {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
   }
   h1 {
     font-size: 22px;
@@ -47,9 +53,7 @@
     line-height: 1.55;
     margin-bottom: 24px;
   }
-  .field {
-    margin-bottom: 16px;
-  }
+  .field { margin-bottom: 16px; }
   label {
     display: block;
     font-size: 12px;
@@ -69,7 +73,6 @@
     border: 1px solid var(--border);
     padding: 10px 12px;
     font-size: 13px;
-    color: var(--text);
     font-family: 'Menlo', 'Monaco', monospace;
     border-radius: 2px;
     overflow: hidden;
@@ -77,6 +80,23 @@
     white-space: nowrap;
   }
   .path-display.empty { color: var(--muted); font-style: italic; }
+  input[type="text"], input[type="email"], input[type="number"], textarea {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    border-radius: 2px;
+    width: 100%;
+  }
+  textarea {
+    font-family: 'Menlo', 'Monaco', monospace;
+    font-size: 12px;
+    resize: none;
+    min-height: 84px;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   button {
     font-family: inherit;
     background: var(--accent);
@@ -101,38 +121,106 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
-  input[type="number"] {
-    background: var(--paper);
-    border: 1px solid var(--border);
-    padding: 10px 12px;
-    font-size: 14px;
-    font-family: inherit;
-    color: var(--text);
-    border-radius: 2px;
-    width: 100%;
-  }
   .help {
     font-size: 11px;
     color: var(--muted);
     margin-top: 4px;
     line-height: 1.4;
   }
-  .branding {
+  .footer {
+    margin-top: 24px;
+    padding-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .footer.between { justify-content: space-between; }
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.active { display: flex; }
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .mode-card {
+    border: 1px solid var(--border);
+    background: var(--paper);
+    padding: 18px;
+    border-radius: 2px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .mode-card:hover { border-color: var(--accent); }
+  .mode-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .mode-card p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .info-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 6px 14px;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .info-row dt {
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding-top: 2px;
+  }
+  .info-row dd { color: var(--text); }
+  .progress-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 12px;
+  }
+  .progress-list li {
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 18px;
+    gap: 8px;
   }
-  .branding img {
-    width: 28px;
-    height: 28px;
+  .progress-list li:last-child { border-bottom: none; }
+  .progress-list li.done { color: var(--success); }
+  .progress-list li.active { color: var(--text); font-weight: 600; }
+  .progress-list li::before { content: "○"; }
+  .progress-list li.done::before { content: "●"; color: var(--success); }
+  .progress-list li.active::before { content: "◐"; color: var(--accent); }
+  .error-box {
+    background: #fef2f2;
+    border-left: 3px solid var(--error);
+    padding: 10px 14px;
+    color: var(--error);
+    font-size: 13px;
+    margin-bottom: 12px;
   }
-  .branding span {
+  .cowork-step {
+    border-left: 3px solid var(--accent);
+    padding-left: 14px;
+    margin-bottom: 14px;
+  }
+  .cowork-step h4 {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.04em;
+    margin-bottom: 4px;
   }
+  .cowork-step p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .mono { font-family: 'Menlo', 'Monaco', monospace; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -141,80 +229,512 @@
     <img src="../assets/brain.png" alt="">
     <span>BRAIN SYNC</span>
   </div>
-  <h1>Set up your team brain folder</h1>
-  <p class="lede">Pick the folder you cloned from GitHub. Brain Sync will keep it up to date with your teammates by quietly committing your edits and pulling theirs every minute.</p>
 
-  <div class="field">
-    <label>Brain folder</label>
-    <div class="picker">
-      <div class="path-display empty" id="pathDisplay">No folder chosen yet</div>
-      <button class="secondary" id="pickBtn">Choose folder...</button>
+  <!-- Screen 1: mode select -->
+  <section class="screen" id="screen-welcome">
+    <h1>What are we setting up?</h1>
+    <p class="lede">Brain Sync keeps a folder in sync with GitHub. Pick the option that fits.</p>
+    <div class="mode-grid">
+      <button class="mode-card" data-mode="agency">
+        <h3>Joining a team brain</h3>
+        <p>You got an invite email from your team's owner. Paste the invite token and we'll set everything up — clone the repo, point Cowork at it, start syncing.</p>
+      </button>
+      <button class="mode-card" data-mode="personal">
+        <h3>Personal sync</h3>
+        <p>You already have a brain folder cloned somewhere on your machine and want Brain Sync to keep it in sync with its GitHub remote.</p>
+      </button>
     </div>
-    <div class="help">It must be a git repository. Usually somewhere like /Users/you/Projects/team-brain.</div>
-  </div>
+    <div class="footer"><button class="secondary" id="welcomeCancelBtn">Cancel</button></div>
+  </section>
 
-  <div class="field">
-    <label>Timing (advanced — defaults are fine)</label>
-    <div class="interval-row">
-      <div>
-        <input type="number" id="debounce" value="30" min="5" max="600">
-        <div class="help">Commit your edits after this many seconds of no typing.</div>
+  <!-- Screen 2 (personal): folder picker (current v0.2 behaviour) -->
+  <section class="screen" id="screen-personal-folder">
+    <h1>Pick your brain folder</h1>
+    <p class="lede">Choose the folder you cloned from GitHub. Brain Sync will keep it up to date by quietly committing your edits and pulling changes every minute.</p>
+
+    <div class="field">
+      <label>Brain folder</label>
+      <div class="picker">
+        <div class="path-display empty" id="personalPathDisplay">No folder chosen yet</div>
+        <button class="secondary" id="personalPickBtn">Choose folder...</button>
       </div>
-      <div>
-        <input type="number" id="pull" value="60" min="30" max="3600">
-        <div class="help">Check for teammates' edits every this many seconds.</div>
+      <div class="help">It must be a git repository with a remote already configured.</div>
+    </div>
+
+    <div class="field">
+      <label>Timing (advanced — defaults are fine)</label>
+      <div class="interval-row">
+        <div>
+          <input type="number" id="personalDebounce" value="30" min="5" max="600">
+          <div class="help">Commit your edits after this many seconds of no typing.</div>
+        </div>
+        <div>
+          <input type="number" id="personalPull" value="60" min="30" max="3600">
+          <div class="help">Pull from GitHub every this many seconds.</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="footer">
-    <button class="secondary" id="cancelBtn">Cancel</button>
-    <button id="saveBtn" disabled>Start syncing</button>
-  </div>
+    <div class="footer between">
+      <button class="secondary" id="personalBackBtn">← Back</button>
+      <div>
+        <button class="secondary" id="personalCancelBtn">Cancel</button>
+        <button id="personalSaveBtn" disabled>Start syncing</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screen 3 (agency): paste invite token -->
+  <section class="screen" id="screen-agency-token">
+    <h1>Paste your invite token</h1>
+    <p class="lede">The token came in your invite email. We'll use it to look up your team's brain.</p>
+
+    <div class="field">
+      <label>Invite token</label>
+      <input type="text" id="agencyTokenInput" placeholder="paste here" autocomplete="off" spellcheck="false">
+      <div class="help">If you came here via the install link in your email, this should already be filled in.</div>
+    </div>
+
+    <div id="agencyTokenError" style="display:none"></div>
+
+    <div class="footer between">
+      <button class="secondary" id="agencyTokenBackBtn">← Back</button>
+      <div>
+        <button class="secondary" id="agencyTokenCancelBtn">Cancel</button>
+        <button id="agencyTokenNextBtn" disabled>Next →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screen 4 (agency): confirm email + request OTP -->
+  <section class="screen" id="screen-agency-otp-request">
+    <h1>Confirm your email</h1>
+    <p class="lede">We'll send a 6-digit code to make sure it's really you.</p>
+
+    <div class="field">
+      <label>Email on the invite</label>
+      <input type="email" id="agencyEmailInput" placeholder="you@yourcompany.com" autocomplete="email">
+    </div>
+
+    <div id="agencyOtpRequestError" style="display:none"></div>
+
+    <div class="footer between">
+      <button class="secondary" id="agencyOtpRequestBackBtn">← Back</button>
+      <div>
+        <button class="secondary" id="agencyOtpRequestCancelBtn">Cancel</button>
+        <button id="agencyOtpRequestNextBtn" disabled>Send code</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screen 5 (agency): enter OTP code -->
+  <section class="screen" id="screen-agency-otp-verify">
+    <h1>Enter the code</h1>
+    <p class="lede">Check the email at <span id="agencyOtpEmailDisplay" class="mono"></span>. Codes expire after 10 minutes.</p>
+
+    <div class="field">
+      <label>6-digit code</label>
+      <input type="text" id="agencyCodeInput" placeholder="123456" autocomplete="one-time-code" inputmode="numeric" maxlength="6" style="font-family: 'Menlo', monospace; letter-spacing: 0.4em; text-align: center; font-size: 18px;">
+      <div class="help">Didn't get one? Check spam, then click "Send another code" below.</div>
+    </div>
+
+    <div id="agencyOtpVerifyError" style="display:none"></div>
+
+    <div class="footer between">
+      <button class="secondary" id="agencyOtpVerifyBackBtn">← Back</button>
+      <div>
+        <button class="secondary" id="agencyOtpResendBtn">Send another code</button>
+        <button id="agencyOtpVerifyNextBtn" disabled>Verify</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screen 6 (agency): pick install folder -->
+  <section class="screen" id="screen-agency-folder">
+    <h1>Where should we put your team brain?</h1>
+    <p class="lede">We'll create a folder here and clone your team's brain into it. Brain Sync will watch this folder.</p>
+
+    <dl class="info-row">
+      <dt>Team</dt><dd id="agencyTeamNameDisplay">—</dd>
+      <dt>Your role</dt><dd id="agencyRoleDisplay">—</dd>
+    </dl>
+
+    <div class="field" style="margin-top:18px">
+      <label>Install location</label>
+      <div class="picker">
+        <div class="path-display" id="agencyFolderDisplay">~/Documents/&lt;team&gt;-brain</div>
+        <button class="secondary" id="agencyFolderPickBtn">Change...</button>
+      </div>
+      <div class="help">A new subfolder named after your team will be created here.</div>
+    </div>
+
+    <div id="agencyFolderError" style="display:none"></div>
+
+    <div class="footer between">
+      <button class="secondary" id="agencyFolderBackBtn">← Back</button>
+      <div>
+        <button class="secondary" id="agencyFolderCancelBtn">Cancel</button>
+        <button id="agencyFolderNextBtn">Install</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screen 7 (agency): cloning + setup progress -->
+  <section class="screen" id="screen-agency-cloning">
+    <h1>Setting up your team brain</h1>
+    <p class="lede">This usually takes 30-60 seconds.</p>
+
+    <ul class="progress-list" id="agencyProgressList">
+      <li data-step="token">Fetching your access token</li>
+      <li data-step="clone">Cloning your team brain</li>
+      <li data-step="identity">Configuring your identity</li>
+      <li data-step="complete">Notifying setup is complete</li>
+    </ul>
+
+    <div id="agencyCloneError" style="display:none"></div>
+
+    <div class="footer">
+      <button class="secondary" id="agencyCloneCancelBtn" style="display:none">Cancel</button>
+      <button id="agencyCloneRetryBtn" style="display:none">Retry</button>
+    </div>
+  </section>
+
+  <!-- Screen 8 (agency): instructions to point Cowork at folder -->
+  <section class="screen" id="screen-agency-cowork">
+    <h1>One more step — open Cowork</h1>
+    <p class="lede">Brain Sync is installed and watching your team brain folder. Now point Cowork at the same folder so anything you do in Cowork lands in the team brain.</p>
+
+    <div class="cowork-step">
+      <h4>1. Open Claude Cowork desktop</h4>
+      <p>If you haven't installed it yet, get it from claude.ai/download.</p>
+    </div>
+    <div class="cowork-step">
+      <h4>2. Click "Add a folder" or open an existing project</h4>
+      <p>You're choosing the folder Cowork will work inside. Pick the one we just installed:</p>
+    </div>
+    <div class="path-display mono" id="coworkFolderDisplay">/path/to/your/team-brain</div>
+    <div class="cowork-step" style="margin-top:14px">
+      <h4>3. Try a slash command</h4>
+      <p>In Cowork, type <span class="mono">/gm</span> and press Enter — it should run your team's morning routine.</p>
+    </div>
+
+    <div class="footer">
+      <button id="agencyCoworkDoneBtn">I've done this</button>
+    </div>
+  </section>
+
+  <!-- Screen 9: done -->
+  <section class="screen" id="screen-done">
+    <h1>You're all set</h1>
+    <p class="lede" id="doneMessage">Brain Sync is running in your menu bar. It quietly keeps everyone's work in sync. You can close this window.</p>
+
+    <div class="footer">
+      <button id="doneCloseBtn">Close</button>
+    </div>
+  </section>
 </div>
 
 <script>
-  const pathDisplay = document.getElementById('pathDisplay');
-  const pickBtn = document.getElementById('pickBtn');
-  const saveBtn = document.getElementById('saveBtn');
-  const cancelBtn = document.getElementById('cancelBtn');
-  const debounceInput = document.getElementById('debounce');
-  const pullInput = document.getElementById('pull');
-  let chosenPath = null;
+  const state = {
+    screen: 'welcome',
+    mode: null,
+    inviteToken: null,
+    email: null,
+    teamInfo: null,        // { teamSlug, teamName, repoUrl, memberEmail, memberName, memberRole }
+    memberToken: null,     // 30-day JWT from /verify-code
+    folder: null,
+  };
 
-  async function init() {
-    const cfg = await window.brainSync.getConfig();
-    if (cfg && cfg.brainPath) {
-      chosenPath = cfg.brainPath;
-      pathDisplay.textContent = cfg.brainPath;
-      pathDisplay.classList.remove('empty');
-      saveBtn.disabled = false;
+  const screens = ['welcome', 'personal-folder',
+                   'agency-token', 'agency-otp-request', 'agency-otp-verify',
+                   'agency-folder', 'agency-cloning', 'agency-cowork',
+                   'done'];
+
+  function goTo(name) {
+    state.screen = name;
+    for (const s of screens) {
+      document.getElementById('screen-' + s).classList.toggle('active', s === name);
     }
-    if (cfg && cfg.debounceMs) debounceInput.value = Math.round(cfg.debounceMs / 1000);
-    if (cfg && cfg.pullIntervalMs) pullInput.value = Math.round(cfg.pullIntervalMs / 1000);
+    if (mounters[name]) mounters[name]();
   }
-  init();
 
-  pickBtn.addEventListener('click', async () => {
-    const picked = await window.brainSync.pickFolder();
-    if (picked) {
-      chosenPath = picked;
-      pathDisplay.textContent = picked;
-      pathDisplay.classList.remove('empty');
-      saveBtn.disabled = false;
-    }
-  });
+  function showError(elId, message) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.className = 'error-box';
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+  function clearError(elId) {
+    const el = document.getElementById(elId);
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+  }
 
-  saveBtn.addEventListener('click', async () => {
-    if (!chosenPath) return;
-    await window.brainSync.saveConfig({
-      brainPath: chosenPath,
-      debounceMs: parseInt(debounceInput.value, 10) * 1000,
-      pullIntervalMs: parseInt(pullInput.value, 10) * 1000,
+  // ───── Screen mounters ─────
+  const mounters = {
+    'welcome': () => {},
+    'personal-folder': () => {},
+    'agency-token': async () => {
+      // If we got a token via deep link, prefill it.
+      const deeplink = await window.brainSync.consumePendingInviteToken();
+      if (deeplink) {
+        document.getElementById('agencyTokenInput').value = deeplink;
+        document.getElementById('agencyTokenNextBtn').disabled = false;
+      }
+    },
+    'agency-otp-request': () => {
+      if (state.email) {
+        document.getElementById('agencyEmailInput').value = state.email;
+        document.getElementById('agencyOtpRequestNextBtn').disabled = false;
+      }
+    },
+    'agency-otp-verify': () => {
+      document.getElementById('agencyOtpEmailDisplay').textContent = state.email || '';
+      document.getElementById('agencyCodeInput').value = '';
+      document.getElementById('agencyOtpVerifyNextBtn').disabled = true;
+      setTimeout(() => document.getElementById('agencyCodeInput').focus(), 50);
+    },
+    'agency-folder': async () => {
+      document.getElementById('agencyTeamNameDisplay').textContent = state.teamInfo?.teamName || state.teamInfo?.teamSlug || '—';
+      document.getElementById('agencyRoleDisplay').textContent = state.teamInfo?.memberRole || '—';
+      const home = await window.brainSync.getHomePath();
+      const slug = state.teamInfo?.teamSlug || 'team';
+      state.folder = `${home}/Documents/${slug}-brain`;
+      document.getElementById('agencyFolderDisplay').textContent = state.folder;
+    },
+    'agency-cloning': () => runAgencyClone(),
+    'agency-cowork': () => {
+      document.getElementById('coworkFolderDisplay').textContent = state.folder || '';
+    },
+    'done': () => {},
+  };
+
+  // ───── Welcome ─────
+  document.querySelectorAll('.mode-card').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.mode = btn.dataset.mode;
+      goTo(state.mode === 'personal' ? 'personal-folder' : 'agency-token');
     });
   });
+  document.getElementById('welcomeCancelBtn').addEventListener('click', () => window.close());
 
-  cancelBtn.addEventListener('click', () => window.close());
+  // ───── Personal folder ─────
+  let personalPath = null;
+  document.getElementById('personalPickBtn').addEventListener('click', async () => {
+    const picked = await window.brainSync.pickFolder({ requireGit: true });
+    if (picked) {
+      personalPath = picked;
+      const display = document.getElementById('personalPathDisplay');
+      display.textContent = picked;
+      display.classList.remove('empty');
+      document.getElementById('personalSaveBtn').disabled = false;
+    }
+  });
+  document.getElementById('personalSaveBtn').addEventListener('click', async () => {
+    if (!personalPath) return;
+    await window.brainSync.saveConfig({
+      mode: 'personal',
+      brainPath: personalPath,
+      debounceMs: parseInt(document.getElementById('personalDebounce').value, 10) * 1000,
+      pullIntervalMs: parseInt(document.getElementById('personalPull').value, 10) * 1000,
+    });
+    document.getElementById('doneMessage').textContent = 'Personal Brain Sync is running in your menu bar. It quietly keeps your folder in sync with GitHub.';
+    goTo('done');
+  });
+  document.getElementById('personalBackBtn').addEventListener('click', () => goTo('welcome'));
+  document.getElementById('personalCancelBtn').addEventListener('click', () => window.close());
+
+  // ───── Agency: token paste ─────
+  const tokenInput = document.getElementById('agencyTokenInput');
+  tokenInput.addEventListener('input', () => {
+    document.getElementById('agencyTokenNextBtn').disabled = tokenInput.value.trim().length < 8;
+    clearError('agencyTokenError');
+  });
+  document.getElementById('agencyTokenNextBtn').addEventListener('click', async () => {
+    const token = tokenInput.value.trim();
+    try {
+      const teamInfo = await window.brainSync.resolveInviteToken(token);
+      state.inviteToken = token;
+      state.teamInfo = teamInfo;
+      state.email = teamInfo.memberEmail || null;
+      goTo('agency-otp-request');
+    } catch (err) {
+      showError('agencyTokenError', `Couldn't resolve that token: ${err.message || err}`);
+    }
+  });
+  document.getElementById('agencyTokenBackBtn').addEventListener('click', () => goTo('welcome'));
+  document.getElementById('agencyTokenCancelBtn').addEventListener('click', () => window.close());
+
+  // ───── Agency: OTP request ─────
+  const emailInput = document.getElementById('agencyEmailInput');
+  emailInput.addEventListener('input', () => {
+    document.getElementById('agencyOtpRequestNextBtn').disabled = !/.+@.+\..+/.test(emailInput.value.trim());
+    clearError('agencyOtpRequestError');
+  });
+  document.getElementById('agencyOtpRequestNextBtn').addEventListener('click', async () => {
+    const email = emailInput.value.trim().toLowerCase();
+    try {
+      await window.brainSync.requestOtpCode(email);
+      state.email = email;
+      goTo('agency-otp-verify');
+    } catch (err) {
+      showError('agencyOtpRequestError', `Couldn't send code: ${err.message || err}`);
+    }
+  });
+  document.getElementById('agencyOtpRequestBackBtn').addEventListener('click', () => goTo('agency-token'));
+  document.getElementById('agencyOtpRequestCancelBtn').addEventListener('click', () => window.close());
+
+  // ───── Agency: OTP verify ─────
+  const codeInput = document.getElementById('agencyCodeInput');
+  codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    document.getElementById('agencyOtpVerifyNextBtn').disabled = codeInput.value.length !== 6;
+    clearError('agencyOtpVerifyError');
+  });
+  document.getElementById('agencyOtpVerifyNextBtn').addEventListener('click', async () => {
+    const code = codeInput.value;
+    try {
+      const result = await window.brainSync.verifyOtpCode(state.email, code);
+      state.memberToken = result.token;
+      goTo('agency-folder');
+    } catch (err) {
+      showError('agencyOtpVerifyError', `Couldn't verify: ${err.message || err}`);
+    }
+  });
+  document.getElementById('agencyOtpResendBtn').addEventListener('click', async () => {
+    try {
+      await window.brainSync.requestOtpCode(state.email);
+      showError('agencyOtpVerifyError', 'New code sent — check your email.');
+      const el = document.getElementById('agencyOtpVerifyError');
+      el.style.color = 'var(--success)';
+      el.style.background = '#f0fdf4';
+      el.style.borderLeftColor = 'var(--success)';
+    } catch (err) {
+      showError('agencyOtpVerifyError', `Couldn't send: ${err.message || err}`);
+    }
+  });
+  document.getElementById('agencyOtpVerifyBackBtn').addEventListener('click', () => goTo('agency-otp-request'));
+
+  // ───── Agency: folder pick ─────
+  document.getElementById('agencyFolderPickBtn').addEventListener('click', async () => {
+    const picked = await window.brainSync.pickFolder({ requireGit: false, mustNotExist: false });
+    if (picked) {
+      const slug = state.teamInfo?.teamSlug || 'team';
+      state.folder = `${picked}/${slug}-brain`;
+      document.getElementById('agencyFolderDisplay').textContent = state.folder;
+    }
+  });
+  document.getElementById('agencyFolderNextBtn').addEventListener('click', () => goTo('agency-cloning'));
+  document.getElementById('agencyFolderBackBtn').addEventListener('click', () => goTo('agency-otp-verify'));
+  document.getElementById('agencyFolderCancelBtn').addEventListener('click', () => window.close());
+
+  // ───── Agency: cloning ─────
+  function setStep(step, status) {
+    const el = document.querySelector(`#agencyProgressList li[data-step="${step}"]`);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (status === 'active') el.classList.add('active');
+    if (status === 'done') el.classList.add('done');
+  }
+
+  async function runAgencyClone() {
+    clearError('agencyCloneError');
+    document.getElementById('agencyCloneCancelBtn').style.display = 'none';
+    document.getElementById('agencyCloneRetryBtn').style.display = 'none';
+    for (const step of ['token', 'clone', 'identity', 'complete']) setStep(step, 'pending');
+
+    try {
+      setStep('token', 'active');
+      // The IPC layer mints + caches the token internally; we don't pass it around in JS land
+      setStep('token', 'done');
+
+      setStep('clone', 'active');
+      await window.brainSync.cloneAgencyBrain({
+        memberToken: state.memberToken,
+        teamSlug: state.teamInfo.teamSlug,
+        repoUrl: state.teamInfo.repoUrl,
+        targetFolder: state.folder,
+      });
+      setStep('clone', 'done');
+
+      setStep('identity', 'active');
+      await window.brainSync.configureIdentity({
+        brainPath: state.folder,
+        memberEmail: state.email,
+        memberName: state.teamInfo.memberName || '',
+      });
+      setStep('identity', 'done');
+
+      setStep('complete', 'active');
+      await window.brainSync.markInstallComplete({
+        memberToken: state.memberToken,
+        teamSlug: state.teamInfo.teamSlug,
+      });
+      setStep('complete', 'done');
+
+      // Save the agency-mode config and start the watcher
+      await window.brainSync.saveConfig({
+        mode: 'agency',
+        brainPath: state.folder,
+        teamSlug: state.teamInfo.teamSlug,
+        memberEmail: state.email,
+        memberName: state.teamInfo.memberName || '',
+        memberRole: state.teamInfo.memberRole || 'team',
+        memberToken: state.memberToken,
+        repoUrl: state.teamInfo.repoUrl,
+        debounceMs: 30000,
+        pullIntervalMs: 60000,
+      });
+
+      goTo('agency-cowork');
+    } catch (err) {
+      showError('agencyCloneError', `Setup failed: ${err.message || err}`);
+      document.getElementById('agencyCloneRetryBtn').style.display = 'inline-block';
+    }
+  }
+
+  document.getElementById('agencyCloneRetryBtn').addEventListener('click', () => runAgencyClone());
+
+  // ───── Agency: cowork ─────
+  document.getElementById('agencyCoworkDoneBtn').addEventListener('click', () => {
+    document.getElementById('doneMessage').textContent = 'Brain Sync is now running in your menu bar. Anything you do in Cowork (or in the team brain folder directly) will sync to your team within about a minute.';
+    goTo('done');
+  });
+
+  // ───── Done ─────
+  document.getElementById('doneCloseBtn').addEventListener('click', () => window.close());
+
+  // ───── Init ─────
+  async function init() {
+    const cfg = await window.brainSync.getConfig();
+    if (cfg && cfg.mode === 'agency') {
+      // Already configured for agency — show personal-style "change folder" mode? For
+      // V1 just take them to the welcome screen and let them re-pick. Reaching this
+      // wizard usually means re-configuring.
+      goTo('welcome');
+    } else if (cfg && cfg.brainPath) {
+      // Pre-fill personal mode if there's a folder configured (returning from
+      // "Change folder..." in the tray menu).
+      goTo('personal-folder');
+      document.getElementById('personalPathDisplay').textContent = cfg.brainPath;
+      document.getElementById('personalPathDisplay').classList.remove('empty');
+      document.getElementById('personalSaveBtn').disabled = false;
+      personalPath = cfg.brainPath;
+      if (cfg.debounceMs) document.getElementById('personalDebounce').value = Math.round(cfg.debounceMs / 1000);
+      if (cfg.pullIntervalMs) document.getElementById('personalPull').value = Math.round(cfg.pullIntervalMs / 1000);
+    } else {
+      goTo('welcome');
+    }
+
+    // If an invite token was passed via deep-link before the window opened,
+    // jump straight to the agency flow.
+    const pendingDeepLink = await window.brainSync.peekPendingInviteToken();
+    if (pendingDeepLink && (!cfg || !cfg.brainPath)) {
+      state.mode = 'agency';
+      goTo('agency-token');
+    }
+  }
+  init();
 </script>
 </body>
 </html>
