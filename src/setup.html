@@ -460,7 +460,7 @@
     <div class="summary" id="done-summary"></div>
     <div class="accent-block">
       <div class="label">One last thing</div>
-      <div class="body">When the Claude desktop app opens, point Cowork at the folder above. <a id="link-cowork-help" style="color: var(--accent); cursor: pointer; text-decoration: underline;">Need help?</a></div>
+      <div class="body">When the Claude desktop app opens, click the project picker at the bottom of the Cowork chat box, choose the folder above, then click the <strong>star</strong> next to it so Cowork makes it your default for every new conversation. <a id="link-cowork-help" style="color: var(--accent); cursor: pointer; text-decoration: underline;">Need help?</a></div>
     </div>
     <div class="try-prompt">
       <span class="label">Try this first in Cowork (a quick check)</span>
@@ -489,6 +489,7 @@
         <li><strong>Open the Claude desktop app.</strong> Click "Open the Claude desktop app" on the wizard, or find Claude in your Applications folder.</li>
         <li><strong>Switch to the Cowork tab.</strong> Look at the top of the Claude window; the Cowork tab is next to Chat and Code.</li>
         <li><strong>Click the folder picker at the bottom of the chat box.</strong> It looks like a small folder icon with a name next to it. Click it and choose the folder shown on this wizard screen (the one called <strong>agencybrain</strong>).</li>
+        <li><strong>Click the star next to your folder.</strong> The star tells Cowork to use this folder by default for every new conversation. Without this, you'd have to pick the folder each time. The star turns blue when it's set.</li>
         <li><strong>That's it.</strong> Claude can now see your agency brain. Any change Claude makes here syncs to your teammates within about a minute.</li>
       </ol>
       <div class="screenshot">
@@ -551,6 +552,12 @@
   function friendlyError(err, context) {
     const msg = (err && err.message) || '';
     if (context === 'resolve') {
+      if (/409|hasn'?t finished installing|github app/i.test(msg)) {
+        return "Your agency is still being set up. The owner hasn't finished installing Agency Brain on GitHub yet. Check back in a few minutes, or message your scout.";
+      }
+      if (/410|expired/i.test(msg)) {
+        return "This invite has expired. Ask your scout or owner to send you a fresh one.";
+      }
       if (/404|invite\s+not\s+found|no\s+invite/i.test(msg)) {
         return "Double-check the 6-character code from your email and try again. Make sure you're using the most recent invite if you got more than one.";
       }
@@ -644,7 +651,16 @@
       setCheck(resolveLine, 'ok', `Code accepted. You're <strong>${who}</strong>, joining <strong>${team}</strong> as a <strong>${role}</strong>.`);
       setTimeout(() => goPickFolder(), 700);
     } catch (err) {
-      setCheck(resolveLine, 'miss', "That code didn't match.", escapeHtml(friendlyError(err, 'resolve')));
+      const msg = (err && err.message) || '';
+      let headline = "That code didn't match.";
+      if (/409|hasn'?t finished installing|github app/i.test(msg)) {
+        headline = "Your agency is still being set up.";
+      } else if (/410|expired/i.test(msg)) {
+        headline = "This invite has expired.";
+      } else if (!/404|invite\s+not\s+found|no\s+invite/i.test(msg)) {
+        headline = "Something went wrong.";
+      }
+      setCheck(resolveLine, 'miss', headline, escapeHtml(friendlyError(err, 'resolve')));
       document.getElementById('btn-back-to-welcome').classList.remove('hidden');
       // No banner — the check line carries the message. Showing the same
       // error twice on one screen makes the user feel like two things broke.
