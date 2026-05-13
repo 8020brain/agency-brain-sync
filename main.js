@@ -1,15 +1,16 @@
-// Brain Sync — main process.
+// Agency Brain — main process.
 // Tray app that supervises the sync watcher child process.
 //
-// V1 adds agency-mode support on top of the v0.2 personal sync:
+// v1.0.0-alpha.2 adds agency-mode support on top of the v0.2 personal sync:
 //   - First-run wizard branches into personal or agency setup
-//   - Agency mode talks to api.ads2ai.com for OTP, invite resolution, and
+//   - Agency mode talks to api.ads2ai.com for invite resolution and
 //     GitHub App installation tokens (so team members never need a GitHub
 //     account)
-//   - brainsync://join?token=... URL scheme deep-links the invite token
-//     into the wizard
+//   - agencybrain://join?token=... URL scheme deep-links an invite token
+//     as a backup to the 6-character code paste flow in the wizard
 //   - Watcher runs with mode-aware env so it can mint fresh tokens on the fly
-//     when the team's git remote is the agency brain
+//   - Watcher writes its state to a known file; this process polls and drives
+//     the tray icon (running / paused / needs-attention)
 
 const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain } = require('electron');
 const path = require('path');
@@ -17,14 +18,20 @@ const fs = require('fs');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
 
-const APP_NAME = 'Brain Sync';
+const APP_NAME = 'Agency Brain';
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
 const LOG_FILE = path.join(USER_DATA, 'sync.log');
 const ERR_FILE = path.join(USER_DATA, 'sync.err');
+const STATE_FILE = path.join(USER_DATA, 'state.json');
 
 const ICON_ON  = path.join(__dirname, 'assets', 'brain-44.png');
 const ICON_OFF = path.join(__dirname, 'assets', 'brain-44-off.png');
+// Attention state: red variant. Asset not yet created; falls back to ICON_ON
+// for now so the build still works. To create: tint brain-44.png red.
+const ICON_ATTENTION = fs.existsSync(path.join(__dirname, 'assets', 'brain-44-attention.png'))
+  ? path.join(__dirname, 'assets', 'brain-44-attention.png')
+  : ICON_ON;
 const WATCHER_PATH = path.join(__dirname, 'watcher', 'team-brain-sync.js');
 
 // 8020api endpoints
@@ -59,8 +66,8 @@ app.on('second-instance', (_event, argv) => {
 });
 
 // ---------- url scheme ----------
-if (!app.isDefaultProtocolClient('brainsync')) {
-  app.setAsDefaultProtocolClient('brainsync');
+if (!app.isDefaultProtocolClient('agencybrain')) {
+  app.setAsDefaultProtocolClient('agencybrain');
 }
 app.on('open-url', (event, url) => {
   event.preventDefault();
@@ -73,7 +80,7 @@ app.on('open-url', (event, url) => {
 
 function parseInviteUrl(s) {
   if (!s || typeof s !== 'string') return null;
-  if (!s.startsWith('brainsync://')) return null;
+  if (!s.startsWith('agencybrain://')) return null;
   try {
     const u = new URL(s);
     if (u.host !== 'join' && u.pathname !== '/join') return null;
@@ -113,8 +120,9 @@ function startWatcher() {
   const env = {
     ...process.env,
     BRAIN_PATH: config.brainPath,
-    DEBOUNCE_MS: String(config.debounceMs || 30000),
+    DEBOUNCE_MS: String(config.debounceMs || 90000),
     PULL_INTERVAL_MS: String(config.pullIntervalMs || 60000),
+    STATE_FILE,
     PATH: pathExtra,
     ELECTRON_RUN_AS_NODE: '1',
   };
@@ -162,12 +170,14 @@ function startWatcher() {
 
   watcherState = 'running';
   updateTray();
+  startStateFileWatch();
 }
 
 function stopWatcher() {
   if (!watcherProcess) return;
   watcherState = 'paused';
   watcherProcess.kill('SIGINT');
+  stopStateFileWatch();
 }
 
 function parseWatcherOutput(text) {
@@ -179,9 +189,60 @@ function parseWatcherOutput(text) {
   updateTray();
 }
 
+// ---------- state file (watcher → tray) ----------
+// The watcher writes its current state to STATE_FILE as JSON whenever it
+// transitions: { state: 'running' | 'pulling' | 'pushing' | 'stop',
+// reason: '…', updatedAt: ISO }. We poll the file and translate into the
+// tray's watcherState. The 'stop' watcher-state becomes 'attention' for
+// the tray so users see a clear "needs your attention" signal.
+let stateFileWatcher = null;
+let lastStopReason = null;
+
+function applyWatcherState(payload) {
+  if (!payload || typeof payload.state !== 'string') return;
+  const isAttention = payload.state === 'stop';
+  if (isAttention) {
+    lastStopReason = payload.reason || 'needs your attention';
+    if (watcherState !== 'attention') {
+      watcherState = 'attention';
+      updateTray();
+    }
+  } else if (watcherState === 'attention') {
+    // Watcher reports it cleared the stop; resume normal display.
+    lastStopReason = null;
+    watcherState = 'running';
+    updateTray();
+  }
+}
+
+function readStateFile() {
+  try {
+    if (!fs.existsSync(STATE_FILE)) return;
+    const json = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    applyWatcherState(json);
+  } catch (_) { /* ignore parse-mid-write races */ }
+}
+
+function startStateFileWatch() {
+  stopStateFileWatch();
+  // Use polling watchFile: more reliable than fs.watch across save+rename.
+  stateFileWatcher = fs.watchFile(STATE_FILE, { interval: 1000 }, () => readStateFile());
+  readStateFile();
+}
+
+function stopStateFileWatch() {
+  if (stateFileWatcher !== null) {
+    fs.unwatchFile(STATE_FILE);
+    stateFileWatcher = null;
+  }
+}
+
 // ---------- tray ----------
 function makeTrayIcon(state) {
-  const file = (state === 'running') ? ICON_ON : ICON_OFF;
+  let file;
+  if (state === 'attention') file = ICON_ATTENTION;
+  else if (state === 'running') file = ICON_ON;
+  else file = ICON_OFF;
   const img = nativeImage.createFromPath(file);
   if (img.isEmpty()) console.error('Tray icon failed to load from', file);
   const targetSize = process.platform === 'darwin' ? 22 : 16;
@@ -197,6 +258,7 @@ function statusLabel() {
         return `Syncing.  Last push: ${human}`;
       }
       return 'Syncing.  No pushes yet.';
+    case 'attention': return `Needs your attention: ${lastStopReason || 'see log'}`;
     case 'paused': return 'Paused.';
     case 'error':  return 'Error.  Restarting...';
     default:       return 'Stopped.';
@@ -221,22 +283,26 @@ function buildMenu() {
     { type: 'separator' },
   ];
 
+  if (watcherState === 'attention') {
+    items.push({ label: 'Open log to see what needs attention', click: () => shell.openPath(LOG_FILE) });
+    items.push({ type: 'separator' });
+  }
   if (watcherState === 'paused') {
     items.push({ label: 'Resume syncing', click: () => { watcherState = 'stopped'; startWatcher(); } });
   } else {
-    items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' });
+    items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' || watcherState === 'attention' });
   }
 
   items.push(
     { type: 'separator' },
-    { label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
-    { label: 'Show log',          click: () => shell.openPath(LOG_FILE) },
+    { label: 'Open agency brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
+    { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
     { type: 'separator' },
-    { label: 'Set up...',         click: () => showSetupWindow() },
+    { label: 'Set up...',                click: () => showSetupWindow() },
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
     { type: 'separator' },
-    { label: 'About Brain Sync',  click: () => showAbout() },
-    { label: 'Quit Brain Sync',   click: () => { stopWatcher(); setTimeout(() => app.quit(), 200); } },
+    { label: `About ${APP_NAME}`,        click: () => showAbout() },
+    { label: `Quit ${APP_NAME}`,         click: () => { stopWatcher(); setTimeout(() => app.quit(), 200); } },
   );
 
   return Menu.buildFromTemplate(items);
@@ -259,6 +325,11 @@ function toggleLoginItem() {
 
 // ---------- setup window ----------
 function showSetupWindow() {
+  // Reveal the Dock icon while the wizard is open so the user can Cmd-Tab
+  // back to it after clicking on other windows. Hidden again when the
+  // wizard closes so the app returns to menu-bar-only mode.
+  if (process.platform === 'darwin' && app.dock) app.dock.show();
+
   if (setupWindow) {
     setupWindow.show();
     setupWindow.focus();
@@ -266,11 +337,11 @@ function showSetupWindow() {
   }
   setupWindow = new BrowserWindow({
     width: 620,
-    height: 680,
+    height: 760,
     resizable: true,
     minWidth: 520,
     minHeight: 600,
-    minimizable: false,
+    minimizable: true,
     maximizable: false,
     title: APP_NAME,
     backgroundColor: '#fafaf8',
@@ -280,7 +351,10 @@ function showSetupWindow() {
     },
   });
   setupWindow.loadFile(path.join(__dirname, 'src', 'setup.html'));
-  setupWindow.on('closed', () => { setupWindow = null; });
+  setupWindow.on('closed', () => {
+    setupWindow = null;
+    if (process.platform === 'darwin' && app.dock) app.dock.hide();
+  });
 }
 
 function showAbout() {
@@ -327,6 +401,95 @@ ipcMain.handle('pick-folder', async (_evt, opts) => {
 });
 
 ipcMain.handle('get-home-path', () => os.homedir());
+
+// ---------- Claude desktop app detection ----------
+ipcMain.handle('detect-claude-desktop', async () => {
+  try {
+    if (process.platform === 'darwin') {
+      const appPath = '/Applications/Claude.app';
+      if (!fs.existsSync(appPath)) return { installed: false };
+      const plist = path.join(appPath, 'Contents', 'Info.plist');
+      const version = await new Promise((resolve) => {
+        execFile('/usr/libexec/PlistBuddy', ['-c', 'Print CFBundleShortVersionString', plist], (err, stdout) => {
+          if (err) resolve(null); else resolve(stdout.trim());
+        });
+      });
+      return { installed: true, version: version || 'unknown' };
+    }
+    if (process.platform === 'win32') {
+      // Best-effort: query the registry. If anything goes wrong, report not installed
+      // so the user sees the "install it" flow and can Skip if they have it.
+      const version = await new Promise((resolve) => {
+        execFile('reg', ['query', 'HKCU\\Software\\Anthropic\\Claude', '/v', 'DisplayVersion'], (err, stdout) => {
+          if (err) return resolve(null);
+          const m = stdout.match(/DisplayVersion\s+REG_SZ\s+(\S+)/);
+          resolve(m ? m[1] : null);
+        });
+      });
+      return version ? { installed: true, version } : { installed: false };
+    }
+    return { installed: false };
+  } catch (_) {
+    return { installed: false };
+  }
+});
+
+ipcMain.handle('launch-claude-app', async () => {
+  if (process.platform === 'darwin') {
+    execFile('open', ['-a', 'Claude']);
+  } else if (process.platform === 'win32') {
+    // Try the registered uri scheme as the most reliable launch path on Windows
+    shell.openExternal('claude://');
+  } else {
+    shell.openExternal('https://claude.com/download');
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('open-external-url', async (_evt, url) => {
+  if (typeof url !== 'string') return { ok: false };
+  // Only allow http(s) for safety
+  if (!/^https?:\/\//.test(url)) return { ok: false };
+  shell.openExternal(url);
+  return { ok: true };
+});
+
+ipcMain.handle('close-wizard', () => {
+  if (setupWindow) setupWindow.close();
+  return { ok: true };
+});
+
+// Demo-mode helper: create a placeholder folder at the path the user picked
+// so Cowork has something real to attach to during walkthroughs. Only seeds
+// if the folder is missing or empty; never overwrites existing content.
+ipcMain.handle('seed-demo-folder', async (_evt, targetFolder) => {
+  try {
+    if (!targetFolder || typeof targetFolder !== 'string') {
+      return { ok: false, error: 'no target folder' };
+    }
+    fs.mkdirSync(targetFolder, { recursive: true });
+    const existing = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
+    if (existing.length > 0) {
+      return { ok: true, seeded: false, note: 'folder not empty; left alone' };
+    }
+    const readme = `# Welcome to your agency brain\n\nThis folder is shared with everyone on your agency's team. When you make a change, everyone else's copy updates within about a minute. When they make a change, yours updates.\n\n## First time? Try this in Cowork\n\n> What's in this folder? Give me a brief overview of what's here.\n\nThat'll confirm Cowork can see your team's brain. Once Claude answers, you're set.\n\n## What lives where\n\n- \`clients/\` — one folder per client, with notes, decisions, and call recordings\n- \`context/\` — team-wide context, conventions, and templates\n- \`projects/\` — active work with deadlines\n\n## A note on instructions\n\nCowork automatically reads the \`CLAUDE.md\` file in this folder, so Claude always knows your team's conventions without you having to explain them. Your scouts can update \`CLAUDE.md\` to teach Claude new things; everyone on the team picks up the change within about a minute.\n\n> Demo content: this folder was seeded by Agency Brain in demo mode. Replace these files when your real agency brain is set up.\n`;
+    const claudeMd = `# Claude instructions\n\nWhen working in this folder, you have access to your team's shared brain. The most useful places to start:\n\n- \`clients/\` — one folder per client, with notes, decisions, and call recordings\n- \`context/\` — team-wide context, conventions, and templates\n- \`projects/\` — active work with deadlines\n\nIf you're not sure where something belongs, ask in your team's Cowork session.\n`;
+    const clientNotes = `# Example client notes\n\nUse this as a template for new clients.\n\n- Onboarded: [date]\n- Main contact: [name]\n- Services: [list]\n- Open work: [...]\n\n## Recent activity\n\n_Add notes here. Anyone on your team will see them within a minute._\n`;
+    const contextWelcome = `# Team context\n\nThings every Claude session should know about how this team works.\n\n- Brand voice\n- Tools we use day to day\n- Conventions for naming, commit messages, communication\n`;
+    const marker = `Seeded by Agency Brain demo mode at ${new Date().toISOString()}.\nReplace this folder when your real agency brain ships.\n`;
+
+    fs.writeFileSync(path.join(targetFolder, 'README.md'), readme);
+    fs.writeFileSync(path.join(targetFolder, 'CLAUDE.md'), claudeMd);
+    fs.mkdirSync(path.join(targetFolder, 'clients', 'example-client'), { recursive: true });
+    fs.writeFileSync(path.join(targetFolder, 'clients', 'example-client', 'notes.md'), clientNotes);
+    fs.mkdirSync(path.join(targetFolder, 'context'), { recursive: true });
+    fs.writeFileSync(path.join(targetFolder, 'context', 'welcome.md'), contextWelcome);
+    fs.writeFileSync(path.join(targetFolder, '.agency-brain-demo-seed'), marker);
+    return { ok: true, seeded: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 
 ipcMain.handle('peek-pending-invite-token', () => pendingInviteToken);
 

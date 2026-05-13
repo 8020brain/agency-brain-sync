@@ -1,5 +1,5 @@
-appId: com.8020brain.brainsync
-productName: Brain Sync
+appId: com.8020brain.agencybrain
+productName: Agency Brain
 copyright: Copyright (c) 2026 8020brain
 directories:
   output: dist
@@ -31,7 +31,7 @@ mac:
     LSUIElement: 1   # menu bar only, no dock icon
 
 dmg:
-  title: Brain Sync ${version}
+  title: Agency Brain ${version}
   iconSize: 96
   window:
     width: 540
@@ -52,5 +52,5 @@ nsis:
   perMachine: false
   createDesktopShortcut: false
   createStartMenuShortcut: true
-  shortcutName: Brain Sync
-  artifactName: Brain-Sync-Setup-${version}.${ext}
+  shortcutName: Agency Brain
+  artifactName: Agency-Brain-Setup-${version}.${ext}

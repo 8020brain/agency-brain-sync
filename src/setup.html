@@ -2,739 +2,832 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Brain Sync</title>
+<title>Agency Brain</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #fafaf8;
+    --paper: #ffffff;
     --text: #1a1a1a;
     --muted: #6b6b6b;
     --accent: #D64C00;
-    --border: #d8d8d8;
-    --paper: #ffffff;
-    --error: #b91c1c;
-    --success: #15803d;
+    --border: #e5e5e5;
+    --green: #15803d;
+    --warn: #b45309;
+    --red: #b91c1c;
   }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     font-family: 'Oxanium', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    line-height: 1.5;
+    height: 100vh;
+    overflow: hidden;
   }
   .wrap {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    padding: 28px 36px 24px;
+    padding: 36px 48px 28px;
+    max-width: 620px;
+    margin: 0 auto;
   }
-  .branding {
+  .progress {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 18px;
-  }
-  .branding img { width: 28px; height: 28px; }
-  .branding span {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-  h1 {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  .lede {
-    font-size: 14px;
-    color: var(--muted);
-    line-height: 1.55;
+    gap: 6px;
     margin-bottom: 24px;
   }
-  .field { margin-bottom: 16px; }
-  label {
-    display: block;
+  .progress-step {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+  .progress-step.done { background: var(--accent); }
+  .progress-step.active { background: var(--accent); opacity: 0.55; }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+  }
+  p.lede {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .scene { display: none; flex: 1; flex-direction: column; }
+  .scene.active { display: flex; }
+  .hidden { display: none !important; }
+
+  .code-input { display: flex; gap: 10px; margin: 6px 0; }
+  .code-input input {
+    flex: 1;
+    font-family: 'Oxanium', monospace;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    padding: 16px 18px;
+    border: 2px solid var(--border);
+    border-radius: 2px;
+    text-transform: uppercase;
+    background: var(--paper);
+    text-align: center;
+    color: var(--text);
+  }
+  .code-input input::placeholder { color: #ccc; letter-spacing: 0.15em; }
+  .code-input input:focus { outline: none; border-color: var(--accent); }
+  .hint { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 24px;
+    border: 1px solid var(--text);
+    background: var(--text);
+    color: var(--paper);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 2px;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); }
+  .btn.ghost { background: transparent; color: var(--text); }
+  .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+  .btn:not([disabled]):hover { opacity: 0.92; }
+  .row { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+
+  .help {
+    margin-top: auto;
     font-size: 12px;
+    color: var(--muted);
+    padding-top: 18px;
+  }
+  .help a { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .help a:hover { text-decoration: underline; }
+
+  .check {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 16px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    margin: 6px 0;
+    background: var(--paper);
+  }
+  .check.ok { border-left: 3px solid var(--green); }
+  .check.miss { border-left: 3px solid var(--warn); }
+  .check.work { border-left: 3px solid var(--accent); }
+  .check .icon {
+    width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-weight: 700; font-size: 14px;
+    margin-top: 1px;
+  }
+  .check.ok .icon { color: var(--green); }
+  .check.miss .icon { color: var(--warn); }
+  .check.work .icon { color: var(--accent); animation: spin 1.6s linear infinite; }
+  @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  .check .text { font-size: 14px; flex: 1; }
+  .check .text .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .accent-block {
+    border-left: 3px solid var(--accent);
+    padding: 8px 12px;
+    margin: 4px 0 14px;
+    background: #fff8f3;
+  }
+  .accent-block .label { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .accent-block .body { font-size: 14px; color: var(--text); }
+
+  .folder-pick {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 12px 14px;
+    margin: 6px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .folder-pick .folder-icon { font-size: 22px; }
+  .folder-pick .path { flex: 1; }
+  .folder-pick .path .label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .folder-pick .path .value { font-weight: 500; font-size: 13px; font-family: 'Oxanium', monospace; word-break: break-all; }
+  .folder-pick .change { font-size: 12px; color: var(--accent); padding: 6px 12px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; background: white; }
+  .folder-pick .change:hover { border-color: var(--accent); }
+
+  .success-mark {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--green);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 700;
+    margin: 0 auto 12px;
+  }
+
+  .summary {
+    background: var(--bg);
+    padding: 14px 16px;
+    border-radius: 2px;
+    margin: 12px 0 14px;
+    border: 1px solid var(--border);
+  }
+  .stat-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-line:last-child { border: none; }
+  .stat-line .k { color: var(--muted); }
+  .stat-line .v { font-weight: 500; font-family: 'Oxanium', monospace; }
+
+  .error-banner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 3px solid var(--red);
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: var(--red);
+    border-radius: 2px;
+  }
+  /* Help modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 20, 20, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+    animation: fadeIn 160ms ease-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--paper);
+    border-radius: 4px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    width: 100%;
+    max-width: 520px;
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+  }
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body {
+    padding: 18px 22px 22px;
+    overflow-y: auto;
+  }
+  .modal-body ol {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0 0 18px;
+  }
+  .modal-body ol li {
+    counter-increment: step;
+    padding: 10px 0 10px 36px;
+    position: relative;
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+  .modal-body ol li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 24px;
+    height: 24px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .modal-body ol li strong { color: var(--text); font-weight: 600; }
+  .modal-body .screenshot {
+    margin-top: 6px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .modal-body .screenshot img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .modal-body .screenshot .caption {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--paper);
+    border-top: 1px solid var(--border);
+  }
+
+  .try-prompt { margin: 4px 0 14px; }
+  .try-prompt .label {
+    display: block;
+    font-size: 11px;
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-bottom: 6px;
   }
-  .picker {
+  .prompt-box {
     display: flex;
-    gap: 10px;
-    align-items: stretch;
-  }
-  .path-display {
-    flex: 1;
     background: var(--paper);
     border: 1px solid var(--border);
-    padding: 10px 12px;
-    font-size: 13px;
-    font-family: 'Menlo', 'Monaco', monospace;
-    border-radius: 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .path-display.empty { color: var(--muted); font-style: italic; }
-  input[type="text"], input[type="email"], input[type="number"], textarea {
-    background: var(--paper);
-    border: 1px solid var(--border);
-    padding: 10px 12px;
-    font-size: 14px;
-    font-family: inherit;
-    color: var(--text);
-    border-radius: 2px;
-    width: 100%;
-  }
-  textarea {
-    font-family: 'Menlo', 'Monaco', monospace;
-    font-size: 12px;
-    resize: none;
-    min-height: 84px;
-  }
-  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  button {
-    font-family: inherit;
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border-radius: 2px;
-    letter-spacing: 0.02em;
-  }
-  button:hover { opacity: 0.9; }
-  button:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
-  button.secondary {
-    background: var(--paper);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .interval-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-  .help {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 4px;
-    line-height: 1.4;
-  }
-  .footer {
-    margin-top: 24px;
-    padding-top: 8px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-  }
-  .footer.between { justify-content: space-between; }
-  .screen { display: none; flex-direction: column; flex: 1; }
-  .screen.active { display: flex; }
-  .mode-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-  .mode-card {
-    border: 1px solid var(--border);
-    background: var(--paper);
-    padding: 18px;
-    border-radius: 2px;
-    cursor: pointer;
-    text-align: left;
-  }
-  .mode-card:hover { border-color: var(--accent); }
-  .mode-card h3 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  .mode-card p {
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .info-row {
-    display: grid;
-    grid-template-columns: 90px 1fr;
-    gap: 6px 14px;
-    font-size: 13px;
-    margin-bottom: 4px;
-  }
-  .info-row dt {
-    color: var(--muted);
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    padding-top: 2px;
-  }
-  .info-row dd { color: var(--text); }
-  .progress-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 12px;
-  }
-  .progress-list li {
-    padding: 8px 0;
-    font-size: 13px;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .progress-list li:last-child { border-bottom: none; }
-  .progress-list li.done { color: var(--success); }
-  .progress-list li.active { color: var(--text); font-weight: 600; }
-  .progress-list li::before { content: "○"; }
-  .progress-list li.done::before { content: "●"; color: var(--success); }
-  .progress-list li.active::before { content: "◐"; color: var(--accent); }
-  .error-box {
-    background: #fef2f2;
-    border-left: 3px solid var(--error);
-    padding: 10px 14px;
-    color: var(--error);
-    font-size: 13px;
-    margin-bottom: 12px;
-  }
-  .cowork-step {
     border-left: 3px solid var(--accent);
-    padding-left: 14px;
-    margin-bottom: 14px;
+    padding: 10px 12px;
+    border-radius: 2px;
+    gap: 10px;
+    align-items: center;
   }
-  .cowork-step h4 {
+  .prompt-box .prompt-text {
+    flex: 1;
     font-size: 13px;
+    color: var(--text);
+    font-style: italic;
+  }
+  .copy-btn {
+    font-size: 11px;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text);
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  .demo-banner {
+    background: #fff3cd;
+    border: 1px solid #f0d97a;
+    border-left: 3px solid #c79204;
+    color: #6b5210;
+    padding: 7px 12px;
+    font-size: 11px;
     font-weight: 600;
-    margin-bottom: 4px;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    border-radius: 2px;
   }
-  .cowork-step p {
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-  .mono { font-family: 'Menlo', 'Monaco', monospace; font-size: 12px; }
 </style>
 </head>
 <body>
+
 <div class="wrap">
-  <div class="branding">
-    <img src="../assets/brain.png" alt="">
-    <span>BRAIN SYNC</span>
+
+  <div class="demo-banner hidden" id="demo-banner">Demo mode — nothing is being saved to your computer</div>
+
+  <div class="progress" id="progress">
+    <div class="progress-step active" data-step="1"></div>
+    <div class="progress-step" data-step="2"></div>
+    <div class="progress-step" data-step="3"></div>
+    <div class="progress-step" data-step="4"></div>
   </div>
 
-  <!-- Screen 1: mode select -->
-  <section class="screen" id="screen-welcome">
-    <h1>What are we setting up?</h1>
-    <p class="lede">Brain Sync keeps a folder in sync with GitHub. Pick the option that fits.</p>
-    <div class="mode-grid">
-      <button class="mode-card" data-mode="agency">
-        <h3>Joining a team brain</h3>
-        <p>You got an invite email from your team's owner. Paste the invite token and we'll set everything up — clone the repo, point Cowork at it, start syncing.</p>
-      </button>
-      <button class="mode-card" data-mode="personal">
-        <h3>Personal sync</h3>
-        <p>You already have a brain folder cloned somewhere on your machine and want Brain Sync to keep it in sync with its GitHub remote.</p>
-      </button>
+  <!-- SCENE 1 -->
+  <section class="scene active" id="scene-welcome">
+    <h1>Welcome. Let's get you set up.</h1>
+    <p class="lede">Your agency sent you an invite by email. Find the 6-character code in the email (it looks like BR4-7XK) and paste it below.</p>
+    <div class="code-input">
+      <input type="text" id="code-input" placeholder="BR4-7XK" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false">
     </div>
-    <div class="footer"><button class="secondary" id="welcomeCancelBtn">Cancel</button></div>
+    <p class="hint">Codes aren't case-sensitive. The dash is optional.</p>
+    <div class="error-banner hidden" id="error-welcome"></div>
+    <div class="row">
+      <button class="btn primary" id="btn-continue-welcome" disabled>Continue</button>
+    </div>
+    <p class="help">
+      Can't find the email?
+      <a id="link-resend">Resend the invite</a>
+      or
+      <a id="link-email-mike">email Mike</a>.
+    </p>
   </section>
 
-  <!-- Screen 2 (personal): folder picker (current v0.2 behaviour) -->
-  <section class="screen" id="screen-personal-folder">
-    <h1>Pick your brain folder</h1>
-    <p class="lede">Choose the folder you cloned from GitHub. Brain Sync will keep it up to date by quietly committing your edits and pulling changes every minute.</p>
-
-    <div class="field">
-      <label>Brain folder</label>
-      <div class="picker">
-        <div class="path-display empty" id="personalPathDisplay">No folder chosen yet</div>
-        <button class="secondary" id="personalPickBtn">Choose folder...</button>
-      </div>
-      <div class="help">It must be a git repository with a remote already configured.</div>
+  <!-- SCENE 2 -->
+  <section class="scene" id="scene-connecting">
+    <h1>Connecting you to your team…</h1>
+    <p class="lede">Confirming your invite and getting access to your team's shared folder.</p>
+    <div id="connecting-checks">
+      <div class="check work"><span class="icon">⟳</span><div class="text">Confirming your code…</div></div>
     </div>
-
-    <div class="field">
-      <label>Timing (advanced — defaults are fine)</label>
-      <div class="interval-row">
-        <div>
-          <input type="number" id="personalDebounce" value="30" min="5" max="600">
-          <div class="help">Commit your edits after this many seconds of no typing.</div>
-        </div>
-        <div>
-          <input type="number" id="personalPull" value="60" min="30" max="3600">
-          <div class="help">Pull from GitHub every this many seconds.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer between">
-      <button class="secondary" id="personalBackBtn">← Back</button>
-      <div>
-        <button class="secondary" id="personalCancelBtn">Cancel</button>
-        <button id="personalSaveBtn" disabled>Start syncing</button>
-      </div>
+    <div class="error-banner hidden" id="error-connecting"></div>
+    <div class="row" style="margin-top: auto;">
+      <button class="btn ghost hidden" id="btn-back-to-welcome">Back</button>
     </div>
   </section>
 
-  <!-- Screen 3 (agency): paste invite token -->
-  <section class="screen" id="screen-agency-token">
-    <h1>Paste your invite token</h1>
-    <p class="lede">The token came in your invite email. We'll use it to look up your team's brain.</p>
-
-    <div class="field">
-      <label>Invite token</label>
-      <input type="text" id="agencyTokenInput" placeholder="paste here" autocomplete="off" spellcheck="false">
-      <div class="help">If you came here via the install link in your email, this should already be filled in.</div>
-    </div>
-
-    <div id="agencyTokenError" style="display:none"></div>
-
-    <div class="footer between">
-      <button class="secondary" id="agencyTokenBackBtn">← Back</button>
-      <div>
-        <button class="secondary" id="agencyTokenCancelBtn">Cancel</button>
-        <button id="agencyTokenNextBtn" disabled>Next →</button>
+  <!-- SCENE 2.5 -->
+  <section class="scene" id="scene-folder">
+    <h1>Where should we put your team folder?</h1>
+    <p class="lede">Agency Brain creates a folder on your computer that holds your team's shared files. Most people keep it in their home folder, but you can pick anywhere.</p>
+    <div class="folder-pick">
+      <span class="folder-icon">📁</span>
+      <div class="path">
+        <span class="label">Folder location</span>
+        <span class="value" id="folder-path">~/agencybrain</span>
       </div>
+      <button class="change" id="btn-pick-folder">Pick a different folder</button>
+    </div>
+    <p class="hint">About 50 MB right now; grows as your team adds files.</p>
+    <div class="error-banner hidden" id="error-folder"></div>
+    <div class="row">
+      <button class="btn primary" id="btn-use-folder">Use this location</button>
     </div>
   </section>
 
-  <!-- Screen 4 (agency): confirm email + request OTP -->
-  <section class="screen" id="screen-agency-otp-request">
-    <h1>Confirm your email</h1>
-    <p class="lede">We'll send a 6-digit code to make sure it's really you.</p>
-
-    <div class="field">
-      <label>Email on the invite</label>
-      <input type="email" id="agencyEmailInput" placeholder="you@yourcompany.com" autocomplete="email">
+  <!-- SCENE 3 -->
+  <section class="scene" id="scene-claude">
+    <h1 id="claude-heading">Checking for the Claude desktop app…</h1>
+    <p class="lede" id="claude-lede">This is where you'll actually work. The Claude desktop app from Anthropic.</p>
+    <div id="claude-check-container">
+      <div class="check work"><span class="icon">⟳</span><div class="text">Looking for the Claude desktop app on your computer…</div></div>
     </div>
+    <div class="accent-block hidden" id="claude-instructions">
+      <div class="label">What to do</div>
+      <div class="body">Click below to open Anthropic's download page in your browser. Install the Claude desktop app the normal way. When you're done, come back here and click <strong>I've installed it</strong>.</div>
+    </div>
+    <div class="row hidden" id="claude-buttons">
+      <button class="btn primary hidden" id="btn-claude-download">Open the Claude download page</button>
+      <button class="btn hidden" id="btn-claude-recheck">I've installed it</button>
+      <button class="btn primary hidden" id="btn-claude-continue">Continue</button>
+    </div>
+    <p class="help">
+      <a id="link-claude-skip">Already have the Claude desktop app and we missed it? Skip this step</a>.
+    </p>
+  </section>
 
-    <div id="agencyOtpRequestError" style="display:none"></div>
-
-    <div class="footer between">
-      <button class="secondary" id="agencyOtpRequestBackBtn">← Back</button>
-      <div>
-        <button class="secondary" id="agencyOtpRequestCancelBtn">Cancel</button>
-        <button id="agencyOtpRequestNextBtn" disabled>Send code</button>
+  <!-- SCENE 4 -->
+  <section class="scene" id="scene-done">
+    <div class="success-mark">✓</div>
+    <h1 style="text-align: center;">You're connected.</h1>
+    <p class="lede" style="text-align: center;">Agency Brain is watching your team folder in the background. One last step before you can start working.</p>
+    <div class="summary" id="done-summary"></div>
+    <div class="accent-block">
+      <div class="label">One last thing</div>
+      <div class="body">When the Claude desktop app opens, point Cowork at the folder above. <a id="link-cowork-help" style="color: var(--accent); cursor: pointer; text-decoration: underline;">Need help?</a></div>
+    </div>
+    <div class="try-prompt">
+      <span class="label">Try this first in Cowork (a quick check)</span>
+      <div class="prompt-box">
+        <span class="prompt-text" id="suggested-prompt">What's in this folder? Give me a brief overview of what's here.</span>
+        <button class="copy-btn" id="btn-copy-prompt" type="button">Copy</button>
       </div>
     </div>
+    <div class="row" style="margin-top: auto;">
+      <button class="btn primary" id="btn-launch-claude">Open the Claude desktop app</button>
+      <button class="btn ghost" id="btn-close-wizard">Close</button>
+    </div>
   </section>
 
-  <!-- Screen 5 (agency): enter OTP code -->
-  <section class="screen" id="screen-agency-otp-verify">
-    <h1>Enter the code</h1>
-    <p class="lede">Check the email at <span id="agencyOtpEmailDisplay" class="mono"></span>. Codes expire after 10 minutes.</p>
+</div>
 
-    <div class="field">
-      <label>6-digit code</label>
-      <input type="text" id="agencyCodeInput" placeholder="123456" autocomplete="one-time-code" inputmode="numeric" maxlength="6" style="font-family: 'Menlo', monospace; letter-spacing: 0.4em; text-align: center; font-size: 18px;">
-      <div class="help">Didn't get one? Check spam, then click "Send another code" below.</div>
+<!-- Help modal: "How to point Cowork at your folder" -->
+<div class="modal-backdrop hidden" id="modal-cowork-help">
+  <div class="modal" role="dialog" aria-labelledby="modal-cowork-title">
+    <div class="modal-header">
+      <h2 id="modal-cowork-title">Pointing Cowork at your agency brain</h2>
+      <button class="modal-close" id="btn-close-modal" aria-label="Close">×</button>
     </div>
-
-    <div id="agencyOtpVerifyError" style="display:none"></div>
-
-    <div class="footer between">
-      <button class="secondary" id="agencyOtpVerifyBackBtn">← Back</button>
-      <div>
-        <button class="secondary" id="agencyOtpResendBtn">Send another code</button>
-        <button id="agencyOtpVerifyNextBtn" disabled>Verify</button>
+    <div class="modal-body">
+      <ol>
+        <li><strong>Open the Claude desktop app.</strong> Click "Open the Claude desktop app" on the wizard, or find Claude in your Applications folder.</li>
+        <li><strong>Switch to the Cowork tab.</strong> Look at the top of the Claude window; the Cowork tab is next to Chat and Code.</li>
+        <li><strong>Click the folder picker at the bottom of the chat box.</strong> It looks like a small folder icon with a name next to it. Click it and choose the folder shown on this wizard screen (the one called <strong>agencybrain</strong>).</li>
+        <li><strong>That's it.</strong> Claude can now see your agency brain. Any change Claude makes here syncs to your teammates within about a minute.</li>
+      </ol>
+      <div class="screenshot">
+        <img src="../assets/cowork-chat-box.png" alt="Cowork chat box with the folder picker at the bottom-left">
+        <div class="caption">When connected, the bottom-left will show <strong>agencybrain</strong> with a folder icon, like this. Click that area in Cowork to attach your folder.</div>
       </div>
     </div>
-  </section>
-
-  <!-- Screen 6 (agency): pick install folder -->
-  <section class="screen" id="screen-agency-folder">
-    <h1>Where should we put your team brain?</h1>
-    <p class="lede">We'll create a folder here and clone your team's brain into it. Brain Sync will watch this folder.</p>
-
-    <dl class="info-row">
-      <dt>Team</dt><dd id="agencyTeamNameDisplay">—</dd>
-      <dt>Your role</dt><dd id="agencyRoleDisplay">—</dd>
-    </dl>
-
-    <div class="field" style="margin-top:18px">
-      <label>Install location</label>
-      <div class="picker">
-        <div class="path-display" id="agencyFolderDisplay">~/Documents/&lt;team&gt;-brain</div>
-        <button class="secondary" id="agencyFolderPickBtn">Change...</button>
-      </div>
-      <div class="help">A new subfolder named after your team will be created here.</div>
-    </div>
-
-    <div id="agencyFolderError" style="display:none"></div>
-
-    <div class="footer between">
-      <button class="secondary" id="agencyFolderBackBtn">← Back</button>
-      <div>
-        <button class="secondary" id="agencyFolderCancelBtn">Cancel</button>
-        <button id="agencyFolderNextBtn">Install</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Screen 7 (agency): cloning + setup progress -->
-  <section class="screen" id="screen-agency-cloning">
-    <h1>Setting up your team brain</h1>
-    <p class="lede">This usually takes 30-60 seconds.</p>
-
-    <ul class="progress-list" id="agencyProgressList">
-      <li data-step="token">Fetching your access token</li>
-      <li data-step="clone">Cloning your team brain</li>
-      <li data-step="identity">Configuring your identity</li>
-      <li data-step="complete">Notifying setup is complete</li>
-    </ul>
-
-    <div id="agencyCloneError" style="display:none"></div>
-
-    <div class="footer">
-      <button class="secondary" id="agencyCloneCancelBtn" style="display:none">Cancel</button>
-      <button id="agencyCloneRetryBtn" style="display:none">Retry</button>
-    </div>
-  </section>
-
-  <!-- Screen 8 (agency): instructions to point Cowork at folder -->
-  <section class="screen" id="screen-agency-cowork">
-    <h1>One more step — open Cowork</h1>
-    <p class="lede">Brain Sync is installed and watching your team brain folder. Now point Cowork at the same folder so anything you do in Cowork lands in the team brain.</p>
-
-    <div class="cowork-step">
-      <h4>1. Open Claude Cowork desktop</h4>
-      <p>If you haven't installed it yet, get it from claude.ai/download.</p>
-    </div>
-    <div class="cowork-step">
-      <h4>2. Click "Add a folder" or open an existing project</h4>
-      <p>You're choosing the folder Cowork will work inside. Pick the one we just installed:</p>
-    </div>
-    <div class="path-display mono" id="coworkFolderDisplay">/path/to/your/team-brain</div>
-    <div class="cowork-step" style="margin-top:14px">
-      <h4>3. Try a slash command</h4>
-      <p>In Cowork, type <span class="mono">/gm</span> and press Enter — it should run your team's morning routine.</p>
-    </div>
-
-    <div class="footer">
-      <button id="agencyCoworkDoneBtn">I've done this</button>
-    </div>
-  </section>
-
-  <!-- Screen 9: done -->
-  <section class="screen" id="screen-done">
-    <h1>You're all set</h1>
-    <p class="lede" id="doneMessage">Brain Sync is running in your menu bar. It quietly keeps everyone's work in sync. You can close this window.</p>
-
-    <div class="footer">
-      <button id="doneCloseBtn">Close</button>
-    </div>
-  </section>
+  </div>
 </div>
 
 <script>
-  const state = {
-    screen: 'welcome',
-    mode: null,
-    inviteToken: null,
-    email: null,
-    teamInfo: null,        // { teamSlug, teamName, repoUrl, memberEmail, memberName, memberRole }
-    memberToken: null,     // 30-day JWT from /verify-code
-    folder: null,
-  };
+(function () {
+  'use strict';
+  const api = window.agencyBrain;
 
-  const screens = ['welcome', 'personal-folder',
-                   'agency-token', 'agency-otp-request', 'agency-otp-verify',
-                   'agency-folder', 'agency-cloning', 'agency-cowork',
-                   'done'];
+  let teamInfo = null;
+  let chosenFolder = '';
+  let homePath = '';
 
-  function goTo(name) {
-    state.screen = name;
-    for (const s of screens) {
-      document.getElementById('screen-' + s).classList.toggle('active', s === name);
-    }
-    if (mounters[name]) mounters[name]();
+  // Demo bypass: typing this code skips every real API/git call and stubs
+  // the wizard so the user can walk through every scene. Useful for design
+  // review and for showing the flow to people before the 8020api side ships
+  // the 6-character invite-code endpoint. Remove or feature-flag for release.
+  const DEMO_CODE = 'DEMO01';
+  let demoMode = false;
+
+  function show(sceneId, step) {
+    document.querySelectorAll('.scene').forEach((el) => el.classList.remove('active'));
+    document.getElementById(sceneId).classList.add('active');
+    if (step) markProgress(step);
   }
-
-  function showError(elId, message) {
-    const el = document.getElementById(elId);
-    if (!el) return;
-    el.className = 'error-box';
-    el.textContent = message;
-    el.style.display = 'block';
-  }
-  function clearError(elId) {
-    const el = document.getElementById(elId);
-    if (el) { el.style.display = 'none'; el.textContent = ''; }
-  }
-
-  // ───── Screen mounters ─────
-  const mounters = {
-    'welcome': () => {},
-    'personal-folder': () => {},
-    'agency-token': async () => {
-      // If we got a token via deep link, prefill it.
-      const deeplink = await window.brainSync.consumePendingInviteToken();
-      if (deeplink) {
-        document.getElementById('agencyTokenInput').value = deeplink;
-        document.getElementById('agencyTokenNextBtn').disabled = false;
-      }
-    },
-    'agency-otp-request': () => {
-      if (state.email) {
-        document.getElementById('agencyEmailInput').value = state.email;
-        document.getElementById('agencyOtpRequestNextBtn').disabled = false;
-      }
-    },
-    'agency-otp-verify': () => {
-      document.getElementById('agencyOtpEmailDisplay').textContent = state.email || '';
-      document.getElementById('agencyCodeInput').value = '';
-      document.getElementById('agencyOtpVerifyNextBtn').disabled = true;
-      setTimeout(() => document.getElementById('agencyCodeInput').focus(), 50);
-    },
-    'agency-folder': async () => {
-      document.getElementById('agencyTeamNameDisplay').textContent = state.teamInfo?.teamName || state.teamInfo?.teamSlug || '—';
-      document.getElementById('agencyRoleDisplay').textContent = state.teamInfo?.memberRole || '—';
-      const home = await window.brainSync.getHomePath();
-      const slug = state.teamInfo?.teamSlug || 'team';
-      state.folder = `${home}/Documents/${slug}-brain`;
-      document.getElementById('agencyFolderDisplay').textContent = state.folder;
-    },
-    'agency-cloning': () => runAgencyClone(),
-    'agency-cowork': () => {
-      document.getElementById('coworkFolderDisplay').textContent = state.folder || '';
-    },
-    'done': () => {},
-  };
-
-  // ───── Welcome ─────
-  document.querySelectorAll('.mode-card').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.mode = btn.dataset.mode;
-      goTo(state.mode === 'personal' ? 'personal-folder' : 'agency-token');
+  function markProgress(currentStep) {
+    document.querySelectorAll('.progress-step').forEach((el) => {
+      const n = Number(el.dataset.step);
+      el.classList.remove('done', 'active');
+      if (n < currentStep) el.classList.add('done');
+      else if (n === currentStep) el.classList.add('active');
     });
-  });
-  document.getElementById('welcomeCancelBtn').addEventListener('click', () => window.close());
+  }
+  function errorIn(bannerId, msg) {
+    const el = document.getElementById(bannerId);
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+  function clearError(bannerId) {
+    const el = document.getElementById(bannerId);
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
+  function setCheck(line, status, label, sub) {
+    line.className = 'check ' + status;
+    const icon = status === 'ok' ? '✓' : status === 'miss' ? '!' : '⟳';
+    line.querySelector('.icon').textContent = icon;
+    const text = line.querySelector('.text');
+    text.innerHTML = label + (sub ? `<span class="sub">${sub}</span>` : '');
+  }
 
-  // ───── Personal folder ─────
-  let personalPath = null;
-  document.getElementById('personalPickBtn').addEventListener('click', async () => {
-    const picked = await window.brainSync.pickFolder({ requireGit: true });
-    if (picked) {
-      personalPath = picked;
-      const display = document.getElementById('personalPathDisplay');
-      display.textContent = picked;
-      display.classList.remove('empty');
-      document.getElementById('personalSaveBtn').disabled = false;
+  // Translate Electron IPC / HTTP errors into plain-English copy.
+  // Never expose stack traces, remote-method names, or status codes to users.
+  function friendlyError(err, context) {
+    const msg = (err && err.message) || '';
+    if (context === 'resolve') {
+      if (/404|invite\s+not\s+found|no\s+invite/i.test(msg)) {
+        return "Double-check the 6-character code from your email and try again. Make sure you're using the most recent invite if you got more than one.";
+      }
+      if (/network|fetch|enotfound|econnrefused|getaddrinfo/i.test(msg)) {
+        return "We can't reach the agency server. Check your internet, then try again.";
+      }
+      if (/5\d\d/.test(msg)) {
+        return "The agency server is having trouble right now. Try again in a minute. If it keeps failing, email Mike.";
+      }
+      return "Something went wrong checking your code. Try again, or email Mike if it keeps happening.";
     }
-  });
-  document.getElementById('personalSaveBtn').addEventListener('click', async () => {
-    if (!personalPath) return;
-    await window.brainSync.saveConfig({
-      mode: 'personal',
-      brainPath: personalPath,
-      debounceMs: parseInt(document.getElementById('personalDebounce').value, 10) * 1000,
-      pullIntervalMs: parseInt(document.getElementById('personalPull').value, 10) * 1000,
-    });
-    document.getElementById('doneMessage').textContent = 'Personal Brain Sync is running in your menu bar. It quietly keeps your folder in sync with GitHub.';
-    goTo('done');
-  });
-  document.getElementById('personalBackBtn').addEventListener('click', () => goTo('welcome'));
-  document.getElementById('personalCancelBtn').addEventListener('click', () => window.close());
-
-  // ───── Agency: token paste ─────
-  const tokenInput = document.getElementById('agencyTokenInput');
-  tokenInput.addEventListener('input', () => {
-    document.getElementById('agencyTokenNextBtn').disabled = tokenInput.value.trim().length < 8;
-    clearError('agencyTokenError');
-  });
-  document.getElementById('agencyTokenNextBtn').addEventListener('click', async () => {
-    const token = tokenInput.value.trim();
-    try {
-      const teamInfo = await window.brainSync.resolveInviteToken(token);
-      state.inviteToken = token;
-      state.teamInfo = teamInfo;
-      state.email = teamInfo.memberEmail || null;
-      goTo('agency-otp-request');
-    } catch (err) {
-      showError('agencyTokenError', `Couldn't resolve that token: ${err.message || err}`);
+    if (context === 'clone') {
+      if (/already\s+exists/i.test(msg)) {
+        return "There's already a folder at that location. Pick a different folder, or move the existing one out of the way.";
+      }
+      if (/permission|EACCES/i.test(msg)) {
+        return "We don't have permission to create the folder where you picked. Pick a different location.";
+      }
+      if (/network|fetch|enotfound|econnrefused|getaddrinfo/i.test(msg)) {
+        return "We can't reach GitHub. Check your internet, then try again.";
+      }
+      return "Something went wrong setting up your team folder. Try again, or pick a different location.";
     }
-  });
-  document.getElementById('agencyTokenBackBtn').addEventListener('click', () => goTo('welcome'));
-  document.getElementById('agencyTokenCancelBtn').addEventListener('click', () => window.close());
+    return "Something went wrong. Try again, or email Mike if it keeps happening.";
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function displayPath(p) {
+    if (!p || !homePath) return p;
+    return p.startsWith(homePath) ? '~' + p.slice(homePath.length) : p;
+  }
+  function normaliseCode(s) {
+    return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  }
+  function isValidCode(s) {
+    return normaliseCode(s).length === 6;
+  }
 
-  // ───── Agency: OTP request ─────
-  const emailInput = document.getElementById('agencyEmailInput');
-  emailInput.addEventListener('input', () => {
-    document.getElementById('agencyOtpRequestNextBtn').disabled = !/.+@.+\..+/.test(emailInput.value.trim());
-    clearError('agencyOtpRequestError');
-  });
-  document.getElementById('agencyOtpRequestNextBtn').addEventListener('click', async () => {
-    const email = emailInput.value.trim().toLowerCase();
-    try {
-      await window.brainSync.requestOtpCode(email);
-      state.email = email;
-      goTo('agency-otp-verify');
-    } catch (err) {
-      showError('agencyOtpRequestError', `Couldn't send code: ${err.message || err}`);
-    }
-  });
-  document.getElementById('agencyOtpRequestBackBtn').addEventListener('click', () => goTo('agency-token'));
-  document.getElementById('agencyOtpRequestCancelBtn').addEventListener('click', () => window.close());
-
-  // ───── Agency: OTP verify ─────
-  const codeInput = document.getElementById('agencyCodeInput');
+  // SCENE 1
+  const codeInput = document.getElementById('code-input');
+  const continueBtn = document.getElementById('btn-continue-welcome');
   codeInput.addEventListener('input', () => {
-    codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
-    document.getElementById('agencyOtpVerifyNextBtn').disabled = codeInput.value.length !== 6;
-    clearError('agencyOtpVerifyError');
+    continueBtn.disabled = !isValidCode(codeInput.value);
+    clearError('error-welcome');
   });
-  document.getElementById('agencyOtpVerifyNextBtn').addEventListener('click', async () => {
-    const code = codeInput.value;
-    try {
-      const result = await window.brainSync.verifyOtpCode(state.email, code);
-      state.memberToken = result.token;
-      goTo('agency-folder');
-    } catch (err) {
-      showError('agencyOtpVerifyError', `Couldn't verify: ${err.message || err}`);
-    }
+  codeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !continueBtn.disabled) continueBtn.click();
   });
-  document.getElementById('agencyOtpResendBtn').addEventListener('click', async () => {
-    try {
-      await window.brainSync.requestOtpCode(state.email);
-      showError('agencyOtpVerifyError', 'New code sent — check your email.');
-      const el = document.getElementById('agencyOtpVerifyError');
-      el.style.color = 'var(--success)';
-      el.style.background = '#f0fdf4';
-      el.style.borderLeftColor = 'var(--success)';
-    } catch (err) {
-      showError('agencyOtpVerifyError', `Couldn't send: ${err.message || err}`);
-    }
+  continueBtn.addEventListener('click', () => goConnect(normaliseCode(codeInput.value)));
+  document.getElementById('link-resend').addEventListener('click', () => {
+    api.openExternalUrl('https://agency.ads2ai.com/help/resend-invite');
   });
-  document.getElementById('agencyOtpVerifyBackBtn').addEventListener('click', () => goTo('agency-otp-request'));
+  document.getElementById('link-email-mike').addEventListener('click', () => {
+    api.openExternalUrl('mailto:help@ads2ai.com?subject=Can%27t%20find%20my%20Agency%20Brain%20invite');
+  });
 
-  // ───── Agency: folder pick ─────
-  document.getElementById('agencyFolderPickBtn').addEventListener('click', async () => {
-    const picked = await window.brainSync.pickFolder({ requireGit: false, mustNotExist: false });
+  // SCENE 2
+  async function goConnect(code) {
+    demoMode = (code === DEMO_CODE);
+    document.getElementById('demo-banner').classList.toggle('hidden', !demoMode);
+    show('scene-connecting', 2);
+    clearError('error-connecting');
+    const container = document.getElementById('connecting-checks');
+    container.innerHTML = '<div class="check work"><span class="icon">⟳</span><div class="text">Confirming your code…</div></div>';
+    const resolveLine = container.firstElementChild;
+    document.getElementById('btn-back-to-welcome').classList.add('hidden');
+    try {
+      let resolved;
+      if (demoMode) {
+        await new Promise((r) => setTimeout(r, 600));
+        resolved = {
+          memberToken: 'demo-token-not-real',
+          teamSlug: 'Acme Digital',
+          repoUrl: '',
+          member: { email: 'anna@acme.example', name: 'Anna Smith', role: 'Team member' },
+        };
+      } else {
+        resolved = await api.resolveInviteToken(code);
+      }
+      if (!resolved || !resolved.memberToken) {
+        throw new Error("That code didn't match any pending invite. Double-check the email and try again.");
+      }
+      teamInfo = resolved;
+      const m = resolved.member || {};
+      const who = escapeHtml(m.name || m.email || 'connected');
+      const team = escapeHtml(resolved.teamSlug || 'your team');
+      const role = escapeHtml(m.role || 'Team member');
+      setCheck(resolveLine, 'ok', `Code accepted. You're <strong>${who}</strong>, joining <strong>${team}</strong> as a <strong>${role}</strong>.`);
+      setTimeout(() => goPickFolder(), 700);
+    } catch (err) {
+      setCheck(resolveLine, 'miss', "That code didn't match.", escapeHtml(friendlyError(err, 'resolve')));
+      document.getElementById('btn-back-to-welcome').classList.remove('hidden');
+      // No banner — the check line carries the message. Showing the same
+      // error twice on one screen makes the user feel like two things broke.
+      clearError('error-connecting');
+    }
+  }
+  document.getElementById('btn-back-to-welcome').addEventListener('click', () => {
+    show('scene-welcome', 1);
+  });
+
+  // SCENE 2.5
+  async function goPickFolder() {
+    show('scene-folder', 2);
+    if (!homePath) homePath = await api.getHomePath();
+    // Demo mode parks the seeded folder inside ~/Projects so it doesn't
+    // clutter Mike's home folder during walkthroughs. Real users still see
+    // ~/agencybrain as the default; this branch never fires for them.
+    chosenFolder = demoMode
+      ? homePath + '/Projects/agencybrain'
+      : homePath + '/agencybrain';
+    document.getElementById('folder-path').textContent = displayPath(chosenFolder);
+  }
+  document.getElementById('btn-pick-folder').addEventListener('click', async () => {
+    const picked = await api.pickFolder({});
     if (picked) {
-      const slug = state.teamInfo?.teamSlug || 'team';
-      state.folder = `${picked}/${slug}-brain`;
-      document.getElementById('agencyFolderDisplay').textContent = state.folder;
+      chosenFolder = picked.endsWith('/agencybrain') ? picked : (picked + '/agencybrain');
+      document.getElementById('folder-path').textContent = displayPath(chosenFolder);
     }
   });
-  document.getElementById('agencyFolderNextBtn').addEventListener('click', () => goTo('agency-cloning'));
-  document.getElementById('agencyFolderBackBtn').addEventListener('click', () => goTo('agency-otp-verify'));
-  document.getElementById('agencyFolderCancelBtn').addEventListener('click', () => window.close());
+  document.getElementById('btn-use-folder').addEventListener('click', () => goClone());
 
-  // ───── Agency: cloning ─────
-  function setStep(step, status) {
-    const el = document.querySelector(`#agencyProgressList li[data-step="${step}"]`);
-    if (!el) return;
-    el.classList.remove('active', 'done');
-    if (status === 'active') el.classList.add('active');
-    if (status === 'done') el.classList.add('done');
-  }
-
-  async function runAgencyClone() {
-    clearError('agencyCloneError');
-    document.getElementById('agencyCloneCancelBtn').style.display = 'none';
-    document.getElementById('agencyCloneRetryBtn').style.display = 'none';
-    for (const step of ['token', 'clone', 'identity', 'complete']) setStep(step, 'pending');
-
+  // SCENE 2 again (cloning step shown in the same container)
+  async function goClone() {
+    show('scene-connecting', 2);
+    const container = document.getElementById('connecting-checks');
+    const m = teamInfo.member || {};
+    container.innerHTML = `
+      <div class="check ok"><span class="icon">✓</span><div class="text">Code accepted. You're <strong>${escapeHtml(m.name || m.email || '')}</strong>, joining <strong>${escapeHtml(teamInfo.teamSlug || '')}</strong>.</div></div>
+      <div class="check work" id="clone-line"><span class="icon">⟳</span><div class="text">Setting up your copy of the team folder…<span class="sub">This takes about 30 seconds.</span></div></div>
+    `;
+    clearError('error-connecting');
     try {
-      setStep('token', 'active');
-      // The IPC layer mints + caches the token internally; we don't pass it around in JS land
-      setStep('token', 'done');
-
-      setStep('clone', 'active');
-      await window.brainSync.cloneAgencyBrain({
-        memberToken: state.memberToken,
-        teamSlug: state.teamInfo.teamSlug,
-        repoUrl: state.teamInfo.repoUrl,
-        targetFolder: state.folder,
-      });
-      setStep('clone', 'done');
-
-      setStep('identity', 'active');
-      await window.brainSync.configureIdentity({
-        brainPath: state.folder,
-        memberEmail: state.email,
-        memberName: state.teamInfo.memberName || '',
-      });
-      setStep('identity', 'done');
-
-      setStep('complete', 'active');
-      await window.brainSync.markInstallComplete({
-        memberToken: state.memberToken,
-        teamSlug: state.teamInfo.teamSlug,
-      });
-      setStep('complete', 'done');
-
-      // Save the agency-mode config and start the watcher
-      await window.brainSync.saveConfig({
-        mode: 'agency',
-        brainPath: state.folder,
-        teamSlug: state.teamInfo.teamSlug,
-        memberEmail: state.email,
-        memberName: state.teamInfo.memberName || '',
-        memberRole: state.teamInfo.memberRole || 'team',
-        memberToken: state.memberToken,
-        repoUrl: state.teamInfo.repoUrl,
-        debounceMs: 30000,
-        pullIntervalMs: 60000,
-      });
-
-      goTo('agency-cowork');
+      if (demoMode) {
+        // Seed the picked folder with placeholder content so Cowork can
+        // actually attach to a real folder during the walkthrough.
+        await api.seedDemoFolder(chosenFolder);
+        await new Promise((r) => setTimeout(r, 1000));
+      } else {
+        await api.cloneAgencyBrain({
+          memberToken: teamInfo.memberToken,
+          teamSlug: teamInfo.teamSlug,
+          repoUrl: teamInfo.repoUrl,
+          targetFolder: chosenFolder,
+        });
+        if (m.email || m.name) {
+          await api.configureIdentity({ brainPath: chosenFolder, memberEmail: m.email, memberName: m.name });
+        }
+      }
+      setCheck(document.getElementById('clone-line'), 'ok', 'Your copy is ready.');
+      setTimeout(() => goClaudeCheck(), 700);
     } catch (err) {
-      showError('agencyCloneError', `Setup failed: ${err.message || err}`);
-      document.getElementById('agencyCloneRetryBtn').style.display = 'inline-block';
+      setCheck(document.getElementById('clone-line'), 'miss', "Couldn't set up your team folder.", escapeHtml(friendlyError(err, 'clone')));
+      clearError('error-connecting');
+      const row = document.querySelector('#scene-connecting .row');
+      row.innerHTML = '<button class="btn" id="btn-back-folder">Back to folder pick</button>';
+      document.getElementById('btn-back-folder').addEventListener('click', goPickFolder);
     }
   }
 
-  document.getElementById('agencyCloneRetryBtn').addEventListener('click', () => runAgencyClone());
+  // SCENE 3
+  async function goClaudeCheck() {
+    show('scene-claude', 3);
+    const container = document.getElementById('claude-check-container');
+    const instructions = document.getElementById('claude-instructions');
+    const dlBtn = document.getElementById('btn-claude-download');
+    const recheckBtn = document.getElementById('btn-claude-recheck');
+    const continueBtn3 = document.getElementById('btn-claude-continue');
+    const heading = document.getElementById('claude-heading');
+    const lede = document.getElementById('claude-lede');
+    const buttonsRow = document.getElementById('claude-buttons');
 
-  // ───── Agency: cowork ─────
-  document.getElementById('agencyCoworkDoneBtn').addEventListener('click', () => {
-    document.getElementById('doneMessage').textContent = 'Brain Sync is now running in your menu bar. Anything you do in Cowork (or in the team brain folder directly) will sync to your team within about a minute.';
-    goTo('done');
+    instructions.classList.add('hidden');
+    dlBtn.classList.add('hidden');
+    recheckBtn.classList.add('hidden');
+    continueBtn3.classList.add('hidden');
+    buttonsRow.classList.add('hidden');
+    container.innerHTML = '<div class="check work"><span class="icon">⟳</span><div class="text">Looking for the Claude desktop app on your computer…</div></div>';
+    heading.textContent = 'Checking for the Claude desktop app…';
+
+    const detected = await api.detectClaudeDesktop();
+    if (detected && detected.installed) {
+      heading.textContent = "You're set.";
+      lede.textContent = "You already have the Claude desktop app installed. We'll skip ahead.";
+      container.innerHTML = `<div class="check ok"><span class="icon">✓</span><div class="text">Claude desktop app found in your Applications folder.<span class="sub">Version ${escapeHtml(detected.version || 'detected')}. We'll show you how to point Cowork at your agency brain folder next.</span></div></div>`;
+      buttonsRow.classList.remove('hidden');
+      continueBtn3.classList.remove('hidden');
+    } else {
+      heading.textContent = 'You need one more app.';
+      lede.textContent = "This is where you'll actually work. The Claude desktop app from Anthropic. It's free.";
+      container.innerHTML = `<div class="check miss"><span class="icon">!</span><div class="text">The Claude desktop app isn't installed yet.<span class="sub">It's the app called <strong>Claude</strong>, not "Claude Code".</span></div></div>`;
+      instructions.classList.remove('hidden');
+      buttonsRow.classList.remove('hidden');
+      dlBtn.classList.remove('hidden');
+      recheckBtn.classList.remove('hidden');
+    }
+  }
+  document.getElementById('btn-claude-download').addEventListener('click', () => {
+    api.openExternalUrl('https://claude.com/download');
+  });
+  document.getElementById('btn-claude-recheck').addEventListener('click', () => goClaudeCheck());
+  document.getElementById('btn-claude-continue').addEventListener('click', () => goDone());
+  document.getElementById('link-claude-skip').addEventListener('click', () => goDone());
+
+  // SCENE 4
+  async function goDone() {
+    show('scene-done', 4);
+    const m = teamInfo.member || {};
+    document.getElementById('done-summary').innerHTML = `
+      <div class="stat-line"><span class="k">Your team folder</span><span class="v">${escapeHtml(displayPath(chosenFolder))}</span></div>
+      <div class="stat-line"><span class="k">Connected as</span><span class="v">${escapeHtml(m.name || m.email || '')} · ${escapeHtml(m.role || 'Team')}</span></div>
+      <div class="stat-line"><span class="k">Status</span><span class="v" style="color: var(--green);">● Watching</span></div>
+    `;
+    if (demoMode) {
+      // Don't persist config in demo mode. Watcher would try to start
+      // against a folder that doesn't exist; users would then wonder why
+      // their tray icon is sad. The on-screen summary still reflects what
+      // the production flow would write.
+      return;
+    }
+    await api.saveConfig({
+      brainPath: chosenFolder,
+      mode: 'agency',
+      teamSlug: teamInfo.teamSlug,
+      memberEmail: m.email,
+      memberRole: m.role,
+      memberToken: teamInfo.memberToken,
+      memberName: m.name,
+    });
+    api.markInstallComplete({ memberToken: teamInfo.memberToken, teamSlug: teamInfo.teamSlug }).catch(() => {});
+  }
+  document.getElementById('btn-launch-claude').addEventListener('click', async () => {
+    await api.launchClaudeApp();
+    setTimeout(() => api.closeWizard(), 400);
+  });
+  document.getElementById('btn-close-wizard').addEventListener('click', () => api.closeWizard());
+
+  // Copy the suggested first prompt
+  document.getElementById('btn-copy-prompt').addEventListener('click', async () => {
+    const text = document.getElementById('suggested-prompt').textContent;
+    try { await navigator.clipboard.writeText(text); } catch (_) {}
+    const btn = document.getElementById('btn-copy-prompt');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
   });
 
-  // ───── Done ─────
-  document.getElementById('doneCloseBtn').addEventListener('click', () => window.close());
+  // "Need help?" modal on Scene 4
+  const helpModal = document.getElementById('modal-cowork-help');
+  function openHelp() { helpModal.classList.remove('hidden'); }
+  function closeHelp() { helpModal.classList.add('hidden'); }
+  document.getElementById('link-cowork-help').addEventListener('click', openHelp);
+  document.getElementById('btn-close-modal').addEventListener('click', closeHelp);
+  helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) closeHelp();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) closeHelp();
+  });
 
-  // ───── Init ─────
-  async function init() {
-    const cfg = await window.brainSync.getConfig();
-    if (cfg && cfg.mode === 'agency') {
-      // Already configured for agency — show personal-style "change folder" mode? For
-      // V1 just take them to the welcome screen and let them re-pick. Reaching this
-      // wizard usually means re-configuring.
-      goTo('welcome');
-    } else if (cfg && cfg.brainPath) {
-      // Pre-fill personal mode if there's a folder configured (returning from
-      // "Change folder..." in the tray menu).
-      goTo('personal-folder');
-      document.getElementById('personalPathDisplay').textContent = cfg.brainPath;
-      document.getElementById('personalPathDisplay').classList.remove('empty');
-      document.getElementById('personalSaveBtn').disabled = false;
-      personalPath = cfg.brainPath;
-      if (cfg.debounceMs) document.getElementById('personalDebounce').value = Math.round(cfg.debounceMs / 1000);
-      if (cfg.pullIntervalMs) document.getElementById('personalPull').value = Math.round(cfg.pullIntervalMs / 1000);
+  // BOOT
+  (async function init() {
+    homePath = await api.getHomePath();
+    const pending = await api.peekPendingInviteToken();
+    if (pending) {
+      await api.consumePendingInviteToken();
+      goConnect(pending);
     } else {
-      goTo('welcome');
+      codeInput.focus();
     }
-
-    // If an invite token was passed via deep-link before the window opened,
-    // jump straight to the agency flow.
-    const pendingDeepLink = await window.brainSync.peekPendingInviteToken();
-    if (pendingDeepLink && (!cfg || !cfg.brainPath)) {
-      state.mode = 'agency';
-      goTo('agency-token');
-    }
-  }
-  init();
+  })();
+})();
 </script>
+
 </body>
 </html>

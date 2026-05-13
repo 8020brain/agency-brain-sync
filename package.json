@@ -1,8 +1,8 @@
 {
   "name": "agency-brain-sync",
-  "productName": "Brain Sync",
-  "version": "1.0.0-alpha.1",
-  "description": "Keeps your Agency Brain folder in sync across the team. Runs quietly in the menu bar. Personal-mode supported too.",
+  "productName": "Agency Brain",
+  "version": "1.0.0-alpha.2",
+  "description": "Keeps your agency brain folder in sync across the team. Runs quietly in the menu bar. Personal-mode supported too.",
   "main": "main.js",
   "author": {
     "name": "8020brain",
