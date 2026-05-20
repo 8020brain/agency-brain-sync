@@ -395,7 +395,7 @@
       Can't find the email?
       <a id="link-resend">Resend the invite</a>
       or
-      <a id="link-email-mike">email Mike</a>.
+      <a id="link-email-mike">email our support team</a>.
     </p>
   </section>
 
@@ -678,15 +678,20 @@
     // Demo mode parks the seeded folder inside ~/Projects so it doesn't
     // clutter Mike's home folder during walkthroughs. Real users still see
     // ~/agencybrain as the default; this branch never fires for them.
+    // Demo mode parks the folder under ~/Projects (Mac-only walkthrough). Real
+    // users get the OS-correct default from the main process via path.join, so
+    // Windows no longer gets a mixed-slash path that breaks folder creation.
     chosenFolder = demoMode
       ? homePath + '/Projects/agencybrain'
-      : homePath + '/agencybrain';
+      : await api.getDefaultFolder();
     document.getElementById('folder-path').textContent = displayPath(chosenFolder);
   }
   document.getElementById('btn-pick-folder').addEventListener('click', async () => {
     const picked = await api.pickFolder({});
     if (picked) {
-      chosenFolder = picked.endsWith('/agencybrain') ? picked : (picked + '/agencybrain');
+      // Separator-safe in the main process (path.basename), so this works on
+      // Windows where the old `.endsWith('/agencybrain')` check double-appended.
+      chosenFolder = await api.resolveTargetFolder(picked);
       document.getElementById('folder-path').textContent = displayPath(chosenFolder);
     }
   });

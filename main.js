@@ -402,6 +402,20 @@ ipcMain.handle('pick-folder', async (_evt, opts) => {
 
 ipcMain.handle('get-home-path', () => os.homedir());
 
+// Default brain folder, OS-correct. path.join uses the right separator (\ on
+// Windows, / on macOS), so this no longer produces the mixed-slash path that
+// broke folder creation on Windows.
+ipcMain.handle('get-default-folder', () => path.join(os.homedir(), 'agencybrain'));
+
+// Given a folder the user picked, return the brain folder to use: the picked
+// folder itself if it's already named agencybrain, otherwise an agencybrain
+// folder nested inside it. path.basename is separator-safe, so this works on
+// Windows (backslashes) where the old `.endsWith('/agencybrain')` check failed
+// and double-appended.
+ipcMain.handle('resolve-target-folder', (_evt, picked) =>
+  path.basename(picked) === 'agencybrain' ? picked : path.join(picked, 'agencybrain')
+);
+
 // ---------- Claude desktop app detection ----------
 ipcMain.handle('detect-claude-desktop', async () => {
   try {
@@ -536,7 +550,10 @@ ipcMain.handle('verify-otp-code', async (_evt, email, code) => {
 });
 
 ipcMain.handle('clone-agency-brain', async (_evt, args) => {
-  const { memberToken, teamSlug, repoUrl, targetFolder } = args;
+  const { memberToken, teamSlug, repoUrl } = args;
+  // Normalise whatever the renderer sent into the OS-native form (collapses
+  // mixed slashes that older renderer builds could produce).
+  const targetFolder = path.normalize(args.targetFolder);
   // Mint a fresh installation token to embed in the clone URL.
   const tok = await fetch(`${API_BASE}/api/team-brain/git-token`, {
     method: 'POST',

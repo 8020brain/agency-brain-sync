@@ -10,6 +10,8 @@ const api = {
 
   // Onboarding wizard
   getHomePath: () => ipcRenderer.invoke('get-home-path'),
+  getDefaultFolder: () => ipcRenderer.invoke('get-default-folder'),
+  resolveTargetFolder: (picked) => ipcRenderer.invoke('resolve-target-folder', picked),
   peekPendingInviteToken: () => ipcRenderer.invoke('peek-pending-invite-token'),
   consumePendingInviteToken: () => ipcRenderer.invoke('consume-pending-invite-token'),
   resolveInviteToken: (token) => ipcRenderer.invoke('resolve-invite-token', token),

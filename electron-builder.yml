@@ -53,4 +53,4 @@ nsis:
   createDesktopShortcut: false
   createStartMenuShortcut: true
   shortcutName: Agency Brain
-  artifactName: Agency-Brain-Setup-${version}.${ext}
+  artifactName: Agency Brain Setup.${ext}
