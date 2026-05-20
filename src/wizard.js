@@ -317,7 +317,9 @@
   document.getElementById('btn-pick-folder').addEventListener('click', async () => {
     const picked = await api.pickFolder({});
     if (!picked) return;
-    chosenFolder = mode === 'agency' ? await api.resolveTargetFolder(picked) : picked;
+    // Full freedom for everyone (incl. agency owners): the folder they pick or
+    // create in the OS dialog is used exactly as chosen — any name, anywhere.
+    chosenFolder = picked;
     document.getElementById('folderPath').textContent = displayPath(chosenFolder);
   });
   document.getElementById('btn-clone').addEventListener('click', doClone);
