@@ -819,9 +819,17 @@ function detectMachine() {
 
 ipcMain.handle('detect-machine', () => detectMachine());
 
+// Where the brain should land + whether this is a throwaway sandbox run.
+// Sandbox ONLY when BRAIN_HOME is set (explicit test override) or when running
+// unpackaged from source (dev/dry-run, so we never clobber a real brain). A
+// packaged member build returns isSandbox:false + no forced path, so the wizard
+// uses the real per-mode default (solo: ~/Projects/brain, agency: ~/agencybrain)
+// and lets the member change it.
 ipcMain.handle('get-brain-home', () => {
-  const bh = resolvedBrainHome();
-  return { brainHome: bh, isSandbox: bh !== realBrainPath() };
+  const env = (process.env.BRAIN_HOME || '').trim();
+  if (env) return { brainHome: env, isSandbox: true };
+  if (!app.isPackaged) return { brainHome: path.join(os.homedir(), 'Projects', 'brain-sandbox'), isSandbox: true };
+  return { brainHome: '', isSandbox: false };
 });
 
 // Generic clone into a target folder. Used by the SOLO path (members brain

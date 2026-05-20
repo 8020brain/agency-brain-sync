@@ -296,20 +296,20 @@
     if (!homePath) homePath = await api.getHomePath();
     const bh = await api.getBrainHome();
     brainHome = bh.brainHome; isSandbox = bh.isSandbox;
-    if (isSandbox) {
-      // Test runs are pinned to the sandbox; no folder choice.
+    if (isSandbox && brainHome) {
+      // Dev/test run: default to the sandbox, but still allow changing it.
       chosenFolder = brainHome;
       note.textContent = '(sandbox — your real brain is never touched)';
-      pickBtn.classList.add('hidden');
     } else if (mode === 'agency') {
       chosenFolder = await api.getDefaultFolder();    // ~/agencybrain
       note.textContent = '';
-      pickBtn.classList.remove('hidden');
     } else {
       chosenFolder = homePath + '/Projects/brain';     // canonical solo path
       note.textContent = '';
-      pickBtn.classList.remove('hidden');
     }
+    // The folder is ALWAYS changeable — there must always be a recovery path if
+    // the default already exists or the member wants it elsewhere.
+    pickBtn.classList.remove('hidden');
     document.getElementById('folderPath').textContent = displayPath(chosenFolder);
     document.getElementById('cloneLog').textContent = '';
     clearError('err-clone');
