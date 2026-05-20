@@ -19,9 +19,11 @@ const api = {
   configureIdentity: (args) => ipcRenderer.invoke('configure-identity', args),
   markInstallComplete: (args) => ipcRenderer.invoke('mark-install-complete', args),
 
-  // OTP (alternative auth path, not used by the v1 wizard but kept for power users)
+  // Email + OTP first-run: enter email -> request code -> verify -> look up
+  // which agency the email belongs to -> clone. The primary onboarding path.
   requestOtpCode: (email) => ipcRenderer.invoke('request-otp-code', email),
   verifyOtpCode: (email, code) => ipcRenderer.invoke('verify-otp-code', email, code),
+  listMyTeams: (token) => ipcRenderer.invoke('list-my-teams', token),
 
   // Claude desktop app detection / launch
   detectClaudeDesktop: () => ipcRenderer.invoke('detect-claude-desktop'),
@@ -33,6 +35,25 @@ const api = {
 
   // Demo-mode helper (only called when the user types the DEMO code in setup)
   seedDemoFolder: (target) => ipcRenderer.invoke('seed-demo-folder', target),
+
+  // ---- Merged-app surface (new wizard renderer; Brain 3.0 ported screens) ----
+  // Electron equivalents of Brain 3.0's Tauri commands. Additive — the old
+  // setup.html never calls these.
+  detectMachine: () => ipcRenderer.invoke('detect-machine'),
+  getBrainHome: () => ipcRenderer.invoke('get-brain-home'),
+  cloneInto: (args) => ipcRenderer.invoke('clone-into', args),
+  cloneSoloBrain: (args) => ipcRenderer.invoke('clone-solo-brain', args),
+  runNpmInstall: (args) => ipcRenderer.invoke('run-npm-install', args),
+  writeBusinessContext: (args) => ipcRenderer.invoke('write-business-context', args),
+  // Loads the embedded Command Centre into the app window (post-onboarding home).
+  openCommandCentre: () => ipcRenderer.invoke('open-command-centre'),
+  // Progress events from clone/npm steps. Returns an unsubscribe fn. This is
+  // the Electron equivalent of Brain 3.0's listen("clone-log").
+  onWizardLog: (cb) => {
+    const handler = (_e, line) => cb(line);
+    ipcRenderer.on('wizard-log', handler);
+    return () => ipcRenderer.removeListener('wizard-log', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('agencyBrain', api);

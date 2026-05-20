@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agency Brain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="wizard.css">
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="rail" id="rail"></div>
+      <div class="step-count" id="stepCount">1 / 7</div>
+    </div>
+    <div class="demo-banner hidden" id="demoBanner">Demo mode — nothing is saved to your computer</div>
+
+    <div class="body">
+      <!-- 1 welcome -->
+      <section class="screen active" data-step="1" id="scene-welcome">
+        <div class="eyebrow">Agency Brain</div>
+        <h1>Let's set up your brain.</h1>
+        <p class="lede">Your brain is a set of files an AI works on for you: your research, your content, your business context. This app puts everything in the right place, then keeps it synced and one click away. No terminal, no setup commands.</p>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-start">Get started</button>
+        </div>
+      </section>
+
+      <!-- 2 sign in: email -->
+      <section class="screen" data-step="2" id="scene-email">
+        <div class="eyebrow">Step 1 &middot; Who you are</div>
+        <h1>Sign in with your email.</h1>
+        <p class="lede">This is how I find your access and your brain. I'll send a 6-digit code, the same as the update flow. No GitHub account needed.</p>
+        <div class="field">
+          <label for="emailInput">Email</label>
+          <input id="emailInput" type="email" placeholder="you@yourbusiness.com" autocomplete="email" spellcheck="false">
+        </div>
+        <div class="error-banner hidden" id="err-email"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-send-code" disabled>Send my code</button>
+        </div>
+      </section>
+
+      <!-- 2 sign in: OTP -->
+      <section class="screen" data-step="2" id="scene-otp">
+        <div class="eyebrow">Step 1 &middot; Check your email</div>
+        <h1>Enter your code.</h1>
+        <p class="lede">I sent a 6-digit code to <strong id="otpEmailEcho"></strong>. It expires in a few minutes; check spam if you don't see it.</p>
+        <div class="field">
+          <label>6-digit code</label>
+          <div class="otp pending" id="otpGroup">
+            <input class="otp-box" maxlength="1" inputmode="numeric" aria-label="digit 1">
+            <input class="otp-box" maxlength="1" inputmode="numeric" aria-label="digit 2">
+            <input class="otp-box" maxlength="1" inputmode="numeric" aria-label="digit 3">
+            <input class="otp-box" maxlength="1" inputmode="numeric" aria-label="digit 4">
+            <input class="otp-box" maxlength="1" inputmode="numeric" aria-label="digit 5">
+            <input class="otp-box" maxlength="1" inputmode="numeric" aria-label="digit 6">
+          </div>
+        </div>
+        <div class="error-banner hidden" id="err-otp"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-verify" disabled>Confirm</button>
+          <button class="btn ghost" id="btn-otp-back">Use a different email</button>
+          <span class="link" id="link-resend" style="margin-left:10px;">Send a new code</span>
+        </div>
+      </section>
+
+      <!-- 2 sign in: team picker (only when >1 agency) -->
+      <section class="screen" data-step="2" id="scene-team">
+        <div class="eyebrow">Step 1 &middot; Which workspace</div>
+        <h1>Which agency?</h1>
+        <p class="lede">Your email is linked to more than one agency. Pick the one to set up on this computer.</p>
+        <div class="team-list" id="teamList"></div>
+        <div class="error-banner hidden" id="err-team"></div>
+      </section>
+
+      <!-- 3 machine check -->
+      <section class="screen" data-step="3" id="scene-machine">
+        <div class="eyebrow">Step 2 &middot; Your machine</div>
+        <h1>Checking what you've got.</h1>
+        <p class="lede">I look at what's already installed and only set up what's missing. This is the bit that used to be ten terminal commands.</p>
+        <div class="checklist" id="checklist">
+          <div class="check-row"><span class="check-mark spin">&#8230;</span><span class="check-label">Scanning your machine</span><span class="check-status">please wait</span></div>
+        </div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-machine-next" disabled>Continue</button>
+        </div>
+      </section>
+
+      <!-- 4 files / clone -->
+      <section class="screen" data-step="4" id="scene-clone">
+        <div class="eyebrow">Step 3 &middot; Your files</div>
+        <h1>Putting everything in the right place.</h1>
+        <p class="lede" id="cloneLede">Your brain lands at the folder below. <span id="sandboxNote" class="sandbox-note"></span></p>
+        <div class="folder-pick">
+          <div class="path">
+            <span class="label">Folder location</span>
+            <span class="value" id="folderPath">&hellip;</span>
+          </div>
+          <button class="btn small" id="btn-pick-folder">Change</button>
+        </div>
+        <div class="error-banner hidden" id="err-clone"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-clone">Set up my brain</button>
+        </div>
+        <pre class="log" id="cloneLog" aria-live="polite"></pre>
+      </section>
+
+      <!-- 5 surfaces / Claude -->
+      <section class="screen" data-step="5" id="scene-surfaces">
+        <div class="eyebrow">Step 4 &middot; Your way in</div>
+        <h1>Choose how you'll work with your brain.</h1>
+        <p class="lede">Your brain is just files, so you can open it in whatever surface suits you, and use more than one. Same brain underneath, whichever you pick.</p>
+        <div class="surfaces">
+          <div class="surface-card">
+            <div class="surface-head"><h3>The Claude desktop app</h3><span class="surface-tag" id="claudeTag">checking…</span></div>
+            <p id="claudeBody">Looking for the Claude desktop app on your computer. Inside it you can use Claude Code, or Cowork, a friendlier UI some people prefer.</p>
+            <p style="margin-top:8px;"><span class="link hidden" id="link-download-claude">Download the Claude app</span> <span class="link hidden" id="link-recheck-claude">Check again</span></p>
+          </div>
+          <div class="surface-card">
+            <div class="surface-head"><h3>A terminal</h3></div>
+            <p>Run your brain from a plain Terminal, or a terminal inside an editor like Cursor so you get your file list down the side.</p>
+          </div>
+          <div class="surface-card">
+            <div class="surface-head"><h3>An editor extension</h3></div>
+            <p>A Claude Code extension inside an editor like Cursor or VS Code, if you'd rather stay in your code editor.</p>
+          </div>
+        </div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-surfaces-next">Continue</button>
+        </div>
+      </section>
+
+      <!-- 6 business Q&A -->
+      <section class="screen" data-step="6" id="scene-business">
+        <div class="eyebrow">Step 5 &middot; About your business</div>
+        <h1>Tell your brain who you are.</h1>
+        <p class="lede">A few quick answers. They become your brain's memory, so everything it makes sounds like you. I write these into your brain when you continue.</p>
+        <div class="qa-wrap">
+          <div class="qa-form">
+            <div class="field"><label>Your name</label><input id="bizName" placeholder="Sam Rivera"></div>
+            <div class="field"><label>Your business</label><input id="bizBusiness" placeholder="Rivera Books"></div>
+            <div class="field"><label>What do you sell?</label><input id="bizSell" placeholder="Bookkeeping for trades businesses"></div>
+            <div class="field"><label>Who do you serve?</label><input id="bizServe" placeholder="Electricians and plumbers, 1-20 staff"></div>
+          </div>
+          <div class="md-preview" id="mdPreview"></div>
+        </div>
+        <div class="error-banner hidden" id="err-business"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-business-next">Save and continue</button>
+          <button class="btn ghost" id="btn-business-skip">Skip for now</button>
+        </div>
+      </section>
+
+      <!-- 7 done -->
+      <section class="screen" data-step="7" id="scene-done">
+        <div class="done-wrap">
+          <div class="done-mark">&#10003;</div>
+          <h1>You're set up.</h1>
+          <p class="lede" style="margin:0 auto;">Your brain is in place and syncing in the background. Open your Command Centre to see where to start.</p>
+          <div class="summary" id="doneSummary"></div>
+          <div class="field" style="max-width:none; justify-content:center; display:flex; gap:12px;">
+            <button class="btn primary" id="btn-open-home">Open my Command Centre</button>
+            <button class="btn ghost" id="btn-close">Close</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">
+      <div class="left">
+        <button class="btn ghost hidden" id="btn-back">Back</button>
+      </div>
+      <div class="right">
+        <span class="step-count" id="modeBadge"></span>
+      </div>
+    </div>
+  </div>
+  <script src="wizard.js"></script>
+</body>
+</html>

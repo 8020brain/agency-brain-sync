@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 .DS_Store
+# Embedded Command Centre runtime state (keep the dir via .gitkeep)
+command-centre/data/*.json

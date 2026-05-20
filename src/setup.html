@@ -84,6 +84,40 @@
   .code-input input:focus { outline: none; border-color: var(--accent); }
   .hint { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
 
+  .text-input {
+    width: 100%;
+    font-family: 'Oxanium', sans-serif;
+    font-size: 17px;
+    padding: 14px 16px;
+    border: 2px solid var(--border);
+    border-radius: 2px;
+    background: var(--paper);
+    color: var(--text);
+    margin: 6px 0;
+  }
+  .text-input:focus { outline: none; border-color: var(--accent); }
+  .text-input::placeholder { color: #bbb; }
+
+  .team-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    text-align: left;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 2px;
+    padding: 14px 16px;
+    margin: 8px 0;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text);
+  }
+  .team-option:hover { border-color: var(--accent); background: #fff8f3; }
+  .team-option .t-name { font-size: 15px; font-weight: 600; }
+  .team-option .t-role { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -379,37 +413,52 @@
     <div class="progress-step" data-step="4"></div>
   </div>
 
-  <!-- SCENE 1 -->
-  <section class="scene active" id="scene-welcome">
-    <h1>Welcome. Let's get you set up.</h1>
-    <p class="lede">Your agency sent you an invite by email. Find the 6-character code in the email (it looks like BR4-7XK) and paste it below.</p>
-    <div class="code-input">
-      <input type="text" id="code-input" placeholder="BR4-7XK" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false">
-    </div>
-    <p class="hint">Codes aren't case-sensitive. The dash is optional.</p>
-    <div class="error-banner hidden" id="error-welcome"></div>
+  <!-- SCENE 1: email -->
+  <section class="scene active" id="scene-email">
+    <h1>Welcome. Let's get you connected.</h1>
+    <p class="lede">Enter the email address your agency uses for you. We'll send a 6-digit code to make sure it's you.</p>
+    <input type="email" class="text-input" id="email-input" placeholder="you@youragency.com" autocomplete="email" spellcheck="false">
+    <p class="hint">The same email you'd use to sign in at agency.ads2ai.com.</p>
+    <div class="error-banner hidden" id="error-email"></div>
     <div class="row">
-      <button class="btn primary" id="btn-continue-welcome" disabled>Continue</button>
+      <button class="btn primary" id="btn-send-code" disabled>Send my code</button>
     </div>
     <p class="help">
-      Can't find the email?
-      <a id="link-resend">Resend the invite</a>
-      or
-      <a id="link-email-mike">email our support team</a>.
+      Not sure which email? Ask your agency owner which address they added for you.
     </p>
   </section>
 
-  <!-- SCENE 2 -->
+  <!-- SCENE 1b: OTP -->
+  <section class="scene" id="scene-otp">
+    <h1>Check your email.</h1>
+    <p class="lede">We sent a 6-digit code to <strong id="otp-email-echo"></strong>. Enter it below to confirm.</p>
+    <div class="code-input">
+      <input type="text" id="otp-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" spellcheck="false">
+    </div>
+    <p class="hint">It expires in a few minutes. Can't see it? Check your spam folder.</p>
+    <div class="error-banner hidden" id="error-otp"></div>
+    <div class="row">
+      <button class="btn primary" id="btn-verify-code" disabled>Confirm</button>
+      <button class="btn ghost" id="btn-otp-back">Use a different email</button>
+    </div>
+    <p class="help"><a id="link-resend-code">Send me a new code</a></p>
+  </section>
+
+  <!-- SCENE 1c: team picker (only shown when an email is on more than one agency) -->
+  <section class="scene" id="scene-team">
+    <h1>Which agency?</h1>
+    <p class="lede">Your email is linked to more than one agency. Pick the one to set up on this computer.</p>
+    <div id="team-list"></div>
+    <div class="error-banner hidden" id="error-team"></div>
+  </section>
+
+  <!-- SCENE 2: cloning -->
   <section class="scene" id="scene-connecting">
-    <h1>Connecting you to your team…</h1>
-    <p class="lede">Confirming your invite and getting access to your team's shared folder.</p>
-    <div id="connecting-checks">
-      <div class="check work"><span class="icon">⟳</span><div class="text">Confirming your code…</div></div>
-    </div>
+    <h1>Setting up your team folder…</h1>
+    <p class="lede">Getting your copy of the shared folder onto this computer.</p>
+    <div id="connecting-checks"></div>
     <div class="error-banner hidden" id="error-connecting"></div>
-    <div class="row" style="margin-top: auto;">
-      <button class="btn ghost hidden" id="btn-back-to-welcome">Back</button>
-    </div>
+    <div class="row" style="margin-top: auto;"></div>
   </section>
 
   <!-- SCENE 2.5 -->
@@ -508,12 +557,14 @@
   let teamInfo = null;
   let chosenFolder = '';
   let homePath = '';
+  let authToken = '';   // OTP JWT from verify-code; valid Bearer for my-teams + git-token
+  let authEmail = '';   // the email the user signed in with
+  let authName = '';    // member display name from verify-code (may be blank)
 
-  // Demo bypass: typing this code skips every real API/git call and stubs
-  // the wizard so the user can walk through every scene. Useful for design
-  // review and for showing the flow to people before the 8020api side ships
-  // the 6-character invite-code endpoint. Remove or feature-flag for release.
-  const DEMO_CODE = 'DEMO01';
+  // Demo bypass: typing "demo" as the email skips every real API/git call and
+  // stubs the wizard so the user can walk through every scene. Useful for
+  // design review and walkthroughs. Any 6 digits pass as the code in demo mode.
+  const DEMO_EMAIL = 'demo';
   let demoMode = false;
 
   function show(sceneId, step) {
@@ -551,23 +602,30 @@
   // Never expose stack traces, remote-method names, or status codes to users.
   function friendlyError(err, context) {
     const msg = (err && err.message) || '';
-    if (context === 'resolve') {
-      if (/409|hasn'?t finished installing|github app/i.test(msg)) {
-        return "Your agency is still being set up. The owner hasn't finished installing Agency Brain on GitHub yet. Check back in a few minutes, or message your scout.";
+    const net = /network|fetch|enotfound|econnrefused|getaddrinfo/i;
+    if (context === 'otp') {
+      if (/no valid code|expired|request a new/i.test(msg)) {
+        return "That code has expired or wasn't found. Send yourself a new one and try again.";
       }
-      if (/410|expired/i.test(msg)) {
-        return "This invite has expired. Ask your scout or owner to send you a fresh one.";
+      if (/invalid code|didn'?t match/i.test(msg)) {
+        return "That code didn't match. Check the most recent email and try again.";
       }
-      if (/404|invite\s+not\s+found|no\s+invite/i.test(msg)) {
-        return "Double-check the 6-character code from your email and try again. Make sure you're using the most recent invite if you got more than one.";
+      if (/too many attempts/i.test(msg)) {
+        return "Too many tries. Send yourself a fresh code and start again.";
       }
-      if (/network|fetch|enotfound|econnrefused|getaddrinfo/i.test(msg)) {
+      if (net.test(msg)) {
         return "We can't reach the agency server. Check your internet, then try again.";
       }
       if (/5\d\d/.test(msg)) {
-        return "The agency server is having trouble right now. Try again in a minute. If it keeps failing, email Mike.";
+        return "The agency server is having trouble right now. Try again in a minute.";
       }
-      return "Something went wrong checking your code. Try again, or email Mike if it keeps happening.";
+      return "Something went wrong confirming your code. Try again in a moment.";
+    }
+    if (context === 'teams') {
+      if (net.test(msg)) {
+        return "We can't reach the agency server. Check your internet, then try again.";
+      }
+      return "We couldn't look up your agency just now. Try again in a moment.";
     }
     if (context === 'clone') {
       if (/already\s+exists/i.test(msg)) {
@@ -576,12 +634,15 @@
       if (/permission|EACCES/i.test(msg)) {
         return "We don't have permission to create the folder where you picked. Pick a different location.";
       }
-      if (/network|fetch|enotfound|econnrefused|getaddrinfo/i.test(msg)) {
+      if (/not yet installed|github app|finish setup|409/i.test(msg)) {
+        return "Your agency isn't fully set up on GitHub yet. Ask your owner to finish the GitHub install, then try again.";
+      }
+      if (net.test(msg)) {
         return "We can't reach GitHub. Check your internet, then try again.";
       }
       return "Something went wrong setting up your team folder. Try again, or pick a different location.";
     }
-    return "Something went wrong. Try again, or email Mike if it keeps happening.";
+    return "Something went wrong. Try again in a moment.";
   }
   function escapeHtml(s) {
     return String(s == null ? '' : s)
@@ -592,84 +653,156 @@
     if (!p || !homePath) return p;
     return p.startsWith(homePath) ? '~' + p.slice(homePath.length) : p;
   }
-  function normaliseCode(s) {
-    return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  function isValidEmail(s) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim());
   }
-  function isValidCode(s) {
-    return normaliseCode(s).length === 6;
+  function isDemoEmail(s) {
+    return (s || '').trim().toLowerCase() === DEMO_EMAIL;
+  }
+  function normaliseOtp(s) {
+    return (s || '').replace(/\D/g, '').slice(0, 6);
+  }
+  function isValidOtp(s) {
+    return normaliseOtp(s).length === 6;
   }
 
-  // SCENE 1
-  const codeInput = document.getElementById('code-input');
-  const continueBtn = document.getElementById('btn-continue-welcome');
-  codeInput.addEventListener('input', () => {
-    continueBtn.disabled = !isValidCode(codeInput.value);
-    clearError('error-welcome');
+  // SCENE 1 — email
+  const emailInput = document.getElementById('email-input');
+  const sendCodeBtn = document.getElementById('btn-send-code');
+  emailInput.addEventListener('input', () => {
+    const v = emailInput.value;
+    sendCodeBtn.disabled = !(isValidEmail(v) || isDemoEmail(v));
+    clearError('error-email');
   });
-  codeInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !continueBtn.disabled) continueBtn.click();
+  emailInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !sendCodeBtn.disabled) sendCodeBtn.click();
   });
-  continueBtn.addEventListener('click', () => goConnect(normaliseCode(codeInput.value)));
-  document.getElementById('link-resend').addEventListener('click', () => {
-    api.openExternalUrl('https://agency.ads2ai.com/help/resend-invite');
-  });
-  document.getElementById('link-email-mike').addEventListener('click', () => {
-    api.openExternalUrl('mailto:help@ads2ai.com?subject=Can%27t%20find%20my%20Agency%20Brain%20invite');
-  });
+  sendCodeBtn.addEventListener('click', () => goRequestCode());
 
-  // SCENE 2
-  async function goConnect(code) {
-    demoMode = (code === DEMO_CODE);
+  async function goRequestCode() {
+    const raw = emailInput.value.trim();
+    demoMode = isDemoEmail(raw);
     document.getElementById('demo-banner').classList.toggle('hidden', !demoMode);
-    show('scene-connecting', 2);
-    clearError('error-connecting');
-    const container = document.getElementById('connecting-checks');
-    container.innerHTML = '<div class="check work"><span class="icon">⟳</span><div class="text">Confirming your code…</div></div>';
-    const resolveLine = container.firstElementChild;
-    document.getElementById('btn-back-to-welcome').classList.add('hidden');
+    authEmail = demoMode ? 'demo@agencybrain.test' : raw.toLowerCase();
+    clearError('error-email');
+    sendCodeBtn.disabled = true;
+    const orig = sendCodeBtn.textContent;
+    sendCodeBtn.textContent = 'Sending…';
     try {
-      let resolved;
-      if (demoMode) {
-        await new Promise((r) => setTimeout(r, 600));
-        resolved = {
-          memberToken: 'demo-token-not-real',
-          teamSlug: 'Acme Digital',
-          repoUrl: '',
-          member: { email: 'anna@acme.example', name: 'Anna Smith', role: 'Team member' },
-        };
-      } else {
-        resolved = await api.resolveInviteToken(code);
-      }
-      if (!resolved || !resolved.memberToken) {
-        throw new Error("That code didn't match any pending invite. Double-check the email and try again.");
-      }
-      teamInfo = resolved;
-      const m = resolved.member || {};
-      const who = escapeHtml(m.name || m.email || 'connected');
-      const team = escapeHtml(resolved.teamSlug || 'your team');
-      const role = escapeHtml(m.role || 'Team member');
-      setCheck(resolveLine, 'ok', `Code accepted. You're <strong>${who}</strong>, joining <strong>${team}</strong> as a <strong>${role}</strong>.`);
-      setTimeout(() => goPickFolder(), 700);
+      if (!demoMode) await api.requestOtpCode(authEmail);
+      document.getElementById('otp-email-echo').textContent = authEmail;
+      otpInput.value = '';
+      verifyBtn.disabled = true;
+      show('scene-otp', 1);
+      otpInput.focus();
     } catch (err) {
-      const msg = (err && err.message) || '';
-      let headline = "That code didn't match.";
-      if (/409|hasn'?t finished installing|github app/i.test(msg)) {
-        headline = "Your agency is still being set up.";
-      } else if (/410|expired/i.test(msg)) {
-        headline = "This invite has expired.";
-      } else if (!/404|invite\s+not\s+found|no\s+invite/i.test(msg)) {
-        headline = "Something went wrong.";
-      }
-      setCheck(resolveLine, 'miss', headline, escapeHtml(friendlyError(err, 'resolve')));
-      document.getElementById('btn-back-to-welcome').classList.remove('hidden');
-      // No banner — the check line carries the message. Showing the same
-      // error twice on one screen makes the user feel like two things broke.
-      clearError('error-connecting');
+      errorIn('error-email', friendlyError(err, 'otp'));
+    } finally {
+      sendCodeBtn.textContent = orig;
+      sendCodeBtn.disabled = !(isValidEmail(emailInput.value) || isDemoEmail(emailInput.value));
     }
   }
-  document.getElementById('btn-back-to-welcome').addEventListener('click', () => {
-    show('scene-welcome', 1);
+
+  // SCENE 1b — OTP
+  const otpInput = document.getElementById('otp-input');
+  const verifyBtn = document.getElementById('btn-verify-code');
+  otpInput.addEventListener('input', () => {
+    otpInput.value = normaliseOtp(otpInput.value);
+    verifyBtn.disabled = !isValidOtp(otpInput.value);
+    clearError('error-otp');
   });
+  otpInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !verifyBtn.disabled) verifyBtn.click();
+  });
+  verifyBtn.addEventListener('click', () => goVerifyCode());
+  document.getElementById('btn-otp-back').addEventListener('click', () => {
+    clearError('error-otp');
+    show('scene-email', 1);
+    emailInput.focus();
+  });
+  document.getElementById('link-resend-code').addEventListener('click', async () => {
+    clearError('error-otp');
+    const banner = document.getElementById('error-otp');
+    try {
+      if (!demoMode) await api.requestOtpCode(authEmail);
+      banner.style.color = 'var(--muted)';
+      errorIn('error-otp', 'A fresh code is on its way.');
+    } catch (err) {
+      banner.style.color = '';
+      errorIn('error-otp', friendlyError(err, 'otp'));
+    }
+  });
+
+  async function goVerifyCode() {
+    const banner = document.getElementById('error-otp');
+    clearError('error-otp');
+    banner.style.color = '';
+    verifyBtn.disabled = true;
+    const orig = verifyBtn.textContent;
+    verifyBtn.textContent = 'Confirming…';
+    try {
+      let teams;
+      if (demoMode) {
+        await new Promise((r) => setTimeout(r, 500));
+        authToken = 'demo-token-not-real';
+        authName = 'Anna Smith';
+        teams = [{ slug: 'acme', name: 'Acme Digital', role: 'team' }];
+      } else {
+        const res = await api.verifyOtpCode(authEmail, normaliseOtp(otpInput.value));
+        authToken = res.token;
+        const mem = res.member || {};
+        authName = mem.name || '';
+        if (mem.email) authEmail = String(mem.email).toLowerCase();
+        const lookup = await api.listMyTeams(authToken);
+        teams = (lookup && lookup.teams) || [];
+      }
+      if (teams.length === 0) {
+        errorIn('error-otp',
+          "This email isn't linked to an agency yet. If your owner just added you, give it a minute and try again, or check they used this exact address.");
+        verifyBtn.disabled = false;
+        return;
+      }
+      if (teams.length === 1) {
+        selectTeam(teams[0]);
+      } else {
+        renderTeamPicker(teams);
+      }
+    } catch (err) {
+      const ctx = /my-teams|look up your agency/i.test((err && err.message) || '') ? 'teams' : 'otp';
+      errorIn('error-otp', friendlyError(err, ctx));
+      verifyBtn.disabled = false;
+    } finally {
+      verifyBtn.textContent = orig;
+    }
+  }
+
+  // SCENE 1c — team picker (only when an email is on more than one agency)
+  function renderTeamPicker(teams) {
+    const list = document.getElementById('team-list');
+    list.innerHTML = '';
+    teams.forEach((t) => {
+      const btn = document.createElement('button');
+      btn.className = 'team-option';
+      btn.type = 'button';
+      btn.innerHTML = `<span class="t-name">${escapeHtml(t.name || t.slug)}</span><span class="t-role">${escapeHtml(t.role || 'member')}</span>`;
+      btn.addEventListener('click', () => selectTeam(t));
+      list.appendChild(btn);
+    });
+    clearError('error-team');
+    show('scene-team', 1);
+  }
+
+  // Build the teamInfo the clone/done scenes expect, then move to folder pick.
+  function selectTeam(team) {
+    teamInfo = {
+      memberToken: authToken,
+      teamSlug: team.slug,
+      teamName: team.name || team.slug,
+      repoUrl: '',
+      member: { email: authEmail, name: authName, role: team.role || 'team' },
+    };
+    goPickFolder();
+  }
 
   // SCENE 2.5
   async function goPickFolder() {
@@ -703,7 +836,7 @@
     const container = document.getElementById('connecting-checks');
     const m = teamInfo.member || {};
     container.innerHTML = `
-      <div class="check ok"><span class="icon">✓</span><div class="text">Code accepted. You're <strong>${escapeHtml(m.name || m.email || '')}</strong>, joining <strong>${escapeHtml(teamInfo.teamSlug || '')}</strong>.</div></div>
+      <div class="check ok"><span class="icon">✓</span><div class="text">Signed in as <strong>${escapeHtml(m.name || m.email || '')}</strong>, joining <strong>${escapeHtml(teamInfo.teamName || teamInfo.teamSlug || '')}</strong>.</div></div>
       <div class="check work" id="clone-line"><span class="icon">⟳</span><div class="text">Setting up your copy of the team folder…<span class="sub">This takes about 30 seconds.</span></div></div>
     `;
     clearError('error-connecting');
@@ -839,13 +972,9 @@
   // BOOT
   (async function init() {
     homePath = await api.getHomePath();
-    const pending = await api.peekPendingInviteToken();
-    if (pending) {
-      await api.consumePendingInviteToken();
-      goConnect(pending);
-    } else {
-      codeInput.focus();
-    }
+    // Clear any stale deep-link invite token; email + OTP is the path now.
+    try { await api.consumePendingInviteToken(); } catch (_) {}
+    emailInput.focus();
   })();
 })();
 </script>

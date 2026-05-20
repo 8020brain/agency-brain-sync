@@ -16,7 +16,7 @@ const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain } = 
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn, execFile } = require('child_process');
+const { spawn, execFile, execFileSync } = require('child_process');
 
 const APP_NAME = 'Agency Brain';
 const USER_DATA = app.getPath('userData');
@@ -36,6 +36,13 @@ const WATCHER_PATH = path.join(__dirname, 'watcher', 'team-brain-sync.js');
 
 // 8020api endpoints
 const API_BASE = process.env.BRAIN_SYNC_API_BASE || 'https://api.ads2ai.com';
+
+// Embedded Command Centre (member-safe HOME server, bundled in command-centre/).
+// Runs as a child node process pointed at the member's brain; loaded into the
+// app window after onboarding. Port deliberately != 3847 (Mike's live dashboard).
+const CC_PORT = parseInt(process.env.CC_PORT || '38917', 10);
+const CC_SERVER = path.join(__dirname, 'command-centre', 'server.cjs');
+let ccProcess = null;
 
 let tray = null;
 let setupWindow = null;
@@ -295,6 +302,7 @@ function buildMenu() {
 
   items.push(
     { type: 'separator' },
+    { label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) },
     { label: 'Open agency brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
     { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
     { type: 'separator' },
@@ -336,21 +344,24 @@ function showSetupWindow() {
     return;
   }
   setupWindow = new BrowserWindow({
-    width: 620,
-    height: 760,
+    width: 680,
+    height: 800,
     resizable: true,
-    minWidth: 520,
-    minHeight: 600,
+    minWidth: 600,
+    minHeight: 640,
     minimizable: true,
     maximizable: false,
     title: APP_NAME,
-    backgroundColor: '#fafaf8',
+    backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
     },
   });
-  setupWindow.loadFile(path.join(__dirname, 'src', 'setup.html'));
+  // Merged wizard (Brain 3.0 design + real solo/agency wiring). The previous
+  // 9-step setup.html stays in the repo as a fallback until the new wizard is
+  // proven against real auth on both OSes.
+  setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
   setupWindow.on('closed', () => {
     setupWindow = null;
     if (process.platform === 'darwin' && app.dock) app.dock.hide();
@@ -369,6 +380,85 @@ function showAbout() {
     `Logs: ${LOG_FILE}`,
   ].filter(Boolean).join('\n');
   dialog.showMessageBox({ type: 'info', title: APP_NAME, message: APP_NAME, detail, buttons: ['OK'] });
+}
+
+// ---------- embedded Command Centre ----------
+function startCommandCentre() {
+  if (ccProcess) return;
+  const config = loadConfig();
+  if (!config || !config.brainPath) return;
+  ccProcess = spawn(process.execPath, [CC_SERVER], {
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      BRAIN_ROOT: config.brainPath,
+      CC_PORT: String(CC_PORT),
+    },
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  ccProcess.stderr.on('data', (c) => fs.appendFileSync(LOG_FILE, '[cc] ' + c));
+  ccProcess.on('exit', () => { ccProcess = null; });
+}
+
+async function ccHealthy() {
+  try {
+    const r = await fetch(`http://127.0.0.1:${CC_PORT}/api/health`);
+    return r.ok;
+  } catch { return false; }
+}
+
+async function ensureCommandCentre() {
+  if (!(await ccHealthy())) startCommandCentre();
+  for (let i = 0; i < 40; i++) {
+    if (await ccHealthy()) return true;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return false;
+}
+
+// Load the Command Centre into the app window (the post-onboarding home).
+async function openCommandCentre() {
+  if (process.platform === 'darwin' && app.dock) app.dock.show();
+  const ok = await ensureCommandCentre();
+  if (!setupWindow) showSetupWindow();
+  if (!ok) {
+    dialog.showErrorBox(APP_NAME, 'Could not start the Command Centre. See the log for details.');
+    return { ok: false };
+  }
+  setupWindow.setSize(1280, 860);
+  setupWindow.center();
+  await setupWindow.loadURL(`http://127.0.0.1:${CC_PORT}/`);
+  setupWindow.show();
+  setupWindow.focus();
+  return { ok: true };
+}
+
+// Gated end-to-end self-test. No effect unless AB_E2E is set. Proves the REAL
+// main + preload + renderer + embedded CC connect, headless:
+//   AB_E2E=wizard          → load wizard.html, screenshot, report active scene
+//   AB_E2E=cc BRAIN_ROOT=…  → seed config, openCommandCentre, screenshot
+async function runE2E(mode) {
+  const out = path.join(os.tmpdir(), 'ab-e2e');
+  fs.mkdirSync(out, { recursive: true });
+  try {
+    if (mode === 'cc') {
+      saveConfig({ brainPath: process.env.BRAIN_ROOT || path.join(os.homedir(), 'Projects', 'brain-sandbox'), mode: 'personal' });
+      await openCommandCentre();
+      await new Promise((r) => setTimeout(r, 2500));
+      fs.writeFileSync(path.join(out, 'cc.png'), (await setupWindow.webContents.capturePage()).toPNG());
+      console.error('AB_E2E_OK cc');
+    } else {
+      showSetupWindow();
+      await new Promise((r) => setTimeout(r, 1600));
+      fs.writeFileSync(path.join(out, 'wizard.png'), (await setupWindow.webContents.capturePage()).toPNG());
+      const scene = await setupWindow.webContents.executeJavaScript("(document.querySelector('.screen.active')||{}).id");
+      const hasApi = await setupWindow.webContents.executeJavaScript("!!(window.agencyBrain && window.agencyBrain.detectMachine)");
+      console.error('AB_E2E_OK wizard scene=' + scene + ' bridge=' + hasApi);
+    }
+  } catch (e) {
+    console.error('AB_E2E_ERR ' + (e && e.stack || e));
+  }
+  app.quit();
 }
 
 // ---------- IPC handlers ----------
@@ -473,6 +563,8 @@ ipcMain.handle('close-wizard', () => {
   return { ok: true };
 });
 
+ipcMain.handle('open-command-centre', () => openCommandCentre());
+
 // Demo-mode helper: create a placeholder folder at the path the user picked
 // so Cowork has something real to attach to during walkthroughs. Only seeds
 // if the folder is missing or empty; never overwrites existing content.
@@ -549,6 +641,21 @@ ipcMain.handle('verify-otp-code', async (_evt, email, code) => {
   return { token: json.token, member: json.member };
 });
 
+// Look up which agency/agencies this signed-in email belongs to. The OTP JWT
+// from verify-otp-code carries the email claim, and the backend resolves it to
+// the caller's teams — the same lookup the portal uses. Drives the email+OTP
+// first-run: 0 teams = not linked yet, 1 = auto-select, >1 = picker.
+ipcMain.handle('list-my-teams', async (_evt, token) => {
+  const r = await fetch(`${API_BASE}/api/team-brain/my-teams`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  return r.json(); // { teams: [{ slug, name, role }] }
+});
+
 ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   const { memberToken, teamSlug, repoUrl } = args;
   // Normalise whatever the renderer sent into the OS-native form (collapses
@@ -599,6 +706,14 @@ ipcMain.handle('configure-identity', async (_evt, args) => {
 
 ipcMain.handle('mark-install-complete', async (_evt, args) => {
   const { memberToken, teamSlug } = args;
+  // Enable launch-at-login the moment first-run setup completes. Without this,
+  // openAtLogin was only set on a later boot-WITH-config, so a user who
+  // finished setup and rebooted before relaunching lost sync silently — the
+  // exact silent-drift failure this product exists to prevent. openAsHidden is
+  // macOS-only; on Windows the same call writes the registry Run key.
+  if (!app.getLoginItemSettings().openAtLogin) {
+    app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
+  }
   const r = await fetch(`${API_BASE}/api/team-brain/install-complete`, {
     method: 'POST',
     headers: {
@@ -612,9 +727,200 @@ ipcMain.handle('mark-install-complete', async (_evt, args) => {
   return { ok: r.ok };
 });
 
+// ===================================================================
+// Merged-app IPC (ADDITIVE — powers the new Brain 3.0-design wizard in
+// src/wizard.html). Nothing here is called until main.js loads wizard.html
+// instead of setup.html, so the shipping alpha (setup.html) is unaffected.
+// These are the Electron equivalents of Brain 3.0's Tauri commands.
+// ===================================================================
+
+// GUI apps launched from Finder/Explorer inherit a minimal PATH that omits
+// Homebrew/Node/Git. Prepend the usual locations so shelled tools resolve —
+// same trick the watcher uses for its child process.
+function enrichedEnv() {
+  const pathExtra = process.platform === 'win32'
+    ? `${process.env.PATH || ''};C:\\Program Files\\Git\\cmd;C:\\Program Files (x86)\\Git\\cmd`
+    : `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin`;
+  return { ...process.env, PATH: pathExtra };
+}
+
+// Push a progress line to the wizard renderer (the new screens listen for it).
+function sendWizardLog(line) {
+  if (setupWindow && !setupWindow.isDestroyed()) {
+    setupWindow.webContents.send('wizard-log', String(line));
+  }
+}
+
+function realBrainPath() { return path.join(os.homedir(), 'Projects', 'brain'); }
+
+// Sandbox-aware brain home. A BRAIN_HOME override lets tests run against a
+// throwaway dir so onboarding never clones over a real brain. Mirrors Brain
+// 3.0's Rust brain_home()/real_brain().
+function resolvedBrainHome() {
+  const env = (process.env.BRAIN_HOME || '').trim();
+  return env || path.join(os.homedir(), 'Projects', 'brain-sandbox');
+}
+
+// Dev-only guard: never let an UNPACKAGED (dev) run write over Mike's real
+// brain at ~/Projects/brain unless BRAIN_HOME explicitly points there. A
+// packaged member build legitimately uses ~/Projects/brain on the member's own
+// machine, so the guard is dev-only (keyed on app.isPackaged === false).
+function assertSafeTarget(dir) {
+  const real = path.resolve(realBrainPath());
+  if (!app.isPackaged
+      && path.resolve(dir) === real
+      && path.resolve(process.env.BRAIN_HOME || '') !== real) {
+    throw new Error('Dev guard: refusing to write to ~/Projects/brain. Set BRAIN_HOME to a sandbox dir.');
+  }
+  return dir;
+}
+
+function whichTool(bin) {
+  const finder = process.platform === 'win32' ? 'where' : 'which';
+  try {
+    const out = execFileSync(finder, [bin], { env: enrichedEnv() }).toString().trim();
+    return out.split(/\r?\n/)[0] || null;
+  } catch { return null; }
+}
+function toolVersion(toolPath, arg) {
+  try {
+    return (execFileSync(toolPath, [arg], { env: enrichedEnv() }).toString().split(/\r?\n/)[0] || '').trim();
+  } catch { return ''; }
+}
+
+// detect_machine — same result shape as the Rust command:
+// { tools: [{ key, label, present, version, path }] }
+function detectMachine() {
+  const isWin = process.platform === 'win32';
+  const specs = isWin
+    ? [
+        { key: 'git', label: 'Git', candidates: ['C:\\Program Files\\Git\\cmd\\git.exe'], varg: '--version' },
+        { key: 'node', label: 'Node.js', candidates: [], varg: '--version' },
+      ]
+    : [
+        { key: 'brew', label: 'Homebrew', candidates: ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'], varg: '--version' },
+        { key: 'git', label: 'Git', candidates: ['/usr/bin/git', '/opt/homebrew/bin/git', '/usr/local/bin/git'], varg: '--version' },
+        { key: 'node', label: 'Node.js', candidates: ['/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node'], varg: '--version' },
+      ];
+  const tools = specs.map((s) => {
+    const p = whichTool(s.key) || s.candidates.find((c) => fs.existsSync(c)) || null;
+    return p
+      ? { key: s.key, label: s.label, present: true, version: toolVersion(p, s.varg), path: p }
+      : { key: s.key, label: s.label, present: false, version: '', path: '' };
+  });
+  const claudePaths = isWin
+    ? [path.join(process.env.LOCALAPPDATA || '', 'Programs', 'claude', 'Claude.exe'),
+       path.join(process.env.LOCALAPPDATA || '', 'AnthropicClaude', 'Claude.exe')]
+    : ['/Applications/Claude.app', '/Applications/Cowork.app'];
+  const claude = claudePaths.find((p) => p && fs.existsSync(p));
+  tools.push({ key: 'cowork', label: 'Claude desktop app', present: !!claude, version: '', path: claude || '' });
+  return { tools };
+}
+
+ipcMain.handle('detect-machine', () => detectMachine());
+
+ipcMain.handle('get-brain-home', () => {
+  const bh = resolvedBrainHome();
+  return { brainHome: bh, isSandbox: bh !== realBrainPath() };
+});
+
+// Generic clone into a target folder. Used by the SOLO path (members brain
+// template) and by sandbox tests. The agency path keeps its own
+// clone-agency-brain handler (which mints a team token). repoUrl may already
+// carry credentials (x-access-token@) for private repos.
+ipcMain.handle('clone-into', async (_evt, args) => {
+  const dir = assertSafeTarget(path.normalize(args.targetFolder));
+  if (fs.existsSync(dir)) {
+    const base = path.basename(dir);
+    if (!app.isPackaged && base.includes('sandbox')) {
+      sendWizardLog('Sandbox exists — removing for a clean clone.');
+      fs.rmSync(dir, { recursive: true, force: true });
+    } else {
+      throw new Error(`${dir} already exists. Pick another location.`);
+    }
+  }
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  sendWizardLog('Cloning your brain…');
+  await runGit(['clone', '--depth', '1', args.repoUrl, dir]);
+  sendWizardLog('Clone complete.');
+  return { ok: true, brainPath: dir };
+});
+
+// SOLO path: a member with no agency team clones the shared members brain
+// template. Uses the already-deployed GET /api/brain/auth-token (gated to
+// memberType community/ota), then clones with the x-access-token credential —
+// the same mechanism as clone-agency-brain, just a GET + the template repo.
+// No new backend is required (confirmed in 8020api: server/brain.ts:147-210).
+ipcMain.handle('clone-solo-brain', async (_evt, args) => {
+  const { memberToken } = args;
+  const targetFolder = assertSafeTarget(path.normalize(args.targetFolder));
+  const r = await fetch(`${API_BASE}/api/brain/auth-token`, {
+    headers: { Authorization: `Bearer ${memberToken}` },
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `brain auth-token failed (HTTP ${r.status})`);
+  }
+  const { token, repo } = await r.json();
+  const slug = repo || '8020brain/brain-template';
+  const cleanRemote = `https://github.com/${slug}.git`;
+  const cloneUrl = `https://x-access-token:${token}@github.com/${slug}.git`;
+  fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
+  if (fs.existsSync(targetFolder)) {
+    const base = path.basename(targetFolder);
+    if (!app.isPackaged && base.includes('sandbox')) {
+      sendWizardLog('Sandbox exists — removing for a clean clone.');
+      fs.rmSync(targetFolder, { recursive: true, force: true });
+    } else {
+      throw new Error(`${targetFolder} already exists. Pick another location.`);
+    }
+  }
+  sendWizardLog('Cloning your brain…');
+  await runGit(['clone', cloneUrl, targetFolder]);
+  // Scrub the short-lived token from the remote so it never persists on disk;
+  // the watcher mints a fresh one per network op (same as the agency path).
+  await runGit(['-C', targetFolder, 'remote', 'set-url', 'origin', cleanRemote]);
+  sendWizardLog('Clone complete.');
+  return { ok: true, brainPath: targetFolder };
+});
+
+ipcMain.handle('run-npm-install', async (_evt, args) => {
+  const dir = path.normalize(args.brainPath);
+  if (!fs.existsSync(path.join(dir, 'package.json'))) {
+    sendWizardLog('No package.json — skipping npm install.');
+    return { ok: true, skipped: true };
+  }
+  sendWizardLog('Installing dependencies (npm install)…');
+  await new Promise((resolve, reject) => {
+    const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    execFile(npmBin, ['install'], { cwd: dir, env: enrichedEnv(), maxBuffer: 1024 * 1024 * 50 }, (err) => {
+      if (err) reject(new Error(`npm install failed: ${(err.message || '').slice(0, 300)}`));
+      else resolve();
+    });
+  });
+  sendWizardLog('Dependencies installed.');
+  return { ok: true };
+});
+
+ipcMain.handle('write-business-context', async (_evt, args) => {
+  const dir = assertSafeTarget(path.normalize(args.brainPath));
+  const ctx = args.ctx || {};
+  const bizDir = path.join(dir, 'context', 'business');
+  fs.mkdirSync(bizDir, { recursive: true });
+  const body =
+    `# Business Context\n\n` +
+    `- **Name:** ${ctx.name || ''}\n` +
+    `- **Business:** ${ctx.business || ''}\n` +
+    `- **What I sell:** ${ctx.sells || ''}\n` +
+    `- **Who I serve:** ${ctx.serves || ''}\n`;
+  const target = path.join(bizDir, 'business-context.md');
+  fs.writeFileSync(target, body);
+  return { ok: true, path: target };
+});
+
 function runGit(args) {
   return new Promise((resolve, reject) => {
-    execFile('git', args, { env: process.env, maxBuffer: 1024 * 1024 * 50 }, (err, stdout, stderr) => {
+    execFile('git', args, { env: enrichedEnv(), maxBuffer: 1024 * 1024 * 50 }, (err, stdout, stderr) => {
       if (err) {
         const msg = (stderr || err.message || '').toString().trim();
         reject(new Error(`git ${args[0]} failed: ${msg.slice(0, 300)}`));
@@ -627,6 +933,11 @@ function runGit(args) {
 
 // ---------- app lifecycle ----------
 app.whenReady().then(() => {
+  if (process.env.AB_E2E) {
+    if (process.platform === 'darwin' && app.dock) app.dock.hide();
+    runE2E(process.env.AB_E2E);
+    return;
+  }
   // Capture deep-link from initial launch argv (Windows + Linux pattern;
   // macOS uses the open-url event which is registered above).
   for (const arg of process.argv.slice(1)) {
@@ -653,4 +964,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', (e) => { e.preventDefault(); });
-app.on('before-quit', () => { if (watcherProcess) watcherProcess.kill('SIGINT'); });
+app.on('before-quit', () => {
+  if (watcherProcess) watcherProcess.kill('SIGINT');
+  if (ccProcess) ccProcess.kill();
+});
