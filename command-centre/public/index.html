@@ -38,6 +38,20 @@
   .hero-btn:hover{background:#b94000;}
   .hero-btn:disabled{opacity:.5;cursor:default;}
   .hero-note{font-size:13px;color:var(--ink-3);margin-top:12px;margin-bottom:0;}
+  .mp-card{margin:18px 28px 0;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:18px 22px;position:relative;}
+  .mp-card .mp-eyebrow{font-family:var(--oxanium);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+  .mp-card h2{font-family:var(--oxanium);font-size:18px;font-weight:700;margin-bottom:6px;}
+  .mp-card p{font-size:13.5px;color:var(--ink-2);line-height:1.55;max-width:700px;margin-bottom:12px;}
+  .mp-dismiss{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--ink-3);font-size:20px;line-height:1;cursor:pointer;}
+  .mp-dismiss:hover{color:var(--ink);}
+  .mp-links{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .mp-btn{font-family:var(--oxanium);font-size:13px;font-weight:600;padding:8px 16px;border-radius:2px;text-decoration:none;display:inline-block;}
+  .mp-btn.primary{background:var(--accent);color:#fff;}
+  .mp-btn.primary:hover{background:#b94000;}
+  .mp-btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);}
+  .mp-btn.ghost:hover{border-color:var(--accent);color:var(--accent);}
+  .mp-circle{font-size:12.5px;color:var(--ink-3);margin-top:12px;line-height:1.6;border-top:1px solid var(--line);padding-top:10px;}
+  .mp-circle b{color:var(--ink);font-family:var(--oxanium);}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:22px 28px;align-items:start;}
   .col h2{margin-bottom:14px;}
   .card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:14px 16px;margin-bottom:12px;}
@@ -60,6 +74,18 @@
     <h1>Command Centre</h1>
     <span class="path" id="brainPath"></span>
   </header>
+
+  <div class="mp-card" id="mpCard" style="display:none;">
+    <button class="mp-dismiss" id="mpDismiss" title="Hide for a week">&times;</button>
+    <div class="mp-eyebrow">Your membership</div>
+    <h2>Your courses, scripts and account live in the members portal</h2>
+    <p>Your brain runs here, but everything you've paid for is in the Ads to AI members portal. Keep it open alongside this.</p>
+    <div class="mp-links">
+      <a class="mp-btn primary" href="https://m.ads2ai.com" target="_blank" rel="noopener">Open the members portal</a>
+      <a class="mp-btn ghost" href="https://mikerhodes.circle.so" target="_blank" rel="noopener">Open Circle</a>
+    </div>
+    <div class="mp-circle"><b>Need help?</b> Circle is where the community lives: the courses, the weekly videos, the monthly Q&amp;A, a search of every skill available, skills shared by other members, and all the Google Ads scripts.</div>
+  </div>
 
   <div class="hero" id="hero" style="display:none;">
     <div class="hero-eyebrow">Start here</div>
@@ -167,6 +193,17 @@
       var poll=setInterval(function(){ api('/api/smart-start/state').then(function(s){ if(s.done){clearInterval(poll); document.getElementById('hero').style.display='none'; loadProjects();} }).catch(function(){}); },8000);
     }).catch(function(e){ toast('Could not start Smart Start: '+e.message,true); btn.disabled=false; });
   });
+
+  // Members-portal + Circle nudge: dismissible, hidden for a week when dismissed.
+  (function(){
+    var card=document.getElementById('mpCard'); if(!card) return;
+    var KEY='mp-card-dismissed-until';
+    if(Date.now() > parseInt(localStorage.getItem(KEY)||'0',10)) card.style.display='block';
+    document.getElementById('mpDismiss').addEventListener('click',function(){
+      localStorage.setItem(KEY, String(Date.now()+7*24*60*60*1000));
+      card.style.display='none';
+    });
+  })();
 
   api('/api/health').then(function(h){document.getElementById('brainPath').textContent=h.brainRoot||'';}).catch(function(){});
   loadSmartStart(); loadProjects(); loadTodos(); loadAgents();

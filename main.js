@@ -362,6 +362,12 @@ function showSetupWindow() {
   // 9-step setup.html stays in the repo as a fallback until the new wizard is
   // proven against real auth on both OSes.
   setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
+  // External links (e.g. the Command Centre's members-portal / Circle buttons)
+  // open in the user's default browser, not inside the app window.
+  setupWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
   setupWindow.on('closed', () => {
     setupWindow = null;
     if (process.platform === 'darwin' && app.dock) app.dock.hide();
