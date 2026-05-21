@@ -97,16 +97,16 @@ Output lands in `dist/`. Binaries are unsigned (`identity: null` on Mac, no sign
 To cut a release:
 
 ```
-# Bump version in package.json first (e.g. 1.0.0-alpha.2 → 1.0.0-alpha.3)
-git add package.json && git commit -m "v1.0.0-alpha.3: ..." && git push
+# Bump the patch in package.json first (e.g. 0.8.2 → 0.8.3)
+git add package.json && git commit -m "v0.8.3: ..." && git push
 npm run build:all
-gh release create v1.0.0-alpha.3 \
+gh release create v0.8.3 \
   -R 8020brain/agency-brain-sync \
-  --title "Agency Brain v1.0.0-alpha.3" \
+  --title "Agency Brain v0.8.3" \
   --notes "..." \
-  "dist/Agency Brain-1.0.0-alpha.3-arm64.dmg" \
-  "dist/Agency Brain-1.0.0-alpha.3.dmg" \
-  "dist/Agency-Brain-Setup-1.0.0-alpha.3.exe"
+  "dist/Agency Brain-0.8.3-arm64.dmg" \
+  "dist/Agency Brain-0.8.3.dmg" \
+  "dist/Agency-Brain-Setup-0.8.3.exe"
 ```
 
 The release assets are downloadable from `https://github.com/8020brain/agency-brain-sync/releases/latest` once the repo is public.

@@ -1,7 +1,7 @@
 // Agency Brain — main process.
 // Tray app that supervises the sync watcher child process.
 //
-// v1.0.0-alpha.2 adds agency-mode support on top of the v0.2 personal sync:
+// Agency-mode support sits on top of the original v0.2 personal sync:
 //   - First-run wizard branches into personal or agency setup
 //   - Agency mode talks to api.ads2ai.com for invite resolution and
 //     GitHub App installation tokens (so team members never need a GitHub
@@ -736,7 +736,7 @@ ipcMain.handle('mark-install-complete', async (_evt, args) => {
 // ===================================================================
 // Merged-app IPC (ADDITIVE — powers the new Brain 3.0-design wizard in
 // src/wizard.html). Nothing here is called until main.js loads wizard.html
-// instead of setup.html, so the shipping alpha (setup.html) is unaffected.
+// instead of setup.html, so the shipping fallback (setup.html) is unaffected.
 // These are the Electron equivalents of Brain 3.0's Tauri commands.
 // ===================================================================
 
