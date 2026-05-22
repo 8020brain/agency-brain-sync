@@ -372,6 +372,13 @@ function showSetupWindow() {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // Dev/debug: F12 (or Cmd+Opt+I) toggles DevTools so console + network errors
+  // are visible when something misbehaves. No menu needed (this is a tray app).
+  setupWindow.webContents.on('before-input-event', (_e, input) => {
+    if (input.type !== 'keyDown') return;
+    const isInspect = input.key === 'F12' || (input.meta && input.alt && (input.key || '').toLowerCase() === 'i');
+    if (isInspect) setupWindow.webContents.toggleDevTools();
+  });
   setupWindow.on('closed', () => {
     setupWindow = null;
     if (process.platform === 'darwin' && app.dock) app.dock.hide();

@@ -54,15 +54,29 @@ const API_BASE = (process.env.AGENCY_API_BASE || 'https://api.ads2ai.com').repla
 // between builds).
 const SERVED_AT = new Date().toISOString();
 
-// Call the 8020 API as the member (Bearer member_token).
-async function apiCall(method, apiPath, body) {
-  const r = await fetch(API_BASE + apiPath, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MEMBER_TOKEN },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Call the 8020 API as the member (Bearer member_token). Retries transient
+// failures (network error / 404 / 5xx) a couple of times with a short backoff,
+// so a Replit cold-start on the first hit doesn't fail the whole operation.
+async function apiCall(method, apiPath, body, retries) {
+  if (retries == null) retries = 2;
+  let r;
+  try {
+    r = await fetch(API_BASE + apiPath, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MEMBER_TOKEN },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (netErr) {
+    if (retries > 0) { await delay(1200); return apiCall(method, apiPath, body, retries - 1); }
+    throw netErr;
+  }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.error || ('API ' + r.status)); e.statusCode = r.status; throw e; }
+  if (!r.ok) {
+    if (retries > 0 && (r.status === 404 || r.status >= 500)) { await delay(1200); return apiCall(method, apiPath, body, retries - 1); }
+    const e = new Error(j.error || ('API ' + r.status)); e.statusCode = r.status; throw e;
+  }
   return j;
 }
 function slugify(s) {
@@ -163,10 +177,18 @@ const server = http.createServer(async (req, res) => {
       if (!email || !name) return send(res, 400, { error: 'name and email are required' });
       if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 400, { error: 'not signed in to a team' });
       const memberSlug = (slugify(name) + '-' + slugify(email.split('@')[0])).slice(0, 50) || ('m' + Date.now().toString(36));
+      // Warm the (Replit) API first so the first real call doesn't cold-start 404.
+      await apiCall('GET', '/api/team-dashboard/version', null, 1).catch(() => {});
+      const steps = [
+        ['add-member', { teamSlug: TEAM_SLUG, memberSlug, name, email, role }],
+        ['invite-token', { teamSlug: TEAM_SLUG, memberEmail: email, memberName: name, memberRole: role }],
+        ['send-invite', { teamSlug: TEAM_SLUG, memberEmail: email }],
+      ];
       try {
-        await apiCall('POST', '/api/team-brain/add-member', { teamSlug: TEAM_SLUG, memberSlug, name, email, role });
-        await apiCall('POST', '/api/team-brain/invite-token', { teamSlug: TEAM_SLUG, memberEmail: email, memberName: name, memberRole: role });
-        await apiCall('POST', '/api/team-brain/send-invite', { teamSlug: TEAM_SLUG, memberEmail: email });
+        for (const [step, payload] of steps) {
+          try { await apiCall('POST', '/api/team-brain/' + step, payload); }
+          catch (e) { e.message = step + ': ' + e.message; throw e; }
+        }
         return send(res, 200, { ok: true, email });
       } catch (err) {
         return send(res, err.statusCode || 500, { error: err.message });

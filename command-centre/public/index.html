@@ -176,7 +176,6 @@
             <input id="af-email" type="email" placeholder="email@agency.com" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
             <select id="af-role"><option value="team">Team</option><option value="scout">Scout</option></select>
             <button class="add-btn" id="af-send">Send invite</button>
-            <button class="cancel-btn" id="af-cancel">Cancel</button>
             <span class="af-status" id="af-status"></span>
           </div>
           <table>
@@ -349,18 +348,20 @@
     }catch(e){ tb.innerHTML='<tr><td class="empty" colspan="4">Couldn’t load the roster: '+esc(e.message)+'</td></tr>'; }
   }
 
-  // add-member form
+  // add-member form. Visible "Sending…" state + a hard timeout so a click is
+  // never silent, even if the server is slow warming up.
   (function(){
-    var send=$('af-send'), cancel=$('af-cancel');
-    if(cancel) cancel.addEventListener('click',function(){ $('add-form').hidden=true; $('af-status').textContent=''; });
-    if(send) send.addEventListener('click',function(){
+    var send=$('af-send'); if(!send) return;
+    send.addEventListener('click',function(){
       var name=$('af-name').value.trim(), email=$('af-email').value.trim(), role=$('af-role').value, st=$('af-status');
       if(!name||!email){ st.textContent='Name and email are both required.'; return; }
-      send.disabled=true; st.textContent='Sending invite…';
-      api('/api/team-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,role:role})})
-        .then(function(){ $('af-name').value=''; $('af-email').value=''; $('add-form').hidden=true; st.textContent=''; loadRoster(); })
-        .catch(function(e){ st.textContent='Failed: '+e.message; })
-        .then(function(){ send.disabled=false; });
+      send.disabled=true; send.textContent='Sending…';
+      st.textContent='Warming up the server and sending the invite — this can take a few seconds…';
+      var ctrl=new AbortController(), to=setTimeout(function(){ctrl.abort();},30000);
+      api('/api/team-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,role:role}),signal:ctrl.signal})
+        .then(function(){ st.textContent='Invite sent to '+email+'.'; $('af-name').value=''; $('af-email').value=''; loadRoster(); setTimeout(function(){ $('add-form').hidden=true; st.textContent=''; },1800); })
+        .catch(function(e){ st.textContent='Failed: '+(e.name==='AbortError'?'timed out — try again':e.message); })
+        .then(function(){ clearTimeout(to); send.disabled=false; send.textContent='Send invite'; });
     });
   })();
 
