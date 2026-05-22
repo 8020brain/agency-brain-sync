@@ -33,7 +33,7 @@ mac:
   icon: assets/brain-512.png
   hardenedRuntime: true
   gatekeeperAssess: false
-  identity: "Developer ID Application: Michael Rhodes (J83Q25362G)"
+  identity: "Michael Rhodes (J83Q25362G)"  # no "Developer ID Application:" prefix — electron-builder adds it
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   notarize:
