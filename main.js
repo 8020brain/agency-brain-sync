@@ -403,6 +403,18 @@ function startCommandCentre() {
       ELECTRON_RUN_AS_NODE: '1',
       BRAIN_ROOT: config.brainPath,
       CC_PORT: String(CC_PORT),
+      // Identity for the Command Centre header + version footer. Sourced from
+      // config.json (which the app got from the server at OTP login).
+      AGENCY_MEMBER_EMAIL: config.memberEmail || '',
+      AGENCY_MEMBER_NAME: config.memberName || '',
+      AGENCY_MEMBER_ROLE: config.memberRole || '',
+      AGENCY_TEAM_SLUG: config.teamSlug || '',
+      AGENCY_VERSION: require('./package.json').version,
+      // The member's own login token + API base, so the Command Centre can do
+      // team-management (live roster, add member) by acting AS the member —
+      // never with more access than they have (agent-permissions principle).
+      AGENCY_MEMBER_TOKEN: config.memberToken || '',
+      AGENCY_API_BASE: API_BASE,
     },
     stdio: ['ignore', 'ignore', 'pipe'],
   });

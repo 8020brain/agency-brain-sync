@@ -6,208 +6,448 @@
 <title>Command Centre · Agency Brain</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --accent:#D64C00; --ink:#1A1A1A; --ink-2:#6B6B6B; --ink-3:#9A9A9A;
-    --surface:#FFFFFF; --surface-2:#FAF8F5; --line:#E4E0DA; --ok:#2E7D32;
-    --oxanium:'Oxanium',system-ui,sans-serif;
-    --body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --bg:#faf9f7; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b;
+    --line:#e6e3dd; --accent:#D64C00; --accent-soft:#fbeee7;
+    --draft:#6b6b6b; --draft-bg:#efedea;
+    --live:#D64C00; --live-bg:#fbeee7;
+    --trusted:#1a1a1a; --trusted-bg:#e9e7e2;
+    --warn:#9a4a00;
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:var(--body);color:var(--ink);background:var(--surface-2);-webkit-font-smoothing:antialiased;}
-  header{display:flex;align-items:center;gap:14px;padding:18px 28px;background:var(--surface);border-bottom:1px solid var(--line);}
-  header .mark{width:30px;height:30px;background:var(--accent);color:#fff;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--oxanium);font-weight:700;font-size:15px;}
-  header h1{font-family:var(--oxanium);font-size:18px;font-weight:700;}
-  header .path{margin-left:auto;font-size:12px;color:var(--ink-3);font-family:ui-monospace,Menlo,monospace;}
-  .sessions{padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--line);}
-  .sessions h2,.col h2{font-family:var(--oxanium);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;}
-  .chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;background:var(--surface-2);padding:7px 10px;font-size:12px;font-family:var(--oxanium);font-weight:600;cursor:pointer;}
-  .chip[data-status="needs-you"]{border-left-color:#b91c1c;background:#fff5f5;}
-  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);}
-  .chip[data-status="needs-you"] .dot{background:#b91c1c;}
-  .chip .x{color:var(--ink-3);font-weight:700;padding:0 2px;}
-  .chip .x:hover{color:#b91c1c;}
-  .empty{color:var(--ink-3);font-size:13px;}
-  .hero{margin:18px 28px 0;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:20px 24px;}
-  .hero .hero-eyebrow{font-family:var(--oxanium);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
-  .hero h2{font-family:var(--oxanium);font-size:21px;font-weight:700;margin-bottom:8px;}
-  .hero p{font-size:14px;color:var(--ink-2);line-height:1.55;max-width:640px;margin-bottom:14px;}
-  .hero-btn{font-family:var(--oxanium);font-size:14px;font-weight:600;padding:10px 22px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:2px;cursor:pointer;}
-  .hero-btn:hover{background:#b94000;}
-  .hero-btn:disabled{opacity:.5;cursor:default;}
-  .hero-note{font-size:13px;color:var(--ink-3);margin-top:12px;margin-bottom:0;}
-  .mp-card{margin:18px 28px 0;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:18px 22px;position:relative;}
-  .mp-card .mp-eyebrow{font-family:var(--oxanium);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
-  .mp-card h2{font-family:var(--oxanium);font-size:18px;font-weight:700;margin-bottom:6px;}
-  .mp-card p{font-size:13.5px;color:var(--ink-2);line-height:1.55;max-width:700px;margin-bottom:12px;}
-  .mp-dismiss{position:absolute;top:10px;right:14px;background:none;border:none;color:var(--ink-3);font-size:20px;line-height:1;cursor:pointer;}
-  .mp-dismiss:hover{color:var(--ink);}
-  .mp-links{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-  .mp-btn{font-family:var(--oxanium);font-size:13px;font-weight:600;padding:8px 16px;border-radius:2px;text-decoration:none;display:inline-block;}
-  .mp-btn.primary{background:var(--accent);color:#fff;}
-  .mp-btn.primary:hover{background:#b94000;}
-  .mp-btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);}
-  .mp-btn.ghost:hover{border-color:var(--accent);color:var(--accent);}
-  .mp-circle{font-size:12.5px;color:var(--ink-3);margin-top:12px;line-height:1.6;border-top:1px solid var(--line);padding-top:10px;}
-  .mp-circle b{color:var(--ink);font-family:var(--oxanium);}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:22px 28px;align-items:start;}
-  .col h2{margin-bottom:14px;}
-  .card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:14px 16px;margin-bottom:12px;}
-  .card .name{font-family:var(--oxanium);font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;}
-  .card .meta{font-size:11px;color:var(--ink-3);margin-top:2px;}
-  .todo{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.4;}
-  .todo:last-child{border-bottom:none;}
-  .todo .due{color:#b91c1c;font-size:11px;font-family:var(--oxanium);margin-left:6px;}
-  .go{flex-shrink:0;width:26px;height:26px;border:1px solid var(--line);background:var(--surface);color:var(--accent);border-radius:2px;font-size:13px;cursor:pointer;font-weight:700;}
-  .go:hover{border-color:var(--accent);background:#fff8f3;}
-  .card .todos{margin-top:8px;}
-  .toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:#fff;padding:12px 16px;border-radius:2px;font-size:13px;font-family:var(--oxanium);box-shadow:0 10px 30px rgba(0,0,0,.25);display:none;}
-  .toast.show{display:block;}
-  .toast.err{background:#7f1d1d;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Oxanium',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;line-height:1.45;padding-bottom:40px;}
+  .wrap{max-width:1600px;margin:0 auto;padding:24px 40px 48px;}
+
+  /* top bar — identity */
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px;gap:20px;}
+  .brand{font-weight:800;font-size:22px;letter-spacing:.02em;}
+  .brand .agency{color:var(--accent);}
+  .brand .sub{display:block;font-weight:500;font-size:12.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:4px;}
+  #brand-ver{color:var(--accent);font-weight:700;}
+  .who{text-align:right;font-size:13px;color:var(--muted);line-height:1.4;}
+  .who .role{display:block;color:var(--ink);font-weight:700;font-size:14px;}
+  .who .email{font-size:12px;color:var(--muted);}
+
+  /* tabs */
+  .tabs{display:flex;gap:0;margin:22px 0 26px;border-bottom:1px solid var(--line);}
+  .tab{appearance:none;background:none;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);padding:11px 20px;border-bottom:3px solid transparent;margin-bottom:-1px;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--accent);}
+  .view{display:none;} .view.active{display:block;}
+
+  .sec{margin:0 0 12px;padding-left:11px;border-left:3px solid var(--accent);font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);}
+  .sec .note{color:var(--muted);font-weight:500;letter-spacing:.02em;text-transform:none;font-size:12px;margin-left:8px;}
+
+  .grid{display:grid;gap:22px;} .cols2{grid-template-columns:1fr 1fr;}
+  .stack{display:flex;flex-direction:column;gap:22px;min-width:0;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:20px 22px;}
+  .block{margin-bottom:22px;}
+
+  .pulse{font-size:15px;line-height:1.6;}
+  .pulse b{font-weight:700;}
+  .sec-row{display:flex;align-items:center;gap:12px;}
+  .add-btn{margin-left:auto;appearance:none;font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:none;cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:2px;padding:5px 12px;}
+  .add-btn:hover{background:#b94000;} .add-btn:disabled{opacity:.5;cursor:default;}
+  .mut{color:var(--muted);}
+  .add-form{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:2px;}
+  .add-form input,.add-form select{font-family:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:2px;background:#fff;color:var(--ink);}
+  .add-form input{flex:1;min-width:130px;}
+  .add-form .add-btn{margin-left:0;}
+  .cancel-btn{appearance:none;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;background:none;border:1px solid var(--line);border-radius:2px;padding:5px 12px;color:var(--muted);}
+  .af-status{font-size:12px;color:var(--muted);width:100%;}
+  .synced{color:var(--live);font-weight:600;} .notsynced{color:var(--muted);}
+
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:15px 17px;}
+  .kpi .n{font-size:28px;font-weight:800;line-height:1;color:var(--ink);}
+  .kpi .l{font-size:11.5px;color:var(--muted);margin-top:7px;letter-spacing:.02em;}
+  .kpi .l span{opacity:.8;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;font-weight:600;color:var(--muted);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;padding:0 10px 9px;border-bottom:1px solid var(--line);}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  td.name{font-weight:600;}
+  .role-cell{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;}
+  .ago{color:var(--muted);} .did{color:var(--ink);}
+  th.num,td.num{text-align:right;font-variant-numeric:tabular-nums;} td.num{font-weight:600;}
+  .skills-scroll{max-height:360px;overflow:auto;}
+
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:2px;}
+  .pill.draft{color:var(--draft);background:var(--draft-bg);}
+  .pill.live{color:#fff;background:var(--live);}
+  .pill.trusted{color:#fff;background:var(--trusted);}
+  .flagcount{font-weight:700;} .flagcount.has{color:var(--accent);} .flagcount.zero{color:var(--muted);}
+  .drift{display:block;color:var(--warn);font-size:11px;font-weight:600;margin-top:2px;}
+
+  .chead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .chead .sec{margin:0;}
+  .toggle{display:inline-flex;border:1px solid var(--line);border-radius:2px;overflow:hidden;}
+  .toggle .tg{appearance:none;background:var(--card);border:none;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);padding:5px 13px;}
+  .toggle .tg.active{background:var(--accent);color:#fff;}
+  .toggle .tg + .tg{border-left:1px solid var(--line);}
+  .chart-x{font-size:11px;fill:var(--muted);} .axis{stroke:var(--ink);stroke-width:1.4;}
+  .gridline{stroke:var(--line);stroke-width:1;} .curve{fill:none;stroke:var(--accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;} .dot{fill:var(--accent);}
+  .chart-note{font-size:13px;color:var(--muted);line-height:1.5;}
+
+  .integrity{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--muted);margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);}
+  .integrity code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--ink);background:var(--accent-soft);padding:1px 6px;border-radius:2px;}
+
+  .flag{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:14px 16px;margin-bottom:14px;background:var(--card);}
+  .flag h4{margin:0 0 4px;font-size:14px;font-weight:700;}
+  .flag .meta{font-size:11.5px;color:var(--muted);margin-bottom:10px;}
+  .flag pre{margin:0;font-family:inherit;font-size:13px;color:var(--ink);white-space:pre-wrap;line-height:1.5;}
+  .empty{color:var(--muted);font-size:13.5px;}
+
+  .anti{background:var(--accent-soft);border:1px solid #f1d9cb;border-radius:2px;padding:18px 22px;height:100%;}
+  .anti h3{margin:0 0 6px;font-size:13px;font-weight:700;letter-spacing:.04em;}
+  .anti .lead{font-size:13.5px;color:var(--ink);margin:0 0 12px;}
+  .anti ul{margin:0;padding-left:18px;} .anti li{font-size:13px;margin-bottom:6px;color:#5a4538;}
+  .anti .why{font-size:12.5px;color:var(--muted);margin:12px 0 0;font-style:italic;}
+
+  /* flag-skill (team) view */
+  .fs-intro{font-size:14.5px;color:var(--muted);max-width:760px;margin:0 0 22px;}
+  .session{max-width:820px;} .turn{margin-bottom:16px;}
+  .ask{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:5px;}
+  .reply{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:12px 15px;font-size:14.5px;}
+
+  footer{position:fixed;left:0;right:0;bottom:0;height:32px;display:flex;align-items:center;gap:12px;padding:0 40px;background:var(--card);border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);}
+  footer .ver{font-weight:700;color:var(--ink);}
+  footer .path{margin-left:auto;font-family:ui-monospace,Menlo,monospace;}
+
+  @media(max-width:1000px){ .wrap{padding:20px;} .cols2{grid-template-columns:1fr;} .topbar{flex-direction:column;align-items:flex-start;} .who{text-align:left;} }
 </style>
 </head>
 <body>
-  <header>
-    <span class="mark">B</span>
-    <h1>Command Centre</h1>
-    <span class="path" id="brainPath"></span>
-  </header>
+<div class="wrap">
 
-  <div class="mp-card" id="mpCard" style="display:none;">
-    <button class="mp-dismiss" id="mpDismiss" title="Hide for a week">&times;</button>
-    <div class="mp-eyebrow">Your membership</div>
-    <h2>Your courses, scripts and account live in the members portal</h2>
-    <p>Your brain runs here, but everything you've paid for is in the Ads to AI members portal. Keep it open alongside this.</p>
-    <div class="mp-links">
-      <a class="mp-btn primary" href="https://m.ads2ai.com" target="_blank" rel="noopener">Open the members portal</a>
-      <a class="mp-btn ghost" href="https://mikerhodes.circle.so" target="_blank" rel="noopener">Open Circle</a>
+  <div class="topbar">
+    <div class="brand"><span id="brand-team">Your agency</span> <span class="agency">· Agency Brain</span>
+      <span class="sub">Command Centre · <span id="brand-ver">…</span></span>
     </div>
-    <div class="mp-circle"><b>Need help?</b> Circle is where the community lives: the courses, the weekly videos, the monthly Q&amp;A, a search of every skill available, skills shared by other members, and all the Google Ads scripts.</div>
-  </div>
-
-  <div class="hero" id="hero" style="display:none;">
-    <div class="hero-eyebrow">Start here</div>
-    <h2>Not sure where to begin?</h2>
-    <p>Smart Start asks you a few quick questions, then writes your first concrete moves right here on this home screen. It meets you where you are — no curriculum required.</p>
-    <button class="hero-btn" id="btn-smart-start">Run Smart Start</button>
-    <p class="hero-note" id="hero-note"></p>
-  </div>
-
-  <div class="sessions">
-    <h2>Active Sessions</h2>
-    <div class="chips" id="chips"><span class="empty">No sessions running. Dispatch a todo below to start one.</span></div>
-  </div>
-
-  <div class="cols">
-    <div class="col">
-      <h2>Projects</h2>
-      <div id="projects"><span class="empty">Loading…</span></div>
-    </div>
-    <div class="col">
-      <h2>Todos</h2>
-      <div id="todos"><span class="empty">Loading…</span></div>
+    <div class="who">
+      <span class="role" id="who-role">…</span>
+      <span class="name" id="who-name"></span>
+      <span class="email" id="who-email"></span>
+      <span id="who-week"></span>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="tabs">
+    <button class="tab active" data-view="owner">Dashboard</button>
+    <button class="tab" data-view="flag">Flag a skill <span style="font-weight:500;color:inherit">(how feedback works)</span></button>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view active" id="view-owner">
+
+    <div class="grid cols2 block">
+      <div class="stack">
+        <div class="card">
+          <div class="sec">The pulse <span class="note">what changed in the brain</span></div>
+          <div class="pulse" id="pulse">Loading…</div>
+        </div>
+
+        <div class="card">
+          <div class="sec">Skills <span class="note">draft first</span></div>
+          <div class="skills-scroll">
+            <table id="skills-table">
+              <thead id="skills-head"></thead>
+              <tbody id="skills-tbody"></tbody>
+            </table>
+          </div>
+          <div class="integrity" id="integrity"></div>
+        </div>
+
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <div class="sec sec-row">The team
+            <button class="add-btn" id="add-member" hidden>+ Add member</button>
+          </div>
+          <div class="add-form" id="add-form" hidden>
+            <input id="af-name" placeholder="Full name" autocomplete="off">
+            <input id="af-email" type="email" placeholder="email@agency.com" autocomplete="off">
+            <select id="af-role"><option value="team">Team</option><option value="scout">Scout</option></select>
+            <button class="add-btn" id="af-send">Send invite</button>
+            <button class="cancel-btn" id="af-cancel">Cancel</button>
+            <span class="af-status" id="af-status"></span>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th></tr></thead>
+            <tbody id="team-tbody"></tbody>
+          </table>
+        </div>
+        <div class="kpis" id="kpis"></div>
+
+        <div class="card" id="runs-card">
+          <div class="chead">
+            <div class="sec">Skill runs per day</div>
+            <div class="toggle" id="runs-toggle"><button class="tg active" data-type="line">Line</button><button class="tg" data-type="bar">Bar</button></div>
+          </div>
+          <svg id="chart-runs" viewBox="0 0 540 180" width="100%" height="180" role="img"></svg>
+        </div>
+
+        <div class="card">
+          <div class="sec">Improvements shipped per week</div>
+          <svg id="chart-improve" viewBox="0 0 540 180" width="100%" height="180" role="img"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid cols2 block">
+      <div>
+        <div class="sec">Open feedback <span class="note">from /flag-skill, newest first</span></div>
+        <div id="feedback"></div>
+      </div>
+      <div>
+        <div class="sec">What this dashboard does not track</div>
+        <div class="anti">
+          <h3>Deliberately off the table</h3>
+          <p class="lead">This view shows how the agency's AI workforce is maturing. It does not watch the people using it.</p>
+          <ul>
+            <li>Token usage per person</li>
+            <li>What anyone's skills actually generated</li>
+            <li>Time-of-day activity heatmaps</li>
+            <li>Per-person run rankings</li>
+          </ul>
+          <p class="why">Tracking the right things signals pride in the team's work. Tracking the wrong things signals distrust.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FLAG-SKILL (how feedback works) ============ -->
+  <section class="view" id="view-flag">
+    <div class="sec">/flag-skill <span class="note">what a team member sees when a skill didn't do what they needed</span></div>
+    <p class="fs-intro">One shortcut from inside any session. The skill asks three short questions, then writes a structured entry the Scout reads next time they open that skill. No bug-report form, no triage queue. If feedback is any harder than this, it never happens.</p>
+    <div class="session">
+      <div class="turn"><div class="ask">Which skill, and which client were you on?</div><div class="reply">client-monthly-review · Acme</div></div>
+      <div class="turn"><div class="ask">What were you trying to do?</div><div class="reply">Generate the May monthly review for Acme.</div></div>
+      <div class="turn"><div class="ask">What went wrong?</div><div class="reply">It pulled April's data instead of May.</div></div>
+      <div class="turn"><div class="ask">What did you want instead?</div><div class="reply">It should ask which month, or default to the most recent complete month.</div></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <span class="ver" id="ft-ver">Agency Brain</span>
+  <span id="ft-built"></span>
+  <span class="path" id="ft-path"></span>
+</footer>
 
 <script>
 (function(){
   'use strict';
+  function $(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-  function toast(msg,isErr){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');setTimeout(function(){t.className='toast';},2600);}
-  async function api(path,opts){var r=await fetch(path,opts||{});var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
+  function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+  async function api(p){var r=await fetch(p);var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
 
-  async function dispatch(payload,label){
-    try{ await api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      toast('Dispatched: '+label); setTimeout(loadAgents,600);
-    }catch(e){ toast('Could not dispatch: '+e.message,true); }
+  function ago(iso){
+    if(!iso) return '—';
+    var d=new Date(/T/.test(iso)?iso:(iso+'T00:00:00Z')); if(isNaN(d)) return esc(iso);
+    var days=Math.floor((Date.now()-d.getTime())/86400000);
+    if(days<=0) return 'today'; if(days===1) return 'yesterday';
+    if(days<30) return days+'d ago'; if(days<365) return Math.floor(days/30)+'mo ago';
+    return Math.floor(days/365)+'y ago';
+  }
+  function weekLabel(){
+    var now=new Date(), off=(now.getDay()+6)%7;
+    var mon=new Date(now); mon.setDate(now.getDate()-off);
+    var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    var mo=function(d){return d.toLocaleString('en-AU',{month:'short'});};
+    var same=mon.getMonth()===sun.getMonth();
+    return 'Week of '+mon.getDate()+(same?'':' '+mo(mon))+'–'+sun.getDate()+' '+mo(sun)+' '+sun.getFullYear();
   }
 
-  async function loadProjects(){
-    var el=document.getElementById('projects');
+  async function loadHealth(){
     try{
-      var d=await api('/api/projects'); var ps=d.projects||[];
-      if(!ps.length){el.innerHTML='<span class="empty">No projects with active todos yet.</span>';return;}
-      el.innerHTML=ps.map(function(p){
-        var todos=(p.activeTodos||[]).map(function(t){
-          return '<div class="todo"><button class="go" data-kind="project" data-project="'+esc(p.name)+'" data-text="'+esc(t.text)+'" title="Dispatch a Claude session">&#9654;</button><span>'+esc(t.text)+'</span></div>';
-        }).join('');
-        return '<div class="card"><div class="name">'+esc(p.name)+'</div><div class="meta">'+(p.todoCount||0)+' active</div>'+(todos?'<div class="todos">'+todos+'</div>':'')+'</div>';
-      }).join('');
-    }catch(e){el.innerHTML='<span class="empty">Could not load projects: '+esc(e.message)+'</span>';}
+      var h=await api('/api/health');
+      $('brand-team').textContent=(h.teamSlug||'Your agency');
+      var role=(h.memberRole||'').toLowerCase();
+      $('who-role').textContent=(role?cap(role):'No role')+' view';
+      // Owners and scouts can add members right here (server-side invite via the
+      // member's own token). Team members don't see the control.
+      var ab=$('add-member');
+      if(ab && (role==='owner'||role==='scout')){
+        ab.hidden=false;
+        ab.addEventListener('click',function(){ var f=$('add-form'); f.hidden=!f.hidden; if(!f.hidden) $('af-name').focus(); });
+      }
+      $('who-name').textContent=h.memberName||'';
+      $('who-email').textContent=h.memberEmail||'';
+      $('who-week').textContent=weekLabel();
+      $('brand-ver').textContent=h.version?('v'+h.version):'';
+      $('ft-ver').textContent='Agency Brain'+(h.version?(' v'+h.version):'');
+      $('ft-built').textContent=h.servedAt?('· built '+new Date(h.servedAt).toLocaleTimeString()):'';
+      $('ft-path').textContent=h.brainRoot||'';
+    }catch(e){}
   }
 
-  async function loadTodos(){
-    var el=document.getElementById('todos');
+  function buildPulse(d){
+    var s=d.summary, b=[];
+    b.push('Your agency brain has <b>'+s.totalSkills+' skill'+(s.totalSkills===1?'':'s')+'</b>.');
+    if(s.improved30d>0){
+      var names=(d.recentlyImproved||[]).slice(0,3).map(function(x){return esc(x.name);});
+      b.push('<b>'+s.improved30d+'</b> improved in the last 30 days'+(names.length?' (including '+names.join(', ')+')':'')+'.');
+    } else { b.push('Nothing has been improved in the last 30 days.'); }
+    if(s.openFlags>0){
+      var fe=(d.flagEntries||[])[0];
+      b.push('There '+(s.openFlags===1?'is':'are')+' <b>'+s.openFlags+' open feedback flag'+(s.openFlags===1?'':'s')+'</b>'+(fe?(' — most recently on <b>'+esc(fe.skill)+'</b>'):'')+', worth a look.');
+    } else { b.push('No open feedback flags right now.'); }
+    if(s.hasDrift && s.driftCount>0){ b.push('<b>'+s.driftCount+'</b> skill'+(s.driftCount===1?' differs':'s differ')+' from the canonical version.'); }
+    return b.join(' ');
+  }
+
+  function buildIntegrity(d){
+    var s=d.summary;
+    if(s.hasDrift) return 'Skill integrity: <strong style="color:var(--ink);margin:0 2px">'+s.totalSkills+' hashed · '+s.driftCount+' drift</strong> · verify with <code>node tools/skill-hashes.cjs --check</code>';
+    return s.totalSkills+' skills · no canonical baseline yet. A scout sets one with <code>node tools/skill-hashes.cjs</code>.';
+  }
+
+  var ORDER={draft:0,live:1,trusted:2};
+  function renderSkills(d){
+    var hasRuns=!!d.summary.hasRuns, hasDrift=!!d.summary.hasDrift;
+    $('skills-head').innerHTML='<tr><th>Skill</th><th>Maturity</th>'+(hasRuns?'<th class="num">Runs 7d</th>':'')+'<th class="num">Flags</th><th>Last improved</th></tr>';
+    var rows=(d.skills||[]).slice().sort(function(a,b){
+      return (ORDER[a.maturity]-ORDER[b.maturity]) || (Number(b.drift===true)-Number(a.drift===true)) || (b.flags-a.flags) || a.name.localeCompare(b.name);
+    });
+    $('skills-tbody').innerHTML = rows.length ? rows.map(function(sk){
+      var drift=(hasDrift&&sk.drift===true)?'<span class="drift">⚠ differs from canonical</span>':'';
+      var fc=sk.flags>0?'has':'zero';
+      var r='<tr><td class="name">'+esc(sk.name)+drift+'</td><td><span class="pill '+esc(sk.maturity)+'">'+esc(sk.maturity)+'</span></td>';
+      if(hasRuns) r+='<td class="num">'+(sk.runs7d||0)+'</td>';
+      r+='<td class="num"><span class="flagcount '+fc+'">'+(sk.flags||0)+'</span></td>';
+      r+='<td class="ago" title="'+esc(sk.lastImprovedBy||'')+'">'+ago(sk.lastImproved)+'</td></tr>';
+      return r;
+    }).join('') : '<tr><td class="empty" colspan="5">No skills in this brain yet.</td></tr>';
+    $('integrity').innerHTML=buildIntegrity(d);
+  }
+
+  // The team table comes from the SERVER (the source of truth), acting as the
+  // member — not from the local roles.json. Shows roster + who's synced.
+  async function loadRoster(){
+    var tb=$('team-tbody');
     try{
-      var d=await api('/api/misc-todos'); var ts=d.todos||[];
-      if(!ts.length){el.innerHTML='<span class="empty">No loose todos. Nice.</span>';return;}
-      el.innerHTML=ts.map(function(t){
-        var due=t.due?'<span class="due">due '+esc(t.due)+'</span>':'';
-        return '<div class="card"><div class="todo"><button class="go" data-kind="misc" data-file="'+esc(t.file||'')+'" data-text="'+esc(t.title||'')+'" title="Dispatch a Claude session">&#9654;</button><span>'+esc(t.title||'(untitled)')+due+'</span></div></div>';
-      }).join('');
-    }catch(e){el.innerHTML='<span class="empty">Could not load todos: '+esc(e.message)+'</span>';}
+      var d=await api('/api/team-roster');
+      if(d.unavailable || !d.members){
+        tb.innerHTML='<tr><td class="empty" colspan="4">Roster unavailable'+(d.reason?(' ('+esc(d.reason)+')'):'')+'. It syncs from the server once you’re signed in to a team.</td></tr>';
+        return;
+      }
+      tb.innerHTML = d.members.length ? d.members.map(function(m){
+        var synced = m.installCompletedAt ? ('<span class="synced">'+ago(m.installCompletedAt)+'</span>')
+          : (m.pendingClaim ? '<span class="notsynced">pending claim</span>' : '<span class="notsynced">not yet</span>');
+        return '<tr><td class="name">'+esc(m.name||m.email)+'</td><td class="mut">'+esc(m.email)+'</td><td class="role-cell">'+esc(m.role)+'</td><td>'+synced+'</td></tr>';
+      }).join('') : '<tr><td class="empty" colspan="4">No members yet.</td></tr>';
+    }catch(e){ tb.innerHTML='<tr><td class="empty" colspan="4">Couldn’t load the roster: '+esc(e.message)+'</td></tr>'; }
   }
 
-  async function loadAgents(){
-    var el=document.getElementById('chips');
-    try{
-      var d=await api('/api/agents'); var ag=d.agents||[];
-      if(!ag.length){el.innerHTML='<span class="empty">No sessions running. Dispatch a todo below to start one.</span>';return;}
-      el.innerHTML=ag.map(function(a){
-        var label=a.todoText||a.project||a.session;
-        var st=a.status||'running';
-        var stLabel=st==='needs-you'?'needs you':st==='idle'?'ready':'working';
-        return '<span class="chip" data-status="'+esc(st)+'" data-session="'+esc(a.session)+'" title="'+esc((a.cwd||'')+' · '+stLabel)+'"><span class="dot"></span>'+esc(label.slice(0,40))+' <span style="color:var(--ink-3);font-weight:500;">'+stLabel+'</span><span class="x" data-kill="'+esc(a.session)+'">&times;</span></span>';
-      }).join('');
-    }catch(e){/* leave prior state */}
-  }
-
-  document.addEventListener('click',function(e){
-    var go=e.target.closest('.go');
-    if(go){
-      if(go.dataset.kind==='project') dispatch({project:go.dataset.project,todo:go.dataset.text}, go.dataset.text);
-      else dispatch({todo:go.dataset.text,todoFile:go.dataset.file||undefined}, go.dataset.text);
-      return;
-    }
-    var kill=e.target.closest('.x');
-    if(kill){ e.stopPropagation();
-      api('/api/agents/'+encodeURIComponent(kill.dataset.kill)+'/kill',{method:'POST'}).then(function(){toast('Session ended');loadAgents();}).catch(function(err){toast('Could not end: '+err.message,true);});
-      return;
-    }
-    var chip=e.target.closest('.chip');
-    if(chip&&chip.dataset.session){ api('/api/agents/'+encodeURIComponent(chip.dataset.session)+'/focus',{method:'POST'}).catch(function(){}); }
-  });
-
-  async function loadSmartStart(){
-    try{ var s=await api('/api/smart-start/state'); document.getElementById('hero').style.display=s.done?'none':'block'; }catch(e){}
-  }
-  document.getElementById('btn-smart-start').addEventListener('click',function(){
-    var btn=this; btn.disabled=true;
-    api('/api/smart-start/run',{method:'POST'}).then(function(){
-      document.getElementById('hero-note').textContent='Smart Start is running in a terminal window — answer the questions there. Your next steps will appear here when it finishes.';
-      toast('Smart Start session opened');
-      var poll=setInterval(function(){ api('/api/smart-start/state').then(function(s){ if(s.done){clearInterval(poll); document.getElementById('hero').style.display='none'; loadProjects();} }).catch(function(){}); },8000);
-    }).catch(function(e){ toast('Could not start Smart Start: '+e.message,true); btn.disabled=false; });
-  });
-
-  // Members-portal + Circle nudge: dismissible, hidden for a week when dismissed.
+  // add-member form
   (function(){
-    var card=document.getElementById('mpCard'); if(!card) return;
-    var KEY='mp-card-dismissed-until';
-    if(Date.now() > parseInt(localStorage.getItem(KEY)||'0',10)) card.style.display='block';
-    document.getElementById('mpDismiss').addEventListener('click',function(){
-      localStorage.setItem(KEY, String(Date.now()+7*24*60*60*1000));
-      card.style.display='none';
+    var send=$('af-send'), cancel=$('af-cancel');
+    if(cancel) cancel.addEventListener('click',function(){ $('add-form').hidden=true; $('af-status').textContent=''; });
+    if(send) send.addEventListener('click',function(){
+      var name=$('af-name').value.trim(), email=$('af-email').value.trim(), role=$('af-role').value, st=$('af-status');
+      if(!name||!email){ st.textContent='Name and email are both required.'; return; }
+      send.disabled=true; st.textContent='Sending invite…';
+      api('/api/team-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,role:role})})
+        .then(function(){ $('af-name').value=''; $('af-email').value=''; $('add-form').hidden=true; st.textContent=''; loadRoster(); })
+        .catch(function(e){ st.textContent='Failed: '+e.message; })
+        .then(function(){ send.disabled=false; });
     });
   })();
 
-  api('/api/health').then(function(h){document.getElementById('brainPath').textContent=h.brainRoot||'';}).catch(function(){});
-  loadSmartStart(); loadProjects(); loadTodos(); loadAgents();
-  setInterval(loadAgents,5000);
+  function renderKpis(d){
+    var s=d.summary;
+    function k(n,l,sub){return '<div class="kpi"><div class="n">'+esc(n)+'</div><div class="l">'+esc(l)+(sub?' <span>'+esc(sub)+'</span>':'')+'</div></div>';}
+    $('kpis').innerHTML = k(s.hasRuns?s.runs7d:'—','Skill runs','· last 7 days')
+      + k(s.improved30d,'Skills improved','· last 30 days')
+      + k(s.openFlags,'Open feedback flags')
+      + k(s.totalSkills,'Skills in the agency brain');
+  }
+
+  function renderFeedback(d){
+    var fe=d.flagEntries||[];
+    $('feedback').innerHTML = fe.length ? fe.map(function(f){
+      var meta=[f.flaggedBy&&('by '+f.flaggedBy), f.client&&('client: '+f.client), f.flaggedAt&&ago(f.flaggedAt)].filter(Boolean).map(esc).join(' · ');
+      return '<div class="flag"><h4>'+esc(f.skill)+'</h4><div class="meta">'+meta+'</div><pre>'+esc(f.body)+'</pre></div>';
+    }).join('') : '<p class="empty">No open feedback. The team hasn’t flagged any skill — they raise these with <code>/flag-skill</code> from inside a session.</p>';
+  }
+
+  // ---- charts (ported from the prototype) ----
+  function drawChart(svg,cfg){
+    var data=cfg.data,labels=cfg.labels,type=cfg.type||'line',max=cfg.max,yticks=cfg.yticks,color='#D64C00';
+    var W=540,H=180,padL=32,padR=16,padT=14,padB=28,plotW=W-padL-padR,plotH=H-padT-padB;
+    var x=function(i){return padL+(plotW*i)/((data.length-1)||1);};
+    var xb=function(i){return padL+(plotW*(i+0.5))/data.length;};
+    var y=function(v){return padT+plotH-(plotH*v)/(max||1);};
+    var out='';
+    yticks.forEach(function(v){out+='<line class="gridline" x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'"/><text class="chart-x" x="'+(padL-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'</text>';});
+    out+='<line class="axis" x1="'+padL+'" y1="'+padT+'" x2="'+padL+'" y2="'+(H-padB)+'"/><line class="axis" x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-padR)+'" y2="'+(H-padB)+'"/>';
+    if(type==='bar'){
+      var bw=(plotW/data.length)*0.5;
+      data.forEach(function(v,i){var by=y(v),bh=Math.max(0,(H-padB)-by);out+='<rect x="'+(xb(i)-bw/2)+'" y="'+by+'" width="'+bw+'" height="'+bh+'" fill="'+color+'" rx="1"/>';});
+      labels.forEach(function(dn,i){out+='<text class="chart-x" x="'+xb(i)+'" y="'+(H-9)+'" text-anchor="middle">'+esc(dn)+'</text>';});
+    } else {
+      var pts=data.map(function(v,i){return [x(i),y(v)];}); var dd='M '+pts[0][0]+' '+pts[0][1];
+      for(var i=0;i<pts.length-1;i++){var p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;dd+=' C '+(p1[0]+(p2[0]-p0[0])/6)+' '+(p1[1]+(p2[1]-p0[1])/6)+' '+(p2[0]-(p3[0]-p1[0])/6)+' '+(p2[1]-(p3[1]-p1[1])/6)+' '+p2[0]+' '+p2[1];}
+      out+='<path class="curve" d="'+dd+'"/>'; pts.forEach(function(p){out+='<circle class="dot" cx="'+p[0]+'" cy="'+p[1]+'" r="3"/>';});
+      labels.forEach(function(dn,i){out+='<text class="chart-x" x="'+x(i)+'" y="'+(H-9)+'" text-anchor="middle">'+esc(dn)+'</text>';});
+    }
+    svg.innerHTML=out;
+  }
+  function niceMax(v){if(v<=4)return 4;if(v<=6)return 6;if(v<=10)return 10;if(v<=20)return 20;if(v<=50)return 50;return Math.ceil(v/50)*50;}
+
+  var OBS=null, runsType='line';
+  function drawRuns(){
+    var svg=$('chart-runs'); if(!svg||!OBS) return;
+    if(!OBS.summary.hasRuns){
+      $('runs-card').innerHTML='<div class="sec">Skill runs per day</div><p class="chart-note">Per-skill run counts arrive with session logging (it ships with the home skill). Until then this stays empty rather than showing made-up numbers.</p>';
+      return;
+    }
+    var ap=OBS.activityPerDay||[]; var data=ap.map(function(p){return p.count;}); var max=niceMax(Math.max(1,Math.max.apply(null,data.concat([0]))));
+    var labels=ap.map(function(p,i){return (i===0||i===ap.length-1||i===Math.floor(ap.length/2))?p.date.slice(5):'';});
+    drawChart(svg,{data:data,labels:labels,type:runsType,max:max,yticks:[0,Math.round(max/2),max]});
+  }
+  function drawImprove(){
+    var svg=$('chart-improve'); if(!svg||!OBS) return;
+    var ip=OBS.improvementsPerWeek||[]; var data=ip.map(function(p){return p.count;}); var max=niceMax(Math.max(1,Math.max.apply(null,data.concat([0]))));
+    var labels=ip.map(function(p){return p.weekStart.slice(5);});
+    drawChart(svg,{data:data,labels:labels,type:'bar',max:max,yticks:[0,Math.round(max/2),max]});
+  }
+
+  async function loadObservability(){
+    try{
+      OBS=await api('/api/observability');
+      $('pulse').innerHTML=buildPulse(OBS);
+      renderKpis(OBS); renderSkills(OBS); renderFeedback(OBS);
+      drawRuns(); drawImprove();
+    }catch(e){ $('pulse').textContent='Could not load observability: '+e.message; }
+  }
+
+  // runs chart toggle
+  $('runs-toggle').addEventListener('click',function(e){
+    var b=e.target.closest('.tg'); if(!b) return;
+    runsType=b.dataset.type;
+    var tgs=this.querySelectorAll('.tg'); for(var i=0;i<tgs.length;i++) tgs[i].classList.toggle('active',tgs[i]===b);
+    drawRuns();
+  });
+  // tabs
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+      document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active'); $('view-'+t.dataset.view).classList.add('active');
+    });
+  });
+
+  loadHealth();
+  loadRoster();
+  loadObservability();
+  setInterval(function(){ loadObservability(); loadRoster(); },30000);
 })();
 </script>
 </body>

@@ -34,6 +34,40 @@ process.env.BRAIN_ROOT = BRAIN_ROOT;
 const todoParser = require('./lib/todo-parser.cjs');
 const agentsTracker = require('./lib/agents-tracker.cjs');
 const homePrefs = require('./lib/home-prefs.cjs');
+const { getObservability } = require('./lib/observability.cjs');
+
+// Identity for the header + version footer. main.js passes these from the
+// member's config.json, which the app got from the server at OTP login
+// (server-authoritative — there is no role file on the machine to read).
+// Degrade to blanks if not provided.
+const MEMBER_EMAIL = process.env.AGENCY_MEMBER_EMAIL || '';
+const MEMBER_NAME = process.env.AGENCY_MEMBER_NAME || '';
+const MEMBER_ROLE = process.env.AGENCY_MEMBER_ROLE || '';
+const TEAM_SLUG = process.env.AGENCY_TEAM_SLUG || '';
+const APP_VERSION = process.env.AGENCY_VERSION || '';
+// The member's login token + API base — used to act AS the member for team
+// management (live roster, add member). Never grants more than the member has.
+const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
+const API_BASE = (process.env.AGENCY_API_BASE || 'https://api.ads2ai.com').replace(/\/+$/, '');
+// Set when this server process started — a freshness marker so Mike can tell a
+// reloaded preview really picked up new code (the version alone doesn't move
+// between builds).
+const SERVED_AT = new Date().toISOString();
+
+// Call the 8020 API as the member (Bearer member_token).
+async function apiCall(method, apiPath, body) {
+  const r = await fetch(API_BASE + apiPath, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + MEMBER_TOKEN },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || ('API ' + r.status)); e.statusCode = r.status; throw e; }
+  return j;
+}
+function slugify(s) {
+  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+}
 
 const PUBLIC = path.join(__dirname, 'public');
 
@@ -103,7 +137,40 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'), true);
     }
     if (req.method === 'GET' && p === '/api/health') {
-      return send(res, 200, { ok: true, brainRoot: BRAIN_ROOT });
+      return send(res, 200, {
+        ok: true, brainRoot: BRAIN_ROOT,
+        memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole: MEMBER_ROLE, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
+      });
+    }
+    if (req.method === 'GET' && p === '/api/observability') {
+      return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));
+    }
+    // Live team roster from the server (the source of truth), acting as the member.
+    if (req.method === 'GET' && p === '/api/team-roster') {
+      if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 200, { unavailable: true, reason: 'not signed in to a team' });
+      try {
+        return send(res, 200, await apiCall('GET', '/api/team-brain/team-summary?team=' + encodeURIComponent(TEAM_SLUG)));
+      } catch (err) {
+        return send(res, 200, { unavailable: true, reason: err.message });
+      }
+    }
+    // Add a member: create the roster row, generate an invite, email it. Owner/scout only (enforced server-side).
+    if (req.method === 'POST' && p === '/api/team-invite') {
+      const body = await readBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const name = String(body.name || '').trim();
+      const role = ['scout', 'team', 'owner'].includes(String(body.role || '').toLowerCase()) ? String(body.role).toLowerCase() : 'team';
+      if (!email || !name) return send(res, 400, { error: 'name and email are required' });
+      if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 400, { error: 'not signed in to a team' });
+      const memberSlug = (slugify(name) + '-' + slugify(email.split('@')[0])).slice(0, 50) || ('m' + Date.now().toString(36));
+      try {
+        await apiCall('POST', '/api/team-brain/add-member', { teamSlug: TEAM_SLUG, memberSlug, name, email, role });
+        await apiCall('POST', '/api/team-brain/invite-token', { teamSlug: TEAM_SLUG, memberEmail: email, memberName: name, memberRole: role });
+        await apiCall('POST', '/api/team-brain/send-invite', { teamSlug: TEAM_SLUG, memberEmail: email });
+        return send(res, 200, { ok: true, email });
+      } catch (err) {
+        return send(res, err.statusCode || 500, { error: err.message });
+      }
     }
     if (req.method === 'GET' && p === '/api/projects') {
       const all = todoParser.getProjectsList().map((pr) => ({ ...pr, activeTodos: todoParser.getProjectTodos(pr.name) }));
