@@ -12,8 +12,15 @@ files:
   - src/**/*
   - watcher/**/*
   - assets/**/*
+  - command-centre/**/*
   - node_modules/**/*
   - package.json
+
+# The embedded Command Centre server is spawned as a real child node process
+# (main.js -> spawn(execPath, [command-centre/server.cjs])). Files inside
+# app.asar can't be spawned, so unpack the whole folder to disk.
+asarUnpack:
+  - command-centre/**/*
 
 # Mac
 mac:

@@ -41,7 +41,11 @@ const API_BASE = process.env.BRAIN_SYNC_API_BASE || 'https://api.ads2ai.com';
 // Runs as a child node process pointed at the member's brain; loaded into the
 // app window after onboarding. Port deliberately != 3847 (Mike's live dashboard).
 const CC_PORT = parseInt(process.env.CC_PORT || '38917', 10);
-const CC_SERVER = path.join(__dirname, 'command-centre', 'server.cjs');
+// Spawned as a real child node process (ELECTRON_RUN_AS_NODE), which has no
+// asar fs patching — so it must read a real on-disk file. electron-builder.yml
+// asarUnpacks command-centre/**/*, putting it at app.asar.unpacked/. In dev
+// (__dirname has no app.asar) the replace is a no-op.
+const CC_SERVER = path.join(__dirname, 'command-centre', 'server.cjs').replace('app.asar', 'app.asar.unpacked');
 let ccProcess = null;
 
 let tray = null;
@@ -428,7 +432,16 @@ async function openCommandCentre() {
   const ok = await ensureCommandCentre();
   if (!setupWindow) showSetupWindow();
   if (!ok) {
-    dialog.showErrorBox(APP_NAME, 'Could not start the Command Centre. See the log for details.');
+    const choice = dialog.showMessageBoxSync(setupWindow, {
+      type: 'error',
+      title: APP_NAME,
+      message: 'Could not start the Command Centre.',
+      detail: `The background server didn't respond. The details are in the log:\n${LOG_FILE}`,
+      buttons: ['Open log', 'OK'],
+      defaultId: 1,
+      cancelId: 1,
+    });
+    if (choice === 0) shell.openPath(LOG_FILE);
     return { ok: false };
   }
   setupWindow.setSize(1280, 860);
