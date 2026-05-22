@@ -31,7 +31,16 @@ jobs:
 
       - name: Build
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Mac signing + notarisation. CSC_LINK is a Developer ID .p12; it must
+          # NOT reach the Windows job (it would try to sign the exe with it and
+          # fail), so it's gated on the mac matrix leg. APPLE_* are read by
+          # electron-builder's notarize step and ignored elsewhere.
+          CSC_LINK: ${{ matrix.artifact == 'mac' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.artifact == 'mac' && secrets.CSC_KEY_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.artifact == 'mac' && 'true' || 'false' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: npm run ${{ matrix.script }}
 
       - name: Upload installer
