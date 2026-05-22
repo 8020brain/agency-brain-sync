@@ -59,20 +59,52 @@ let lastSyncTime = null;
 let pendingInviteToken = null;
 
 // ---------- single instance ----------
-const gotLock = app.requestSingleInstanceLock();
+// Pass our version so a running (older) instance can decide to step aside when
+// a freshly-installed build launches. Without this, a new build silently exits
+// on the lock and the OLD instance keeps running (and keeps port 38917), so an
+// update never takes effect until the user manually quits. See second-instance.
+const MY_VERSION = require('./package.json').version;
+const gotLock = app.requestSingleInstanceLock({ version: MY_VERSION });
 if (!gotLock) {
+  // Another instance already holds the lock. Launching us fired its
+  // 'second-instance' handler with our version; if we're newer it quits and
+  // relaunches the (now-upgraded) on-disk bundle. Either way, we exit.
   app.quit();
   process.exit(0);
 }
 
-// Surface deep-link tokens from a 2nd-instance launch into pendingInviteToken
-app.on('second-instance', (_event, argv) => {
+// Compare two semver-ish strings ("0.8.8" > "0.8.7"). Core x.y.z only; any
+// prerelease suffix (-alpha.3) is ignored for the newer-than test.
+function isNewerVersion(a, b) {
+  const core = (v) => String(v || '0').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0);
+  const av = core(a), bv = core(b);
+  for (let i = 0; i < 3; i++) { if ((av[i] || 0) !== (bv[i] || 0)) return (av[i] || 0) > (bv[i] || 0); }
+  return false;
+}
+
+// A second launch happened. If it's a NEWER build (the user installed an update
+// over the top), the on-disk app bundle has already been replaced — so we step
+// aside and relaunch, which boots the new code and claims the lock we release on
+// quit. If it's the same/older version, just surface our window and pick up any
+// deep-link token (the normal "app is already running" behaviour).
+app.on('second-instance', (_event, argv, _cwd, additionalData) => {
+  const incoming = additionalData && additionalData.version;
+  if (incoming && isNewerVersion(incoming, MY_VERSION)) {
+    try { fs.appendFileSync(LOG_FILE, `[upgrade] v${incoming} launched over running v${MY_VERSION} — stepping aside and relaunching\n`); } catch {}
+    app.relaunch();
+    app.quit(); // before-quit kills the watcher + CC server, freeing port 38917
+    return;
+  }
   for (const arg of argv) {
     const token = parseInviteUrl(arg);
     if (token) {
       pendingInviteToken = token;
       showSetupWindow();
     }
+  }
+  if (setupWindow && !setupWindow.isDestroyed()) {
+    setupWindow.show();
+    setupWindow.focus();
   }
 });
 

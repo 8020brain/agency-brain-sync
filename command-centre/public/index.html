@@ -248,7 +248,7 @@
   function $(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
-  async function api(p){var r=await fetch(p);var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
+  async function api(p,opts){var r=await fetch(p,opts);var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
 
   function ago(iso){
     if(!iso) return '—';
