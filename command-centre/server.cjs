@@ -194,6 +194,35 @@ const server = http.createServer(async (req, res) => {
         return send(res, err.statusCode || 500, { error: err.message });
       }
     }
+    // Edit a member's name and/or role. Owner/scout only (enforced server-side).
+    if (req.method === 'POST' && p === '/api/team-member-update') {
+      const body = await readBody(req);
+      const memberSlug = String(body.memberSlug || '').trim();
+      if (!memberSlug) return send(res, 400, { error: 'memberSlug is required' });
+      if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 400, { error: 'not signed in to a team' });
+      const payload = { teamSlug: TEAM_SLUG, memberSlug };
+      if (body.name != null) payload.name = String(body.name).trim();
+      if (body.role != null) payload.role = String(body.role).toLowerCase();
+      try {
+        await apiCall('GET', '/api/team-dashboard/version', null, 1).catch(() => {});
+        return send(res, 200, await apiCall('POST', '/api/team-brain/update-member', payload));
+      } catch (err) {
+        return send(res, err.statusCode || 500, { error: err.message });
+      }
+    }
+    // Remove a member (deletes roster row + revokes access). Owner/scout only.
+    if (req.method === 'POST' && p === '/api/team-member-remove') {
+      const body = await readBody(req);
+      const memberSlug = String(body.memberSlug || '').trim();
+      if (!memberSlug) return send(res, 400, { error: 'memberSlug is required' });
+      if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 400, { error: 'not signed in to a team' });
+      try {
+        await apiCall('GET', '/api/team-dashboard/version', null, 1).catch(() => {});
+        return send(res, 200, await apiCall('POST', '/api/team-brain/remove-member', { teamSlug: TEAM_SLUG, memberSlug }));
+      } catch (err) {
+        return send(res, err.statusCode || 500, { error: err.message });
+      }
+    }
     if (req.method === 'GET' && p === '/api/projects') {
       const all = todoParser.getProjectsList().map((pr) => ({ ...pr, activeTodos: todoParser.getProjectTodos(pr.name) }));
       const { projects, snoozed } = homePrefs.applyProjectPrefs(all);
