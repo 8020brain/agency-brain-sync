@@ -49,6 +49,10 @@
   .sec-row{display:flex;align-items:center;gap:12px;}
   .add-btn{margin-left:auto;appearance:none;font-family:inherit;font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:none;cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:2px;padding:5px 12px;}
   .add-btn:hover{background:#b94000;} .add-btn:disabled{opacity:.5;cursor:default;}
+  /* secondary (outline) — for the "+ Add member" toggle, so the form's primary
+     action (Send invite) keeps the strong solid weight on its own. */
+  .add-btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent);}
+  .add-btn.secondary:hover{background:var(--accent-soft);}
   .mut{color:var(--muted);}
   .add-form{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:2px;}
   .add-form input,.add-form select{font-family:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--line);border-radius:2px;background:#fff;color:var(--ink);}
@@ -165,11 +169,11 @@
       <div class="stack">
         <div class="card">
           <div class="sec sec-row">The team
-            <button class="add-btn" id="add-member" hidden>+ Add member</button>
+            <button class="add-btn secondary" id="add-member" hidden>+ Add member</button>
           </div>
           <div class="add-form" id="add-form" hidden>
-            <input id="af-name" placeholder="Full name" autocomplete="off">
-            <input id="af-email" type="email" placeholder="email@agency.com" autocomplete="off">
+            <input id="af-name" placeholder="Full name" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
+            <input id="af-email" type="email" placeholder="email@agency.com" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
             <select id="af-role"><option value="team">Team</option><option value="scout">Scout</option></select>
             <button class="add-btn" id="af-send">Send invite</button>
             <button class="cancel-btn" id="af-cancel">Cancel</button>
