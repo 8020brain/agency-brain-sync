@@ -24,6 +24,7 @@ const CONFIG_FILE = path.join(USER_DATA, 'config.json');
 const LOG_FILE = path.join(USER_DATA, 'sync.log');
 const ERR_FILE = path.join(USER_DATA, 'sync.err');
 const STATE_FILE = path.join(USER_DATA, 'state.json');
+const WINDOW_STATE_FILE = path.join(USER_DATA, 'window-state.json');
 
 const ICON_ON  = path.join(__dirname, 'assets', 'brain-44.png');
 const ICON_OFF = path.join(__dirname, 'assets', 'brain-44-off.png');
@@ -368,6 +369,7 @@ function buildMenu() {
     { label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) },
     { label: 'Open agency brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
     { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
+    { label: 'Check for updates…',       click: () => checkForUpdatesManually() },
     { type: 'separator' },
     { label: 'Set up...',                click: () => showSetupWindow() },
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
@@ -405,6 +407,31 @@ function wasLaunchedAtLogin() {
   return process.argv.includes('--hidden');
 }
 
+// ---------- window position memory ----------
+// Persist the app window's bounds so reopening the Command Centre lands it
+// where the user left it, on the screen they left it on, instead of always
+// re-centering on the primary display.
+function loadWindowState() {
+  try { return JSON.parse(fs.readFileSync(WINDOW_STATE_FILE, 'utf8')); } catch { return null; }
+}
+function saveWindowState() {
+  try {
+    if (!setupWindow || setupWindow.isDestroyed() || setupWindow.isMinimized()) return;
+    fs.writeFileSync(WINDOW_STATE_FILE, JSON.stringify(setupWindow.getBounds()));
+  } catch {}
+}
+// Guard against bounds saved on a monitor that's since been unplugged: only
+// reuse them if the rect still overlaps a connected display's work area.
+function boundsAreVisible(b) {
+  if (!b || typeof b.x !== 'number' || typeof b.y !== 'number') return false;
+  const { screen } = require('electron');
+  return screen.getAllDisplays().some((d) => {
+    const a = d.workArea;
+    return b.x < a.x + a.width && b.x + Math.min(b.width || 0, 200) > a.x &&
+           b.y < a.y + a.height && b.y + 40 > a.y;
+  });
+}
+
 // ---------- setup window ----------
 function showSetupWindow() {
   // Reveal the Dock icon while the wizard is open so the user can Cmd-Tab
@@ -417,9 +444,12 @@ function showSetupWindow() {
     setupWindow.focus();
     return;
   }
+  const saved = loadWindowState();
+  const useSaved = saved && boundsAreVisible(saved);
   setupWindow = new BrowserWindow({
-    width: 680,
-    height: 800,
+    width: useSaved ? saved.width : 680,
+    height: useSaved ? saved.height : 800,
+    ...(useSaved ? { x: saved.x, y: saved.y } : {}),
     resizable: true,
     minWidth: 600,
     minHeight: 640,
@@ -432,6 +462,9 @@ function showSetupWindow() {
       contextIsolation: true,
     },
   });
+  // Remember where the user puts the window, so the next open restores it.
+  setupWindow.on('moved', saveWindowState);
+  setupWindow.on('resized', saveWindowState);
   // Merged wizard (Brain 3.0 design + real solo/agency wiring). The previous
   // 9-step setup.html stays in the repo as a fallback until the new wizard is
   // proven against real auth on both OSes.
@@ -454,6 +487,7 @@ function showSetupWindow() {
   setupWindow.on('close', (e) => {
     if (!isQuitting) {
       e.preventDefault();
+      saveWindowState();
       setupWindow.hide();
       if (process.platform === 'darwin' && app.dock) app.dock.hide();
     }
@@ -542,8 +576,15 @@ async function openCommandCentre() {
     if (choice === 0) shell.openPath(LOG_FILE);
     return { ok: false };
   }
-  setupWindow.setSize(1280, 860);
-  setupWindow.center();
+  // Restore the last position the user left the window in; only fall back to a
+  // centered default size the first time (no saved state yet).
+  const saved = loadWindowState();
+  if (saved && boundsAreVisible(saved)) {
+    setupWindow.setBounds(saved);
+  } else {
+    setupWindow.setSize(1280, 860);
+    setupWindow.center();
+  }
   await setupWindow.loadURL(`http://127.0.0.1:${CC_PORT}/`);
   setupWindow.show();
   setupWindow.focus();
@@ -724,6 +765,11 @@ function setupAutoUpdater() {
   catch (e) { ulog('electron-updater unavailable: ' + e.message); return; }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  // Windows ships unsigned (by decision). electron-updater's default
+  // post-download Authenticode check rejects the unsigned installer, so
+  // 'update-downloaded' never fires and no toast appears. Skip that check on
+  // Windows; the sha512 in latest.yml still guarantees download integrity.
+  if (process.platform === 'win32') autoUpdater.verifyUpdateCodeSignature = false;
   autoUpdater.logger = { info: ulog, warn: ulog, error: ulog, debug: () => {} };
   autoUpdater.on('update-available', (i) => ulog('update available: v' + (i && i.version)));
   autoUpdater.on('update-not-available', () => ulog('up to date'));
@@ -737,6 +783,46 @@ function setupAutoUpdater() {
   const check = () => autoUpdater.checkForUpdates().catch((e) => ulog('check failed: ' + e.message));
   setTimeout(check, 10000);
   setInterval(check, 6 * 60 * 60 * 1000);
+}
+
+// Manual "Check for updates" from the tray menu. Unlike the silent background
+// check, this always tells the user what happened (up to date / downloading /
+// error) — which is how an otherwise-invisible update failure (e.g. on
+// Windows) becomes a readable message instead of nothing.
+async function checkForUpdatesManually() {
+  if (!app.isPackaged) {
+    dialog.showMessageBox({ type: 'info', title: APP_NAME, message: 'Updates run only in the installed app.', detail: "You're running an unpackaged dev build.", buttons: ['OK'] });
+    return;
+  }
+  // Already downloaded and waiting? Offer the relaunch now.
+  if (updateInfo && updateInfo.version) {
+    const c = dialog.showMessageBoxSync({ type: 'info', title: APP_NAME, message: `Version ${updateInfo.version} is ready to install.`, detail: 'Agency Brain will relaunch to finish updating.', buttons: ['Relaunch now', 'Later'], defaultId: 0, cancelId: 1 });
+    if (c === 0) {
+      isQuitting = true;
+      try { require('electron-updater').autoUpdater.quitAndInstall(); }
+      catch (e) { ulog('manual install failed: ' + e.message); isQuitting = false; dialog.showErrorBox(APP_NAME, 'Could not start the update: ' + e.message); }
+    }
+    return;
+  }
+  let autoUpdater;
+  try { ({ autoUpdater } = require('electron-updater')); }
+  catch (e) { dialog.showErrorBox(APP_NAME, 'Updater unavailable: ' + e.message); return; }
+  try {
+    ulog('manual check requested');
+    const r = await autoUpdater.checkForUpdates();
+    const latest = r && r.updateInfo && r.updateInfo.version;
+    if (latest && isNewerVersion(latest, MY_VERSION)) {
+      // autoDownload is on, so it's already downloading; 'update-downloaded'
+      // will show the relaunch toast when it's ready.
+      dialog.showMessageBox({ type: 'info', title: APP_NAME, message: `Downloading version ${latest}…`, detail: "Keep working — you'll be offered a relaunch when it's ready.", buttons: ['OK'] });
+    } else {
+      dialog.showMessageBox({ type: 'info', title: APP_NAME, message: "You're up to date.", detail: `Version ${MY_VERSION} is the latest.`, buttons: ['OK'] });
+    }
+  } catch (e) {
+    const msg = (e && e.message) || String(e);
+    ulog('manual check failed: ' + msg);
+    dialog.showErrorBox(APP_NAME, 'Could not check for updates:\n\n' + msg);
+  }
 }
 
 ipcMain.handle('get-update-state', () => updateInfo);
