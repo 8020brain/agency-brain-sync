@@ -49,6 +49,7 @@ jobs:
           name: brain-sync-${{ matrix.artifact }}
           path: |
             dist/*.dmg
+            dist/*.zip
             dist/*.exe
             dist/*.yml
             dist/*.blockmap
@@ -74,6 +75,7 @@ jobs:
         with:
           files: |
             artifacts/*.dmg
+            artifacts/*.zip
             artifacts/*.exe
             artifacts/*.yml
             artifacts/*.blockmap
