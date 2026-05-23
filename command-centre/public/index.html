@@ -202,7 +202,15 @@
   footer .foot-id #who-role:not(:empty)::after{content:'·';margin-left:6px;color:var(--muted);font-weight:400;}
   footer .foot-signout{appearance:none;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;background:none;border:1px solid var(--line);border-radius:2px;padding:3px 10px;color:var(--muted);}
   footer .foot-signout:hover{border-color:var(--accent);color:var(--accent);}
-  footer .dev-switch{display:flex;align-items:center;gap:4px;}
+  .update-toast{position:fixed;left:20px;bottom:46px;z-index:60;display:flex;align-items:center;gap:12px;max-width:300px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:11px 14px;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.12);}
+  .update-toast[hidden]{display:none;}
+  .update-toast:hover{border-color:var(--accent);}
+  .update-toast .ut-ic{flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;border-radius:2px;}
+  .update-toast .ut-ic svg{width:17px;height:17px;}
+  .update-toast .ut-h{font-size:13px;font-weight:700;color:var(--ink);}
+  .update-toast .ut-v{font-size:11.5px;color:var(--muted);margin-top:1px;}
+  .update-toast .ut-arrow{margin-left:auto;color:var(--accent);font-weight:800;font-size:15px;}
+  footer .dev-switch:not([hidden]){display:flex;align-items:center;gap:4px;}
   footer .dev-switch .ds-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px;}
   footer .dev-switch button{appearance:none;font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer;background:none;border:1px solid var(--line);border-radius:2px;padding:2px 8px;color:var(--muted);}
   footer .dev-switch button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
@@ -420,6 +428,11 @@
 
 </div>
 
+<div class="update-toast" id="update-toast" hidden title="Relaunch to install the update">
+  <div class="ut-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg></div>
+  <div class="ut-text"><div class="ut-h">Relaunch to update</div><div class="ut-v" id="ut-version"></div></div>
+  <div class="ut-arrow">→</div>
+</div>
 <footer>
   <span class="ver" id="ft-ver">Agency Brain</span>
   <span id="ft-built"></span>
@@ -755,6 +768,16 @@
     sw.querySelectorAll('button').forEach(function(b){
       b.addEventListener('click',function(){ DEV_ROLE_OVERRIDE=b.dataset.role; loadHealth(); loadRoster(); });
     });
+  })();
+
+  // Auto-update banner (Electron only — needs the preload bridge). Shows the
+  // bottom-left "Relaunch to update" toast when a new build has downloaded.
+  (function(){
+    var toast=$('update-toast'); if(!toast || !window.agencyBrain) return;
+    function show(info){ if(!info || !info.version) return; var v=$('ut-version'); if(v) v.textContent='v'+info.version; toast.hidden=false; }
+    if(window.agencyBrain.getUpdateState) window.agencyBrain.getUpdateState().then(function(s){ if(s) show(s); }).catch(function(){});
+    if(window.agencyBrain.onUpdateDownloaded) window.agencyBrain.onUpdateDownloaded(show);
+    toast.addEventListener('click',function(){ if(window.agencyBrain.installUpdate) window.agencyBrain.installUpdate(); });
   })();
 
   // Skills page (master-detail) — team + scout. Reuses the observability data

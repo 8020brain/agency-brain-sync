@@ -56,6 +56,9 @@ let watcherState = 'stopped';
 // E2E run). Everything else — Cmd-Q, red-X, Cmd-W — hides the window and keeps
 // the tray process alive, so sync never silently stops.
 let isQuitting = false;
+// Auto-update state: the version that's downloaded and ready to install.
+let updateInfo = null;
+function ulog(line) { try { fs.appendFileSync(LOG_FILE, '[update] ' + line + '\n'); } catch {} }
 let lastEventLine = '';
 let lastSyncTime = null;
 
@@ -678,6 +681,47 @@ ipcMain.handle('sign-out', () => {
   }
 });
 
+// ---------- auto-update (electron-updater) ----------
+// Polls the public agency-brain-sync GitHub releases (the publish target in
+// electron-builder.yml), downloads a newer signed+notarised build in the
+// background, and tells the Command Centre window when one is ready so it can
+// show the "Relaunch to update" banner. quitAndInstall swaps it in. Only runs
+// in the packaged app (the node preview + `electron .` dev have no app-update.yml).
+function setupAutoUpdater() {
+  if (!app.isPackaged) { ulog('not packaged — auto-update disabled'); return; }
+  let autoUpdater;
+  try { ({ autoUpdater } = require('electron-updater')); }
+  catch (e) { ulog('electron-updater unavailable: ' + e.message); return; }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = { info: ulog, warn: ulog, error: ulog, debug: () => {} };
+  autoUpdater.on('update-available', (i) => ulog('update available: v' + (i && i.version)));
+  autoUpdater.on('update-not-available', () => ulog('up to date'));
+  autoUpdater.on('error', (e) => ulog('error: ' + ((e && e.message) || e)));
+  autoUpdater.on('before-quit-for-update', () => { isQuitting = true; });
+  autoUpdater.on('update-downloaded', (info) => {
+    updateInfo = { version: info && info.version };
+    ulog('downloaded v' + (info && info.version) + ' — surfacing banner');
+    if (setupWindow && !setupWindow.isDestroyed()) setupWindow.webContents.send('update-downloaded', updateInfo);
+  });
+  const check = () => autoUpdater.checkForUpdates().catch((e) => ulog('check failed: ' + e.message));
+  setTimeout(check, 10000);
+  setInterval(check, 6 * 60 * 60 * 1000);
+}
+
+ipcMain.handle('get-update-state', () => updateInfo);
+ipcMain.handle('install-update', () => {
+  try {
+    isQuitting = true;
+    require('electron-updater').autoUpdater.quitAndInstall();
+    return { ok: true };
+  } catch (e) {
+    ulog('install failed: ' + e.message);
+    isQuitting = false;
+    return { ok: false, error: e.message };
+  }
+});
+
 // Demo-mode helper: create a placeholder folder at the path the user picked
 // so Cowork has something real to attach to during walkthroughs. Only seeds
 // if the folder is missing or empty; never overwrites existing content.
@@ -1082,6 +1126,8 @@ app.whenReady().then(() => {
       app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
     }
   }
+
+  setupAutoUpdater();
 });
 
 app.on('window-all-closed', (e) => { e.preventDefault(); });

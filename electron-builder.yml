@@ -1,6 +1,16 @@
 appId: com.8020brain.agencybrain
 productName: Agency Brain
 copyright: Copyright (c) 2026 8020brain
+
+# Auto-update feed. agency-brain-sync is a PUBLIC repo, so electron-updater can
+# read its releases with no token. This bakes app-update.yml into the app and
+# makes the build emit latest-mac.yml / latest.yml + .blockmap files (uploaded
+# to the release by CI). Builds use `--publish never`; CI does the upload.
+publish:
+  provider: github
+  owner: 8020brain
+  repo: agency-brain-sync
+
 directories:
   output: dist
   buildResources: build
@@ -30,7 +40,7 @@ mac:
         - arm64
         - x64
   category: public.app-category.utilities
-  icon: assets/brain-512.png
+  icon: assets/brain-1024.png  # crisp 1024 (nearest-neighbour from the 32px source); 512 was a blurry smooth upscale
   hardenedRuntime: true
   gatekeeperAssess: false
   identity: "Michael Rhodes (J83Q25362G)"  # no "Developer ID Application:" prefix — electron-builder adds it

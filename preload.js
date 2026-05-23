@@ -50,6 +50,15 @@ const api = {
   // Sign out: clears the member token + team identity, stops the watcher, and
   // returns to the setup wizard. The tray process keeps running.
   signOut: () => ipcRenderer.invoke('sign-out'),
+  // Auto-update: ask if a build is already downloaded + waiting, subscribe to
+  // the "downloaded" event, and trigger the relaunch-and-install.
+  getUpdateState: () => ipcRenderer.invoke('get-update-state'),
+  onUpdateDownloaded: (cb) => {
+    const handler = (_e, info) => cb(info);
+    ipcRenderer.on('update-downloaded', handler);
+    return () => ipcRenderer.removeListener('update-downloaded', handler);
+  },
+  installUpdate: () => ipcRenderer.invoke('install-update'),
   // Progress events from clone/npm steps. Returns an unsubscribe fn. This is
   // the Electron equivalent of Brain 3.0's listen("clone-log").
   onWizardLog: (cb) => {
