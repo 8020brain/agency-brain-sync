@@ -41,6 +41,9 @@ mac:
         - x64
   category: public.app-category.utilities
   icon: assets/brain-1024.png  # crisp 1024 (nearest-neighbour from the 32px source); 512 was a blurry smooth upscale
+  # No spaces — GitHub turns spaces into dots in asset names, which would break
+  # the latest-mac.yml update-feed URLs. Keeps generated file = asset = feed url.
+  artifactName: Agency-Brain-${version}-${arch}.${ext}
   hardenedRuntime: true
   gatekeeperAssess: false
   identity: "Michael Rhodes (J83Q25362G)"  # no "Developer ID Application:" prefix — electron-builder adds it
@@ -74,4 +77,4 @@ nsis:
   createDesktopShortcut: false
   createStartMenuShortcut: true
   shortcutName: Agency Brain
-  artifactName: Agency Brain Setup.${ext}
+  artifactName: Agency-Brain-Setup.${ext}  # no spaces (same reason as mac.artifactName) so latest.yml resolves
