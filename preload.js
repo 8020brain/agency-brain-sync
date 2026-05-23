@@ -47,6 +47,9 @@ const api = {
   writeBusinessContext: (args) => ipcRenderer.invoke('write-business-context', args),
   // Loads the embedded Command Centre into the app window (post-onboarding home).
   openCommandCentre: () => ipcRenderer.invoke('open-command-centre'),
+  // Sign out: clears the member token + team identity, stops the watcher, and
+  // returns to the setup wizard. The tray process keeps running.
+  signOut: () => ipcRenderer.invoke('sign-out'),
   // Progress events from clone/npm steps. Returns an unsubscribe fn. This is
   // the Electron equivalent of Brain 3.0's listen("clone-log").
   onWizardLog: (cb) => {

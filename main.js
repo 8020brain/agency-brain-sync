@@ -52,6 +52,10 @@ let tray = null;
 let setupWindow = null;
 let watcherProcess = null;
 let watcherState = 'stopped';
+// True only when the user picks "Quit" from the tray (or an update relaunch /
+// E2E run). Everything else — Cmd-Q, red-X, Cmd-W — hides the window and keeps
+// the tray process alive, so sync never silently stops.
+let isQuitting = false;
 let lastEventLine = '';
 let lastSyncTime = null;
 
@@ -91,6 +95,7 @@ app.on('second-instance', (_event, argv, _cwd, additionalData) => {
   const incoming = additionalData && additionalData.version;
   if (incoming && isNewerVersion(incoming, MY_VERSION)) {
     try { fs.appendFileSync(LOG_FILE, `[upgrade] v${incoming} launched over running v${MY_VERSION} — stepping aside and relaunching\n`); } catch {}
+    isQuitting = true;
     app.relaunch();
     app.quit(); // before-quit kills the watcher + CC server, freeing port 38917
     return;
@@ -346,7 +351,7 @@ function buildMenu() {
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
     { type: 'separator' },
     { label: `About ${APP_NAME}`,        click: () => showAbout() },
-    { label: `Quit ${APP_NAME}`,         click: () => { stopWatcher(); setTimeout(() => app.quit(), 200); } },
+    { label: `Quit ${APP_NAME}`,         click: () => { isQuitting = true; stopWatcher(); setTimeout(() => app.quit(), 200); } },
   );
 
   return Menu.buildFromTemplate(items);
@@ -410,6 +415,15 @@ function showSetupWindow() {
     if (input.type !== 'keyDown') return;
     const isInspect = input.key === 'F12' || (input.meta && input.alt && (input.key || '').toLowerCase() === 'i');
     if (isInspect) setupWindow.webContents.toggleDevTools();
+  });
+  // Closing the window (red-X / Cmd-W) hides it; the app keeps running in the
+  // tray. Only an explicit tray "Quit" sets isQuitting and really exits.
+  setupWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      setupWindow.hide();
+      if (process.platform === 'darwin' && app.dock) app.dock.hide();
+    }
   });
   setupWindow.on('closed', () => {
     setupWindow = null;
@@ -528,6 +542,7 @@ async function runE2E(mode) {
   } catch (e) {
     console.error('AB_E2E_ERR ' + (e && e.stack || e));
   }
+  isQuitting = true;
   app.quit();
 }
 
@@ -634,6 +649,34 @@ ipcMain.handle('close-wizard', () => {
 });
 
 ipcMain.handle('open-command-centre', () => openCommandCentre());
+
+// Sign out: clear the member token + team identity, stop syncing, and return to
+// the setup wizard. The tray process keeps running (this is not a quit).
+ipcMain.handle('sign-out', () => {
+  try {
+    const cfg = loadConfig() || {};
+    delete cfg.memberToken;
+    delete cfg.teamSlug;
+    delete cfg.memberEmail;
+    delete cfg.memberName;
+    delete cfg.memberRole;
+    saveConfig(cfg);
+    stopWatcher();
+    if (ccProcess) { ccProcess.kill(); ccProcess = null; }
+    if (process.platform === 'darwin' && app.dock) app.dock.show();
+    if (!setupWindow || setupWindow.isDestroyed()) {
+      showSetupWindow();
+    } else {
+      setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
+      setupWindow.show();
+      setupWindow.focus();
+    }
+    updateTray();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 // Demo-mode helper: create a placeholder folder at the path the user picked
 // so Cowork has something real to attach to during walkthroughs. Only seeds
@@ -1042,7 +1085,16 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', (e) => { e.preventDefault(); });
-app.on('before-quit', () => {
+app.on('before-quit', (e) => {
+  // Cmd-Q / app-level quit while running in the background must NOT kill the
+  // tray process — it hides the window and keeps syncing. Only the tray "Quit"
+  // (or an update relaunch / E2E) sets isQuitting and is allowed through.
+  if (!isQuitting) {
+    e.preventDefault();
+    if (setupWindow && !setupWindow.isDestroyed()) setupWindow.hide();
+    if (process.platform === 'darwin' && app.dock) app.dock.hide();
+    return;
+  }
   if (watcherProcess) watcherProcess.kill('SIGINT');
   if (ccProcess) ccProcess.kill();
 });

@@ -223,6 +223,39 @@ const server = http.createServer(async (req, res) => {
         return send(res, err.statusCode || 500, { error: err.message });
       }
     }
+    // Flag a skill from the web form. Writes the SAME structured feedback file
+    // the /flag-skill skill produces (.team-config/feedback/<skill>.md), so the
+    // dashboard's flag counts + Open feedback pick it up identically. Local
+    // write, no API call — feedback lives in the member's own brain.
+    if (req.method === 'POST' && p === '/api/flag-skill') {
+      const body = await readBody(req);
+      const skillRaw = String(body.skill || '').trim();
+      const skill = skillRaw.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+      const client = String(body.client || '').trim();
+      const wrong = String(body.wrong || '').trim();
+      const wanted = String(body.wanted || '').trim();
+      if (!skill) return send(res, 400, { error: 'pick a skill to flag' });
+      if (!wrong && !wanted) return send(res, 400, { error: 'tell us what went wrong or what you wanted instead' });
+      try {
+        const dir = path.join(BRAIN_ROOT, '.team-config', 'feedback');
+        fs.mkdirSync(dir, { recursive: true });
+        const file = path.join(dir, skill + '.md');
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const off = -now.getTimezoneOffset();
+        const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}${off >= 0 ? '+' : '-'}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+        let entry = `---\nflagged_at: ${stamp}\nflagged_by: ${MEMBER_EMAIL || 'unknown'}\nskill: ${skill}\n`;
+        if (client) entry += `client: ${client}\n`;
+        entry += `---\n\n`;
+        if (wrong) entry += `## What went wrong\n${wrong}\n\n`;
+        if (wanted) entry += `## What I wanted instead\n${wanted}\n\n`;
+        const prefix = (fs.existsSync(file) && fs.readFileSync(file, 'utf8').trim()) ? '\n' : '';
+        fs.appendFileSync(file, prefix + entry);
+        return send(res, 200, { ok: true, skill });
+      } catch (err) {
+        return send(res, err.statusCode || 500, { error: err.message });
+      }
+    }
     if (req.method === 'GET' && p === '/api/projects') {
       const all = todoParser.getProjectsList().map((pr) => ({ ...pr, activeTodos: todoParser.getProjectTodos(pr.name) }));
       const { projects, snoozed } = homePrefs.applyProjectPrefs(all);

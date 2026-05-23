@@ -63,7 +63,7 @@ function parseFrontmatter(skillDir) {
   const mMat = fm[1].match(/^maturity:\s*(draft|live|trusted)\s*$/m);
   if (mMat) out.maturity = mMat[1];
   const mDesc = fm[1].match(/^description:\s*(.+?)\s*$/m);
-  if (mDesc) out.description = mDesc[1].replace(/^["']|["']$/g, '').slice(0, 140);
+  if (mDesc) out.description = mDesc[1].replace(/^["']|["']$/g, '').slice(0, 500);
   return out;
 }
 
