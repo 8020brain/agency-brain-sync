@@ -765,11 +765,16 @@ function setupAutoUpdater() {
   catch (e) { ulog('electron-updater unavailable: ' + e.message); return; }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  // Windows ships unsigned (by decision). electron-updater's default
-  // post-download Authenticode check rejects the unsigned installer, so
-  // 'update-downloaded' never fires and no toast appears. Skip that check on
-  // Windows; the sha512 in latest.yml still guarantees download integrity.
-  if (process.platform === 'win32') autoUpdater.verifyUpdateCodeSignature = false;
+  // Windows ships unsigned (by decision). electron-updater verifies the
+  // downloaded installer's Authenticode signature against publisherName and
+  // aborts when it's absent ("not signed by the application owner"), so
+  // update-downloaded never fired. verifyUpdateCodeSignature is a FUNCTION you
+  // override (returning null = pass), NOT a boolean — setting it false is
+  // ignored and the check still runs. Override it to skip on Windows; the
+  // sha512 in latest.yml still guarantees download integrity.
+  if (process.platform === 'win32') {
+    autoUpdater.verifyUpdateCodeSignature = () => Promise.resolve(null);
+  }
   autoUpdater.logger = { info: ulog, warn: ulog, error: ulog, debug: () => {} };
   autoUpdater.on('update-available', (i) => ulog('update available: v' + (i && i.version)));
   autoUpdater.on('update-not-available', () => ulog('up to date'));
