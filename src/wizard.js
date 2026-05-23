@@ -107,12 +107,66 @@
   }
 
   // ====================================================================
-  // 1 — welcome
+  // 1 — welcome / invite-code paste (the primary agency path: the invite
+  //     email tells people to open the app and paste their 6-char code).
+  //     invite-resolve mints the member token and returns the team + identity
+  //     in one call, so this replaces the whole email→OTP→team-pick flow for
+  //     agency members. Email sign-in stays as the secondary / solo path.
   // ====================================================================
-  document.getElementById('btn-start').addEventListener('click', () => {
-    show('scene-email');
-    document.getElementById('emailInput').focus();
+  const codeInput = document.getElementById('codeInput');
+  const codeBtn = document.getElementById('btn-code');
+  function normaliseCode(s) { return String(s || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(); }
+  codeInput.addEventListener('input', () => {
+    codeBtn.disabled = normaliseCode(codeInput.value).length !== 6;
+    clearError('err-code');
   });
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !codeBtn.disabled) codeBtn.click(); });
+  codeBtn.addEventListener('click', () => resolveCodeValue(normaliseCode(codeInput.value)));
+  document.getElementById('link-email-signin').addEventListener('click', () => {
+    show('scene-email');
+    emailInput.focus();
+  });
+
+  function friendlyCodeError(err) {
+    const msg = (err && err.message) || '';
+    if (/not found|404/i.test(msg)) return "I couldn't find that code. Check your invite email and type it exactly, or ask whoever invited you to resend it.";
+    if (/expired|410/i.test(msg)) return "That code has expired. Ask whoever invited you to send a fresh one.";
+    if (/hasn'?t finished|github app|finish.*install|409/i.test(msg)) return "Your agency isn't fully set up on GitHub yet. Give it a few minutes, then try again.";
+    if (/network|fetch|enotfound|econnrefused|getaddrinfo/i.test(msg)) return "I can't reach the server. Check your internet, then try again.";
+    return "Something went wrong checking that code. Try again in a moment.";
+  }
+
+  // Resolves a pasted 6-char code OR a long deep-link token (invite-resolve
+  // accepts both). On success we have everything the agency clone needs, so we
+  // jump straight to the machine check.
+  async function resolveCodeValue(value) {
+    const v = String(value || '').trim();
+    if (!v) return;
+    clearError('err-code');
+    codeBtn.disabled = true;
+    const orig = codeBtn.textContent;
+    codeBtn.textContent = 'Checking…';
+    try {
+      const res = await api.resolveInviteToken(v);
+      const m = res.member || {};
+      mode = 'agency';
+      authToken = res.memberToken;
+      authEmail = String(m.email || res.memberEmail || '').toLowerCase();
+      authName = m.name || res.memberName || '';
+      teamInfo = {
+        memberToken: res.memberToken,
+        teamSlug: res.teamSlug,
+        teamName: res.teamName || res.teamSlug,
+        repoUrl: res.repoUrl || '',
+        member: { email: authEmail, name: authName, role: m.role || res.memberRole || 'team' },
+      };
+      enterMachine();
+    } catch (err) {
+      errorIn('err-code', friendlyCodeError(err));
+      codeBtn.disabled = false;
+      codeBtn.textContent = orig;
+    }
+  }
 
   // ====================================================================
   // 2 — sign in (email -> OTP -> team picker / solo branch)
@@ -467,7 +521,11 @@
   // ---- boot ----
   (async function init() {
     homePath = await api.getHomePath();
-    try { await api.consumePendingInviteToken(); } catch (_) {}
     show('scene-welcome');
+    // Deep-link join (agencybrain://join?token=…): the long token resolves the
+    // same way as a pasted code, so kick it off automatically.
+    let pending = null;
+    try { pending = await api.consumePendingInviteToken(); } catch (_) {}
+    if (pending) resolveCodeValue(pending);
   })();
 })();

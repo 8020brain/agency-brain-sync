@@ -113,7 +113,26 @@ app.on('second-instance', (_event, argv, _cwd, additionalData) => {
   if (setupWindow && !setupWindow.isDestroyed()) {
     setupWindow.show();
     setupWindow.focus();
+  } else {
+    // Re-launching an already-onboarded install should bring up the Command
+    // Centre, not silently do nothing.
+    const cfg = loadConfig();
+    if (cfg && cfg.brainPath) openCommandCentre();
+    else showSetupWindow();
   }
+});
+
+// macOS reopen: `open -a "Agency Brain"` while it's already running (or a dock
+// click when the icon is showing) fires this. Bring the right surface forward
+// instead of doing nothing.
+app.on('activate', () => {
+  // activate can fire before 'ready' on first launch; creating a window then
+  // throws. whenReady already handles the first-launch open, so bail out early.
+  if (!app.isReady()) return;
+  if (setupWindow && !setupWindow.isDestroyed()) { setupWindow.show(); setupWindow.focus(); return; }
+  const cfg = loadConfig();
+  if (cfg && cfg.brainPath) openCommandCentre();
+  else showSetupWindow();
 });
 
 // ---------- url scheme ----------
@@ -369,10 +388,21 @@ function updateTray() {
 
 // ---------- login item ----------
 function getLoginItem() { return app.getLoginItemSettings().openAtLogin; }
+// Windows has no openAsHidden; instead we tag the login-item command with
+// --hidden and detect it in argv (see wasLaunchedAtLogin). macOS uses
+// openAsHidden + wasOpenedAtLogin natively.
+function loginItemArgs() { return process.platform === 'win32' ? ['--hidden'] : []; }
 function toggleLoginItem() {
   const next = !getLoginItem();
-  app.setLoginItemSettings({ openAtLogin: next, openAsHidden: true });
+  app.setLoginItemSettings({ openAtLogin: next, openAsHidden: true, args: loginItemArgs() });
   updateTray();
+}
+// True when THIS launch was the OS auto-starting us at login, so we should stay
+// quietly in the tray. A user-initiated launch returns false → we open into the
+// Command Centre (the daily work surface).
+function wasLaunchedAtLogin() {
+  if (process.platform === 'darwin') return !!app.getLoginItemSettings().wasOpenedAtLogin;
+  return process.argv.includes('--hidden');
 }
 
 // ---------- setup window ----------
@@ -869,7 +899,7 @@ ipcMain.handle('mark-install-complete', async (_evt, args) => {
   // exact silent-drift failure this product exists to prevent. openAsHidden is
   // macOS-only; on Windows the same call writes the registry Run key.
   if (!app.getLoginItemSettings().openAtLogin) {
-    app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
+    app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true, args: loginItemArgs() });
   }
   const r = await fetch(`${API_BASE}/api/team-brain/install-complete`, {
     method: 'POST',
@@ -1123,8 +1153,12 @@ app.whenReady().then(() => {
   } else {
     startWatcher();
     if (!app.getLoginItemSettings().openAtLogin) {
-      app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
+      app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true, args: loginItemArgs() });
     }
+    // The Command Centre is the daily work surface, so a user-initiated launch
+    // opens into it rather than vanishing into the menu bar. A hidden login
+    // auto-start stays in the tray — don't pop a window in someone's face on boot.
+    if (!wasLaunchedAtLogin()) openCommandCentre();
   }
 
   setupAutoUpdater();

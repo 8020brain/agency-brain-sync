@@ -18,14 +18,20 @@
     <div class="demo-banner hidden" id="demoBanner">Demo mode — nothing is saved to your computer</div>
 
     <div class="body">
-      <!-- 1 welcome -->
+      <!-- 1 welcome / invite code -->
       <section class="screen active" data-step="1" id="scene-welcome">
         <div class="eyebrow">Agency Brain</div>
-        <h1>Let's set up your brain.</h1>
-        <p class="lede">Your brain is a set of files an AI works on for you: your research, your content, your business context. This app puts everything in the right place, then keeps it synced and one click away. No terminal, no setup commands.</p>
-        <div class="field" style="max-width:none;">
-          <button class="btn primary" id="btn-start">Get started</button>
+        <h1>Welcome. Let's get you connected.</h1>
+        <p class="lede">Your team shares a brain: the files everyone works on with Claude, kept in sync on your computer automatically. Paste the invite code from your email to join. No terminal, no GitHub account.</p>
+        <div class="field">
+          <label for="codeInput">Invite code</label>
+          <input id="codeInput" type="text" placeholder="ABC-DEF" autocomplete="one-time-code" spellcheck="false" maxlength="9" style="text-transform:uppercase; letter-spacing:0.14em; font-family:'SFMono-Regular',Consolas,monospace;">
         </div>
+        <div class="error-banner hidden" id="err-code"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-code" disabled>Continue</button>
+        </div>
+        <p style="margin-top:14px;"><span class="link" id="link-email-signin">No invite code? Sign in with your email instead</span></p>
       </section>
 
       <!-- 2 sign in: email -->
