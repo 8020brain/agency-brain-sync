@@ -80,8 +80,10 @@ win:
   publisherName: 8020brain
 
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  # One-click installer so auto-updates install silently and relaunch (matching
+  # the Mac zip flow). oneClick:false showed the full "next, next" wizard on every
+  # update. perMachine:false keeps it per-user, so silent install needs no UAC.
+  oneClick: true
   perMachine: false
   createDesktopShortcut: false
   createStartMenuShortcut: true

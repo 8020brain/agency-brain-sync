@@ -143,6 +143,75 @@ function buildPrompt(body) {
   return { prompt: `Pick up this todo: "${todoText}".`, todoText, project };
 }
 
+// ===================================================================
+// Google Ads connector setup (runs entirely on the member's own machine).
+// Nothing here ever calls an 8020/ads2ai API, writes to the synced brain, or
+// puts a credential into an LLM context. The app just turns pasted text into a
+// local file + a config entry. The credential FILE FORMAT is isolated in
+// writeCredentialFile() so it's a one-function swap to an ADC file if the
+// laptop test shows the official server needs that instead of google-ads.yaml.
+// ===================================================================
+function detectTool(cmds, arg) {
+  for (const c of cmds) {
+    try {
+      const r = spawnSync(c, [arg], { encoding: 'utf8', timeout: 6000 });
+      if (r.status === 0 && (r.stdout || r.stderr)) return { present: true, version: (r.stdout || r.stderr).trim().split('\n')[0] };
+    } catch {}
+  }
+  return { present: false, version: '' };
+}
+function detectGadsTools() {
+  const isWin = process.platform === 'win32';
+  const python = detectTool(isWin ? ['py', 'python'] : ['python3', 'python'], '--version');
+  const pipx = detectTool(['pipx'], '--version');
+  const m = (python.version || '').match(/(\d+)\.(\d+)/);
+  python.ok = !!m && (Number(m[1]) > 3 || (Number(m[1]) === 3 && Number(m[2]) >= 11));
+  return { platform: process.platform, python, pipx };
+}
+function claudeConfigPath() {
+  if (process.platform === 'win32') return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json');
+  return path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+}
+function buildGadsYaml(f) {
+  return [
+    `developer_token: ${f.dev || ''}`,
+    `client_id: ${f.cid || ''}`,
+    `client_secret: ${f.csec || ''}`,
+    `refresh_token: ${f.rt || ''}`,
+    `login_customer_id: ${(f.mcc || '').replace(/-/g, '')}`,
+    'use_proto_plus: True',
+    '',
+  ].join('\n');
+}
+// ISOLATED: where + how the credential file lands. Built to google-ads.yaml;
+// only this function changes if the test says the server needs an ADC file.
+function writeCredentialFile(yamlText) {
+  const dest = path.join(os.homedir(), 'google-ads.yaml');
+  fs.writeFileSync(dest, yamlText, { mode: 0o600 });
+  return dest;
+}
+// Merge a google-ads MCP block into the Claude config without disturbing other servers.
+function addGadsToClaudeConfig(envBlock) {
+  const cfgPath = claudeConfigPath();
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch {}
+  if (!cfg || typeof cfg !== 'object') cfg = {};
+  cfg.mcpServers = cfg.mcpServers || {};
+  cfg.mcpServers['google-ads'] = {
+    command: 'pipx',
+    args: ['run', '--spec', 'git+https://github.com/googleads/google-ads-mcp.git', 'google-ads-mcp'],
+    env: envBlock,
+  };
+  fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
+  fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+  return cfgPath;
+}
+const GADS_VERIFY_PROMPT = 'List my Google Ads accounts. If you can see them, tell me which manager account (MCC) they sit under.';
+// base64 of the field set — encoding for one clean paste, NOT encryption.
+// Channel security (email/Slack/doc) is the Scout's choice.
+function encodeGadsBlock(fields) { return 'AGENCY-BRAIN-GADS:' + Buffer.from(JSON.stringify(fields), 'utf8').toString('base64'); }
+function decodeGadsBlock(block) { return JSON.parse(Buffer.from(String(block || '').trim().replace(/^AGENCY-BRAIN-GADS:/, ''), 'base64').toString('utf8')); }
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const p = url.pathname;
@@ -158,6 +227,34 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && p === '/api/observability') {
       return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));
+    }
+    // ---- Google Ads connector setup (all local; see the helpers above) ----
+    if (req.method === 'GET' && p === '/api/gads/detect') {
+      return send(res, 200, detectGadsTools());
+    }
+    // Scout: turn entered credentials into a shareable block. Stays on this
+    // machine until the Scout chooses to share it (doc/email/Slack).
+    if (req.method === 'POST' && p === '/api/gads/encode') {
+      const b = await readBody(req);
+      return send(res, 200, { block: encodeGadsBlock({
+        dev: b.dev || '', cid: b.cid || '', csec: b.csec || '', rt: b.rt || '',
+        mcc: (b.mcc || '').replace(/-/g, ''), project: b.project || '',
+      }) });
+    }
+    // Member: decode the pasted block, write google-ads.yaml + the Claude config
+    // block, and hand back the verify prompt for the clipboard.
+    if (req.method === 'POST' && p === '/api/gads/install') {
+      const b = await readBody(req);
+      let f;
+      try { f = decodeGadsBlock(b.block); } catch { return send(res, 400, { error: "That code doesn't look right — check you pasted the whole block your Scout sent." }); }
+      if (!f.dev || !f.rt) return send(res, 400, { error: 'That block is missing credentials. Ask your Scout to regenerate it.' });
+      const yamlPath = writeCredentialFile(buildGadsYaml(f));
+      const configPath = addGadsToClaudeConfig({
+        GOOGLE_PROJECT_ID: f.project || '',
+        GOOGLE_ADS_DEVELOPER_TOKEN: f.dev || '',
+        GOOGLE_ADS_LOGIN_CUSTOMER_ID: f.mcc || '',
+      });
+      return send(res, 200, { ok: true, yamlPath, configPath, verifyPrompt: GADS_VERIFY_PROMPT });
     }
     // Live team roster from the server (the source of truth), acting as the member.
     if (req.method === 'GET' && p === '/api/team-roster') {

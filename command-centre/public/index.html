@@ -161,6 +161,15 @@
   .start-here .sh-card .n{font-weight:600;font-size:13px;color:var(--ink);}
   .start-here .sh-card .d{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4;}
   @media(max-width:680px){.start-here .sh-grid{grid-template-columns:1fr;}}
+  /* Google Ads setup page */
+  .copyblock{position:relative;background:#fff;color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:14px 16px;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.5;word-break:break-word;white-space:pre-wrap;cursor:pointer;margin:6px 0;}
+  .copyblock:hover{outline:1px solid var(--accent);}
+  .copyblock::before{content:'click to copy';position:absolute;top:8px;right:10px;font-family:'Oxanium',sans-serif;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+  .copyblock.copied::before{content:'copied ✓';color:#fff;background:var(--ok);padding:2px 7px;border-radius:2px;}
+  .assure{background:var(--accent-soft);border:1px solid #f0d9cc;border-radius:2px;padding:12px 14px;font-size:13px;line-height:1.5;margin-top:12px;}
+  .esc{margin-top:14px;font-size:13px;} .esc summary{cursor:pointer;color:var(--accent);font-weight:600;} .esc p{margin-top:8px;color:var(--muted);line-height:1.5;}
+  .tools-note{font-size:13px;margin-top:14px;} .tools-note .row{display:flex;align-items:center;gap:8px;margin:5px 0;}
+  .tools-note .ok{color:var(--ok);font-weight:700;} .tools-note .bad{color:var(--accent);font-weight:700;}
   .skill-count{font-size:11.5px;color:var(--muted);margin-left:auto;}
   th.sortable{cursor:pointer;user-select:none;} th.sortable:hover{color:var(--ink);}
   th.sortable .arr{display:inline-block;width:11px;text-align:center;font-size:9px;color:var(--accent);}
@@ -239,6 +248,7 @@
       <button class="tab active" data-view="owner">Dashboard</button>
       <button class="tab" data-view="skills" hidden>Skills</button>
       <button class="tab" data-view="flag">Flag a skill <span style="font-weight:500;color:inherit">(how feedback works)</span></button>
+      <button class="tab" data-view="gads" hidden>Google Ads</button>
     </div>
   </div>
 
@@ -430,6 +440,59 @@
             <div class="turn"><div class="ask">What went wrong?</div><div class="reply">It pulled April's data instead of May.</div></div>
             <div class="turn"><div class="ask">What did you want instead?</div><div class="reply">Ask which month, or default to the most recent complete month.</div></div>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Google Ads connector setup (local-only; engine in server.cjs) -->
+  <section class="view" id="view-gads">
+    <!-- SCOUT: enter creds once -> shareable block -->
+    <div id="gads-scout" hidden>
+      <div class="sec">Google Ads in Cowork <span class="note">set up once, hand it to your team</span></div>
+      <p class="fs-intro">Enter the agency Google Ads credentials once. The app turns them into a single block of text you send to a team member however you like. Their app turns it back into a working setup. Nothing here is sent to us, stored on GitHub, or seen by any AI.</p>
+      <div class="grid flag-grid">
+        <div class="card">
+          <div class="sec">Agency credentials</div>
+          <div class="flag-form">
+            <label for="ga-dev">Developer token</label><input id="ga-dev" type="password" autocomplete="off">
+            <label for="ga-cid">OAuth client ID</label><input id="ga-cid" type="text" autocomplete="off">
+            <label for="ga-csec">OAuth client secret</label><input id="ga-csec" type="password" autocomplete="off">
+            <label for="ga-rt">Refresh token</label><input id="ga-rt" type="password" autocomplete="off">
+            <label for="ga-mcc">MCC / login customer ID</label><input id="ga-mcc" type="text" placeholder="5xxxxxxxxx" autocomplete="off">
+            <label for="ga-proj">GCP project ID</label><input id="ga-proj" type="text" autocomplete="off">
+            <div class="flag-actions"><button class="add-btn" id="ga-make">Create setup block</button><span class="af-status" id="ga-make-status"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sec">Send this to your team member</div>
+          <p class="fs-intro" style="margin-top:0">Share it however you prefer, shared doc, email, or Slack. It's one block; they paste it into their app's Google Ads page.</p>
+          <div class="copyblock" id="ga-block" hidden>Create the block first.</div>
+          <div class="assure"><strong>Safe to share this way.</strong> Your app built this locally. It never went through our servers, never onto GitHub, and never into an AI's context. The member's app just turns it back into a local file on their machine.</div>
+          <details class="esc"><summary>Not comfortable with members pasting this?</summary><p>That's your call as the Scout. Instead, send the team member the credentials file directly with your own instructions for saving it, and tell them to ignore the Google Ads page in their app.</p></details>
+        </div>
+      </div>
+    </div>
+    <!-- MEMBER (team): paste block -> one click -->
+    <div id="gads-member" hidden>
+      <div class="sec">Connect Google Ads <span class="note">paste what your Scout sent you</span></div>
+      <p class="fs-intro">Your Scout set everything up. Paste the block they sent you, click connect, and the app does the rest.</p>
+      <div class="grid flag-grid">
+        <div class="card">
+          <div class="sec">Paste your setup block</div>
+          <div class="flag-form">
+            <textarea id="ga-paste" rows="4" placeholder="AGENCY-BRAIN-GADS:…"></textarea>
+            <div class="flag-actions"><button class="add-btn" id="ga-connect">Connect Google Ads</button><span class="af-status" id="ga-connect-status"></span></div>
+          </div>
+          <div id="ga-tools" class="tools-note"></div>
+          <details class="esc"><summary>Not comfortable pasting secrets here?</summary><p>Ask your Scout to send you a file instead. If they've sent one and told you to ignore this page, follow their instructions to save it, then skip this step.</p></details>
+        </div>
+        <div class="card" id="ga-done-card" hidden>
+          <div class="sec">Almost there</div>
+          <p class="fs-intro" style="margin-top:0">Saved your credentials and updated Claude. Two quick things:</p>
+          <p style="font-size:14px"><strong>1.</strong> Fully quit the Claude desktop app and reopen it (it loads the connector on startup).</p>
+          <p style="font-size:14px"><strong>2.</strong> Then click the block below to copy it, and paste it into a Cowork chat:</p>
+          <div class="copyblock" id="ga-prompt"></div>
         </div>
       </div>
     </div>
@@ -792,6 +855,13 @@
     var tw=document.querySelector('.tab[data-view="welcome"]'); if(tw) tw.hidden=!isTeam;
     var td=document.querySelector('.tab[data-view="owner"]'); if(td) td.hidden=isTeam;
     var ts=document.querySelector('.tab[data-view="skills"]'); if(ts) ts.hidden=(role==='owner');
+    // Google Ads tab: everyone sees it. Owners/scouts get the credential form,
+    // team members get the paste-and-connect view.
+    var tg=document.querySelector('.tab[data-view="gads"]'); if(tg) tg.hidden=false;
+    var gs=$('gads-scout'), gm=$('gads-member');
+    if(gs) gs.hidden=isTeam;
+    if(gm) gm.hidden=!isTeam;
+    if(isTeam) gadsDetect();
     activateView(isTeam?'welcome':'owner');
   }
   // Dev-only role switcher (footer). Shown only on preview/dev builds; lets Mike
@@ -801,6 +871,59 @@
     var sw=$('dev-switch'); if(!sw) return;
     sw.querySelectorAll('button').forEach(function(b){
       b.addEventListener('click',function(){ DEV_ROLE_OVERRIDE=b.dataset.role; loadHealth(); loadRoster(); });
+    });
+  })();
+
+  // ---- Google Ads setup page ----
+  function copyBlock(el){
+    if(!el || el.__wired) return; el.__wired=true;
+    el.addEventListener('click',function(){
+      var txt=el.dataset.copy||el.textContent;
+      navigator.clipboard.writeText(txt).then(function(){ el.classList.add('copied'); setTimeout(function(){ el.classList.remove('copied'); },1600); });
+    });
+  }
+  function gadsToolRow(label, ok, ver, warn){
+    return '<div class="row"><span class="'+(ok?'ok':'bad')+'">'+(ok?'✓':'✗')+'</span> <span>'+esc(label)+'</span>'+(ver?' <span class="ago">'+esc(ver)+'</span>':'')+(warn?' <span class="bad">'+esc(warn)+'</span>':'')+'</div>';
+  }
+  async function gadsDetect(){
+    var box=$('ga-tools'); if(!box || box.__done) return; box.__done=true;
+    try{
+      var d=await api('/api/gads/detect'); var py=d.python||{}, px=d.pipx||{};
+      var rows=gadsToolRow('Python 3.11+', !!(py.present&&py.ok), py.version||'', (py.present&&!py.ok)?'need 3.11 or newer':'')
+             + gadsToolRow('pipx', !!px.present, px.version||'', '');
+      var help='';
+      if(!(py.present&&py.ok) || !px.present){
+        var win=(d.platform==='win32');
+        var cmds=win ? 'winget install Python.Python.3.12\npy -m pip install --user pipx\npy -m pipx ensurepath'
+                     : 'brew install python@3.12 pipx\npipx ensurepath';
+        help='<details class="esc"><summary>Something\'s missing — how do I install it?</summary><p>Run these in '+(win?'PowerShell':'Terminal')+', then reopen it and come back:</p><div class="copyblock" id="ga-install-cmds" data-copy="'+esc(cmds)+'">'+esc(cmds)+'</div></details>';
+      }
+      box.innerHTML='<div class="sec" style="margin-top:4px">On this machine</div>'+rows+help;
+      copyBlock($('ga-install-cmds'));
+    }catch(e){ box.innerHTML=''; box.__done=false; }
+  }
+  (function(){
+    var make=$('ga-make');
+    if(make) make.addEventListener('click',async function(){
+      var st=$('ga-make-status'); st.textContent='Building…';
+      try{
+        var r=await api('/api/gads/encode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          dev:$('ga-dev').value.trim(), cid:$('ga-cid').value.trim(), csec:$('ga-csec').value.trim(),
+          rt:$('ga-rt').value.trim(), mcc:$('ga-mcc').value.trim(), project:$('ga-proj').value.trim() })});
+        var blk=$('ga-block'); blk.hidden=false; blk.textContent=r.block; blk.dataset.copy=r.block;
+        st.textContent='Ready — click the block to copy.';
+      }catch(e){ st.textContent=e.message; }
+    });
+    copyBlock($('ga-block'));
+    var conn=$('ga-connect');
+    if(conn) conn.addEventListener('click',async function(){
+      var st=$('ga-connect-status'); st.textContent='Working…';
+      try{
+        var r=await api('/api/gads/install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ block:$('ga-paste').value })});
+        st.textContent='Saved.';
+        var dc=$('ga-done-card'); if(dc) dc.hidden=false;
+        var pr=$('ga-prompt'); if(pr){ pr.textContent=r.verifyPrompt; pr.dataset.copy=r.verifyPrompt; copyBlock(pr); }
+      }catch(e){ st.textContent=e.message; }
     });
   })();
 
