@@ -68,6 +68,16 @@ function git(cmd) {
   }
 }
 
+// Read-only probe that never logs. Some reads (an unset config key) exit
+// non-zero by design; we don't want those surfacing as errors in the log.
+function gitProbe(cmd) {
+  try {
+    return execSync(`git -C "${REPO}" ${cmd}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return '';
+  }
+}
+
 // ───── Observable state for the tray ─────
 
 // Written atomically when state changes so main.js can poll/watch the file
@@ -274,7 +284,14 @@ async function pushChanges(s) {
   writeState('pushing');
   git('add -A');
   const commitMsg = `auto-sync: ${ts()}`;
-  const commitResult = git(`commit -m "${commitMsg}"`);
+  let commitResult = git(`commit -m "${commitMsg}"`);
+  if (commitResult === null) {
+    // Most common cause: this clone has no git author identity, so its very
+    // first commit fails. Self-heal the identity and retry once, so a watcher
+    // that's already running recovers without waiting for a restart.
+    ensureGitIdentity();
+    commitResult = git(`commit -m "${commitMsg}"`);
+  }
   if (commitResult === null) {
     console.log(`[${ts()}]   commit failed; unstaging`);
     git('reset HEAD');
@@ -370,6 +387,33 @@ function scheduleDebouncedSync() {
   }, DEBOUNCE_MS);
 }
 
+// ───── Git identity self-heal ─────
+
+// Without a git author identity, `git commit` fails ("Author identity unknown")
+// and the watcher loops on "commit failed" forever — token auth and pull both
+// work, but nothing ever pushes, and the only sign is a log line no member
+// reads. The wizard sets identity once at clone time (main.js configure-identity),
+// so a repo cloned before that step existed, or where it didn't take, stays
+// silently broken. Self-heal on every boot: if the repo has no user.email, set
+// it from the member identity. (2026-05-25: the agtest Windows clone hit exactly
+// this — onboarded before the identity step, every push blocked on commit.)
+function ensureGitIdentity() {
+  if (gitProbe('config user.email')) return; // already has an identity
+  if (!MEMBER_EMAIL) {
+    console.error(`[${ts()}] WARNING: no git identity and no member email to set one — commits will fail until 'git config user.email' is set`);
+    return;
+  }
+  let name = MEMBER_EMAIL;
+  const map = loadRolesMap();
+  const me = map && Array.isArray(map.members)
+    ? map.members.find((m) => (m.email || '').toLowerCase() === MEMBER_EMAIL)
+    : null;
+  if (me && me.name) name = me.name;
+  git(`config user.email "${MEMBER_EMAIL}"`);
+  git(`config user.name "${name}"`);
+  console.log(`[${ts()}] set git identity: ${name} <${MEMBER_EMAIL}> (was unset)`);
+}
+
 // ───── Boot ─────
 
 console.log(`[${ts()}] watching ${REPO}`);
@@ -378,6 +422,7 @@ if (MODE === 'agency') {
   console.log(`[${ts()}] team=${TEAM_SLUG} member=${MEMBER_EMAIL} role-hint=${MEMBER_ROLE_HINT}`);
 }
 if (STATE_FILE) console.log(`[${ts()}] state file: ${STATE_FILE}`);
+ensureGitIdentity();
 writeState('running', 'starting up');
 
 chokidar.watch(REPO, {
