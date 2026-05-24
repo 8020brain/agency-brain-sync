@@ -368,10 +368,10 @@
             <h3>Deliberately off the table</h3>
             <p class="lead">This view shows how the agency's AI workforce is maturing. It does not watch the people using it.</p>
             <ul>
-              <li>Token usage per person</li>
+              <li><strong>What anyone actually types into Claude.</strong> Your team's prompts and conversations are never read, logged, or shown here. What a person asks Claude, pastes in, or talks through stays between them and Claude. This dashboard only ever sees the skills in the shared brain, never how anyone used them.</li>
               <li>What anyone's skills actually generated</li>
+              <li>Token usage per person</li>
               <li>Time-of-day activity heatmaps</li>
-              <li>Per-person run rankings</li>
             </ul>
             <p class="why">Tracking the right things signals pride in the team's work. Tracking the wrong things signals distrust.</p>
           </div>
@@ -457,6 +457,18 @@
     if(days<=0) return 'today'; if(days===1) return 'yesterday';
     if(days<30) return days+'d ago'; if(days<365) return Math.floor(days/30)+'mo ago';
     return Math.floor(days/365)+'y ago';
+  }
+  // Finer-grained relative time for the live "Synced" column (the watcher
+  // heartbeat is minutes/hours fresh, so day-granularity ago() would just say
+  // "today"). Falls through to ago() for anything older than a day.
+  function agoFine(iso){
+    if(!iso) return '—';
+    var d=new Date(/T/.test(iso)?iso:(iso+'T00:00:00Z')); if(isNaN(d)) return esc(iso);
+    var secs=Math.floor((Date.now()-d.getTime())/1000);
+    if(secs<60) return 'just now';
+    if(secs<3600) return Math.floor(secs/60)+'m ago';
+    if(secs<86400) return Math.floor(secs/3600)+'h ago';
+    return ago(iso);
   }
   function weekLabel(){
     var now=new Date(), off=(now.getDay()+6)%7;
@@ -592,7 +604,8 @@
       var canEdit=(rr==='owner'||rr==='scout'||rr==='head-scout');
       th.innerHTML='<tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th>'+(canEdit?'<th></th>':'')+'</tr>';
       tb.innerHTML = d.members.length ? d.members.map(function(m){
-        var synced = m.installCompletedAt ? ('<span class="synced">'+ago(m.installCompletedAt)+'</span>')
+        var syncedAt = m.lastSyncedAt || m.installCompletedAt;
+        var synced = syncedAt ? ('<span class="synced">'+agoFine(syncedAt)+'</span>')
           : (m.pendingClaim ? '<span class="notsynced">pending claim</span>' : '<span class="notsynced">not yet</span>');
         var actions = canEdit ? '<td class="row-actions"><button class="mini icon" data-act="edit" data-slug="'+esc(m.slug)+'" title="Edit name / role" aria-label="Edit">'+ICON_EDIT+'</button><button class="mini icon danger" data-act="remove" data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||m.email)+'" title="Remove from team" aria-label="Remove">'+ICON_TRASH+'</button></td>' : '';
         return '<tr data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role)+'">'

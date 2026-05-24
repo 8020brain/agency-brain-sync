@@ -231,6 +231,26 @@ function teamTable(repoPath) {
   return { teamName: roles.team_name || roles.team_slug || 'Team', members };
 }
 
+// Anchor for "improvements": only count work done since this brain was set up
+// on THIS machine, so a member never sees the template's / owner's pre-clone
+// history as if it were their own. Priority: an explicit .claude/dashboard-since
+// marker (ISO date), else the moment this clone was created (.git birth time).
+// Returns a ms timestamp, or null to count everything (no anchor available).
+function improvementsSince(repoPath) {
+  try {
+    const marker = path.join(repoPath, '.claude', 'dashboard-since');
+    if (fs.existsSync(marker)) {
+      const d = new Date(fs.readFileSync(marker, 'utf8').trim());
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+  } catch {}
+  try {
+    const st = fs.statSync(path.join(repoPath, '.git'));
+    if (st.birthtimeMs && st.birthtimeMs > 0) return st.birthtimeMs;
+  } catch {}
+  return null;
+}
+
 // ---- main -------------------------------------------------------------------
 function getObservability(opts = {}) {
   const repoPath = opts.repoPath || BRAIN_ROOT;
@@ -245,6 +265,7 @@ function getObservability(opts = {}) {
   const runs30d = runCounts(sessions, 30, now);
   const flags = readFlags(repoPath);
   const baseline = readBaseline(repoPath);
+  const sinceTs = improvementsSince(repoPath);
 
   const skills = names.map(name => {
     const skillDir = path.join(skillsDir, name);
@@ -274,7 +295,8 @@ function getObservability(opts = {}) {
 
   const hasRuns = sessions.length > 0;
   const recentlyImproved = skills
-    .filter(s => s.daysStale != null && s.daysStale <= 30)
+    .filter(s => s.daysStale != null && s.daysStale <= 30
+      && (sinceTs == null || new Date(s.lastImproved + 'T00:00:00Z').getTime() >= sinceTs))
     .sort((a, b) => (a.daysStale - b.daysStale))
     .slice(0, 12);
   const stale = skills
@@ -295,6 +317,7 @@ function getObservability(opts = {}) {
   for (const s of skills) {
     if (!s.lastImproved) continue;
     const t = new Date(s.lastImproved + 'T00:00:00Z').getTime();
+    if (sinceTs != null && t < sinceTs) continue; // ignore pre-clone history
     for (let i = weekKeys.length - 1; i >= 0; i--) {
       if (t >= weekKeys[i]) { weekBuckets[Object.keys(weekBuckets)[i]]++; break; }
     }

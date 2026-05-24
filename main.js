@@ -588,6 +588,7 @@ async function openCommandCentre() {
   await setupWindow.loadURL(`http://127.0.0.1:${CC_PORT}/`);
   setupWindow.show();
   setupWindow.focus();
+  quietUpdateCheck(); // opening the app re-checks for a new version on the spot
   return { ok: true };
 }
 
@@ -785,9 +786,25 @@ function setupAutoUpdater() {
     ulog('downloaded v' + (info && info.version) + ' — surfacing banner');
     if (setupWindow && !setupWindow.isDestroyed()) setupWindow.webContents.send('update-downloaded', updateInfo);
   });
-  const check = () => autoUpdater.checkForUpdates().catch((e) => ulog('check failed: ' + e.message));
-  setTimeout(check, 10000);
-  setInterval(check, 6 * 60 * 60 * 1000);
+  // Check shortly after launch, then every 30 minutes (was 6h — too slow).
+  // openCommandCentre also fires a check, so opening the app re-checks on the
+  // spot and the interval just covers the idle case.
+  setTimeout(quietUpdateCheck, 10000);
+  setInterval(quietUpdateCheck, 30 * 60 * 1000);
+}
+
+// Quiet background update check (no dialogs) — used by the timers and on every
+// Command Centre open. Throttled to once a minute so repeated opens don't trip
+// GitHub's request limit. The configured autoUpdater singleton fires
+// update-downloaded → the relaunch toast when a build is ready.
+let lastUpdateCheckAt = 0;
+function quietUpdateCheck() {
+  if (!app.isPackaged) return;
+  const now = Date.now();
+  if (now - lastUpdateCheckAt < 60000) return;
+  lastUpdateCheckAt = now;
+  try { require('electron-updater').autoUpdater.checkForUpdates().catch((e) => ulog('check failed: ' + e.message)); }
+  catch (e) { ulog('updater unavailable: ' + e.message); }
 }
 
 // Manual "Check for updates" from the tray menu. Unlike the silent background
@@ -1238,6 +1255,10 @@ app.whenReady().then(() => {
   updateTray();
   setInterval(updateTray, 15000);
 
+  // Configure the updater before anything calls openCommandCentre (which kicks
+  // off a check), so that check uses the configured singleton and listeners.
+  setupAutoUpdater();
+
   const config = loadConfig();
   if (!config || !config.brainPath || pendingInviteToken) {
     showSetupWindow();
@@ -1251,8 +1272,6 @@ app.whenReady().then(() => {
     // auto-start stays in the tray — don't pop a window in someone's face on boot.
     if (!wasLaunchedAtLogin()) openCommandCentre();
   }
-
-  setupAutoUpdater();
 });
 
 app.on('window-all-closed', (e) => { e.preventDefault(); });
