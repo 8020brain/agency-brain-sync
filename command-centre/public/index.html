@@ -153,6 +153,14 @@
   .skill-search{font-family:inherit;font-size:12.5px;padding:5px 9px;border:1px solid var(--line);border-radius:2px;background:#fff;color:var(--ink);width:160px;}
   .skill-filters{display:flex;align-items:center;gap:8px;margin:12px 0;}
   .skill-filters select{font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:2px;background:#fff;color:var(--ink);}
+  .start-here{margin:4px 0 16px;}
+  .start-here.hidden{display:none;}
+  .start-here .sh-label{font-family:'Oxanium',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
+  .start-here .sh-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .start-here .sh-card{background:var(--accent-soft);border:1px solid #f0d9cc;border-left:3px solid var(--accent);border-radius:2px;padding:9px 12px;}
+  .start-here .sh-card .n{font-weight:600;font-size:13px;color:var(--ink);}
+  .start-here .sh-card .d{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4;}
+  @media(max-width:680px){.start-here .sh-grid{grid-template-columns:1fr;}}
   .skill-count{font-size:11.5px;color:var(--muted);margin-left:auto;}
   th.sortable{cursor:pointer;user-select:none;} th.sortable:hover{color:var(--ink);}
   th.sortable .arr{display:inline-block;width:11px;text-align:center;font-size:9px;color:var(--accent);}
@@ -312,6 +320,7 @@
             <select id="skill-flags"><option value="all">All flags</option><option value="flagged">Flagged only</option></select>
             <span class="skill-count" id="skill-count"></span>
           </div>
+          <div class="start-here" id="start-here"></div>
           <div class="skills-scroll">
             <table id="skills-table">
               <thead id="skills-head"></thead>
@@ -548,6 +557,18 @@
     function hdr(key,label,cls){ var on=SK.sortKey===key; return '<th class="sortable'+(cls?' '+cls:'')+'" data-sk="'+key+'">'+label+' <span class="arr">'+(on?(SK.sortDir>0?'▲':'▼'):'')+'</span></th>'; }
     $('skills-head').innerHTML='<tr>'+hdr('name','Skill')+hdr('maturity','Maturity')+(hasRuns?hdr('runs7d','Runs 7d','num'):'')+hdr('flags','Flags','num')+hdr('lastImproved','Last improved')+'</tr>';
     var q=SK.q.toLowerCase().trim();
+    // "Start here" strip: curated featured skills, shown only when the list
+    // isn't being searched or filtered (so it's a starting point, not clutter).
+    var sh=$('start-here');
+    if(sh){
+      var feat=(d.featured||[]);
+      if(feat.length && !q && SK.maturity==='all' && SK.flags!=='flagged'){
+        sh.className='start-here';
+        sh.innerHTML='<div class="sh-label">Start here</div><div class="sh-grid">'+feat.map(function(f){
+          return '<div class="sh-card"><div class="n">'+esc(f.name)+'</div><div class="d">'+esc((f.description||'').replace(/^["']\s*/,'').slice(0,90))+'</div></div>';
+        }).join('')+'</div>';
+      } else { sh.className='start-here hidden'; sh.innerHTML=''; }
+    }
     var rows=(d.skills||[]).filter(function(sk){
       if(SK.maturity!=='all' && sk.maturity!==SK.maturity) return false;
       if(SK.flags==='flagged' && !(sk.flags>0)) return false;

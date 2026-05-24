@@ -251,6 +251,25 @@ function improvementsSince(repoPath) {
   return null;
 }
 
+// Curated "Start here" set for new members: an ordered list of skill names in
+// .claude/featured-skills.json. Returns the ones that actually exist, in order,
+// with their description for display. Absent/invalid file → empty (the view
+// just shows the full alphabetical list).
+function readFeatured(repoPath, skills) {
+  try {
+    const f = path.join(repoPath, '.claude', 'featured-skills.json');
+    if (!fs.existsSync(f)) return [];
+    const names = JSON.parse(fs.readFileSync(f, 'utf8'));
+    if (!Array.isArray(names)) return [];
+    const byName = {};
+    for (const s of skills) byName[s.name] = s;
+    return names
+      .map(n => byName[n])
+      .filter(Boolean)
+      .map(s => ({ name: s.name, description: s.description || '', maturity: s.maturity }));
+  } catch { return []; }
+}
+
 // ---- main -------------------------------------------------------------------
 function getObservability(opts = {}) {
   const repoPath = opts.repoPath || BRAIN_ROOT;
@@ -338,6 +357,7 @@ function getObservability(opts = {}) {
       driftCount: skills.filter(s => s.drift === true).length,
     },
     skills,
+    featured: readFeatured(repoPath, skills),
     recentlyImproved,
     stale,
     topUsed,
