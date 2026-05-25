@@ -901,22 +901,30 @@
   function gadsToolRow(label, ok, ver, warn){
     return '<div class="row"><span class="'+(ok?'ok':'bad')+'">'+(ok?'✓':'✗')+'</span> <span>'+esc(label)+'</span>'+(ver?' <span class="ago">'+esc(ver)+'</span>':'')+(warn?' <span class="bad">'+esc(warn)+'</span>':'')+'</div>';
   }
+  var gadsPoll=null;
   async function gadsDetect(){
-    var box=$('ga-tools'); if(!box || box.__done) return; box.__done=true;
+    var box=$('ga-tools'); if(!box) return;
     try{
       var d=await api('/api/gads/detect'); var py=d.python||{}, px=d.pipx||{};
+      var allOk=!!(py.present&&py.ok) && !!px.present;
       var rows=gadsToolRow('Python 3.11+', !!(py.present&&py.ok), py.version||'', (py.present&&!py.ok)?'need 3.11 or newer':'')
              + gadsToolRow('pipx', !!px.present, px.version||'', '');
       var help='';
-      if(!(py.present&&py.ok) || !px.present){
+      if(!allOk){
         var win=(d.platform==='win32');
         var cmds=win ? 'winget install Python.Python.3.12\n$env:Path=[Environment]::GetEnvironmentVariable("Path","Machine")+";"+[Environment]::GetEnvironmentVariable("Path","User")\npython -m pip install --user pipx\npython -m pipx ensurepath'
                      : 'brew install python@3.12 pipx\npipx ensurepath';
         help='<details class="esc"><summary>Something\'s missing — how do I install it?</summary><p>Run these in '+(win?'PowerShell':'Terminal')+' (one paste), then reopen it and come back.'+(win?' The PATH line lets this same window see Python right after winget installs it. If <code>python</code> opens the Microsoft Store instead of installing, turn off its App Execution Alias (Settings &gt; Apps &gt; Advanced app settings &gt; App execution aliases) and retry.':'')+'</p><div class="copyblock" id="ga-install-cmds" data-copy="'+esc(cmds)+'">'+esc(cmds)+'</div></details>';
       }
-      box.innerHTML='<div class="sec" style="margin-top:4px">On this machine</div>'+rows+help;
+      var recheck='<button class="add-btn secondary" id="ga-recheck" style="margin-top:10px">Re-check this machine</button>';
+      box.innerHTML='<div class="sec" style="margin-top:4px">On this machine</div>'+rows+help+(allOk?'':recheck);
       copyBlock($('ga-install-cmds'));
-    }catch(e){ box.innerHTML=''; box.__done=false; }
+      var rb=$('ga-recheck'); if(rb) rb.addEventListener('click', gadsDetect);
+      // Status would otherwise stay stale forever after an install; auto-poll every
+      // 8s until both tools are present (then stop), alongside the manual Re-check.
+      if(allOk){ if(gadsPoll){ clearInterval(gadsPoll); gadsPoll=null; } }
+      else if(!gadsPoll){ gadsPoll=setInterval(gadsDetect, 8000); }
+    }catch(e){ /* transient; the poll or Re-check button will retry */ }
   }
   (function(){
     var make=$('ga-make');
