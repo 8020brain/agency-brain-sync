@@ -215,7 +215,7 @@ function addGadsToClaudeConfig(envBlock) {
   fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
   return cfgPath;
 }
-const GADS_VERIFY_PROMPT = 'List my Google Ads accounts. If you can see them, tell me which manager account (MCC) they sit under.';
+const GADS_VERIFY_PROMPT = "I've just connected Google Ads. There's a credentials file at the root of this brain folder, google-ads.yaml. It has a developer token, OAuth client ID and secret, a refresh token, and a login customer ID (the MCC). Confirm it works: list the Google Ads accounts I can access and tell me which manager account (MCC) they sit under. Use whatever's easiest. A Google Ads skill if this brain has one, the google-ads connector if it's loaded, or just read the file and call the Google Ads API directly (swap the refresh token for an access token, then listAccessibleCustomers). A short script is fine.";
 // base64 of the field set — encoding for one clean paste, NOT encryption.
 // Channel security (email/Slack/doc) is the Scout's choice.
 function encodeGadsBlock(fields) { return 'AGENCY-BRAIN-GADS:' + Buffer.from(JSON.stringify(fields), 'utf8').toString('base64'); }

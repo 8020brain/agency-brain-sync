@@ -409,7 +409,7 @@
             <h3>Courses in the portal</h3><p class="bsub">For you or your scout.</p>
             <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Best handed to whoever builds your skills.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
             <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. The foundations, end to end.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
-            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/path">Open</span></div>
+            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/mastery">Open</span></div>
           </div>
           <div class="bucket">
             <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask.</p>
@@ -484,7 +484,7 @@
             <h3>Courses in the portal</h3><p class="bsub">Deeper learning when you want it.</p>
             <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Building skills, deploying to your team and clients. The most relevant one.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
             <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. Foundations: environment, context engineering, what skills are.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
-            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/path">Open</span></div>
+            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/mastery">Open</span></div>
             <div class="applies"><b>What applies to you:</b> the automation phases and the Cowork for Scouts course map straight onto agency work. The personal-brain nodes (voice input, your own morning briefing) are optional and personal, not required for the agency.</div>
           </div>
           <div class="bucket">
@@ -770,10 +770,9 @@
           <details class="esc"><summary>Not comfortable pasting secrets here?</summary><p>Ask your Scout to send you a file instead. If they've sent one and told you to ignore this page, follow their instructions to save it, then skip this step.</p></details>
         </div>
         <div class="card" id="ga-done-card" hidden>
-          <div class="sec">Almost there</div>
-          <p class="fs-intro" style="margin-top:0">Saved your credentials and updated Claude. Two quick things:</p>
-          <p style="font-size:14px"><strong>1.</strong> Fully quit the Claude desktop app and reopen it (it loads the connector on startup).</p>
-          <p style="font-size:14px"><strong>2.</strong> Then click the block below to copy it, and paste it into a Cowork chat:</p>
+          <div class="sec">Saved</div>
+          <div class="assure" id="ga-saved-where" style="font-size:13px;margin-top:0">Saved your credentials.</div>
+          <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork (or the Claude desktop app) and paste the prompt below to confirm it works. If you'd rather use the google-ads connector, fully quit Claude and reopen it first so it loads the new setup.</p>
           <div class="copyblock" id="ga-prompt"></div>
         </div>
       </div>
@@ -1240,6 +1239,7 @@
         var r=await api('/api/gads/install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ block:$('ga-paste').value })});
         st.textContent='Saved.';
         var dc=$('ga-done-card'); if(dc) dc.hidden=false;
+        var sw=$('ga-saved-where'); if(sw){ sw.innerHTML='Wrote <b>google-ads.yaml</b> to <code>'+esc(r.yamlPath||'?')+'</code>.'+(r.configPath?' Added a <b>google-ads</b> connector entry to <code>'+esc(r.configPath)+'</code>.':''); }
         var pr=$('ga-prompt'); if(pr){ pr.textContent=r.verifyPrompt; pr.dataset.copy=r.verifyPrompt; copyBlock(pr); }
       }catch(e){ st.textContent=e.message; }
     });
