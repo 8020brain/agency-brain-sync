@@ -291,6 +291,47 @@
   .month-stat{font-size:14px;color:var(--ink);} .month-stat b{font-weight:700;}
 
   @media(max-width:1080px){ .wrap{padding:20px;} .cols2{grid-template-columns:1fr;} .topbar{flex-direction:column;align-items:flex-start;} .who{text-align:left;} }
+  /* ---- scout onboarding: Get set up, Feedback, scout density (2026-05-25) ---- */
+  .gsu-intro{font-size:15px;color:var(--muted);max-width:820px;line-height:1.6;margin:0 0 16px;}
+  .stage{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:16px 18px;margin-bottom:14px;background:var(--card);}
+  .stage .sh{display:flex;align-items:flex-start;gap:13px;}
+  .stage .snum{flex:none;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;background:var(--accent);border-radius:2px;}
+  .stage h4{margin:0;font-size:16px;font-weight:700;color:var(--ink);}
+  .stage .sd{font-size:13.5px;color:var(--muted);margin:3px 0 0;line-height:1.5;}
+  .stage .substeps{margin:11px 0 0 43px;display:flex;flex-direction:column;gap:7px;}
+  .stage .substeps .ss{font-size:13.5px;color:var(--ink);line-height:1.45;}
+  .stage .substeps .ss b{font-weight:700;}
+  .stage .act{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0 0 43px;}
+  .buckets{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .bucket h3{font-size:14px;font-weight:700;color:var(--ink);margin:0 0 4px;}
+  .bucket .bsub{font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.4;}
+  .res{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .res:last-child{border-bottom:0;}
+  .res .rn{font-weight:600;color:var(--ink);}
+  .res .rd{color:var(--muted);font-size:12px;margin-top:1px;line-height:1.4;}
+  .res code{font-size:11.5px;}
+  .res .lk{color:var(--accent);font-weight:600;cursor:pointer;font-size:12px;white-space:nowrap;}
+  .applies{font-size:12px;color:#5a4538;background:var(--accent-soft);border:1px solid #f0d9cc;border-radius:2px;padding:9px 11px;margin-top:11px;line-height:1.5;}
+  .guide-panel{display:none;margin:12px 0 2px 43px;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:2px;padding:18px 22px;}
+  .guide-panel.open{display:block;}
+  .guide-panel h2{font-size:18px;font-weight:800;margin:0 0 4px;color:var(--ink);}
+  .guide-panel .gp-path{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--muted);margin:0 0 14px;}
+  .guide-panel h3{font-size:14px;font-weight:700;margin:18px 0 6px;color:var(--ink);}
+  .guide-panel p{font-size:13.5px;line-height:1.6;color:var(--ink);margin:0 0 10px;}
+  .guide-panel ul,.guide-panel ol{margin:0 0 10px;padding-left:20px;}
+  .guide-panel li{font-size:13.5px;line-height:1.55;margin-bottom:5px;color:var(--ink);}
+  .guide-panel pre{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:11px 13px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5;overflow:auto;margin:0 0 12px;}
+  @media(max-width:900px){ .buckets{grid-template-columns:1fr;} }
+  .start-here .sh-grid{grid-template-columns:repeat(5,1fr);}
+  .start-here .sh-sub{font-size:12.5px;color:var(--muted);margin:-4px 0 10px;}
+  .start-here .sh-card{cursor:pointer;}
+  .start-here .sh-card:hover{outline:1px solid var(--accent);}
+  @media(max-width:1100px){.start-here .sh-grid{grid-template-columns:repeat(3,1fr);}}
+  .pill.drift{color:#fff;background:var(--warn);}
+  .kpi.warn{border-left:3px solid var(--warn);}
+  .work.warn{border-left-color:var(--warn);}
+  .st.resolved{background:var(--ok-soft);color:var(--ok);}
+  .wq{white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -301,6 +342,7 @@
       <span class="sub">Command Centre · <span id="brand-ver">…</span></span>
     </div>
     <div class="tabs">
+      <button class="tab" data-view="getset" hidden>Get set up</button>
       <button class="tab" data-view="welcome" hidden>Welcome</button>
       <button class="tab active" data-view="owner">Dashboard</button>
       <button class="tab" data-view="scout" hidden>Dashboard</button>
@@ -311,6 +353,151 @@
   </div>
 
   <!-- ============ WELCOME (team default) ============ -->
+  <!-- ============ GET SET UP (owner + scout) ============ -->
+  <section class="view" id="view-getset">
+    <div id="getset-owner">
+      <div class="wc-hero" style="margin-bottom:22px">
+        <div class="wc-hero-main">
+          <div class="wc-eyebrow">Get set up</div>
+          <h1 class="wc-h">Get your agency running on the brain.</h1>
+          <p class="wc-sub">You're the owner. You set the direction and own this, but you don't have to be the technical one. The hands-on building is your scout's job. This page is what's yours to do, and how to hand the rest to a scout.</p>
+        </div>
+        <aside class="wc-app">
+          <div class="wc-app-h">You can delegate the setup</div>
+          <p>If you'd rather not install and wire things up yourself, add a scout first and let them do it. Most agencies run this way: the owner sets direction, the scout builds. Either path works.</p>
+        </aside>
+      </div>
+      <div class="card block">
+        <div class="sec">Your path <span class="note">what's yours to do</span></div>
+        <p class="gsu-intro">Do it all yourself, or add a scout at stage 2 and hand them the setup and the skill-building. Your job never stops being: set direction, decide what's private, and keep an eye on how the brain matures.</p>
+        <div class="stage">
+          <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what's yours as the owner: direction, billing, and deciding what stays private.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Give me the quick orientation as the agency owner: what is Agency Brain, what's my job as owner, and how do the Owner, Scout and Team roles differ?">Ask Claude to orient me</button><button class="btn ghost" data-guide="g-start-o">Read the guide</button></div>
+          <div class="guide-panel" id="g-start-o"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">1</span><div><h4>Get the brain running</h4><p class="sd">Install the Agency Brain app and point Cowork at the shared folder. Don't want to? Skip to stage 2, add a scout, and let them set it up.</p></div></div>
+          <div class="act"><button class="btn ghost" data-guide="g-owner-setup">Read: owner setup walkthrough</button></div>
+          <div class="guide-panel" id="g-owner-setup"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">2</span><div><h4>Bring your people on</h4><p class="sd">Add your scout first (they build the skills), then your team (they use them). The invite email does the rest; nobody needs a GitHub account.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://agency.ads2ai.com">Open the portal to add people</button><button class="btn ghost" data-guide="g-onboard-o">Read: onboarding your team</button></div>
+          <div class="guide-panel" id="g-onboard-o"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Keep what's private, private</h4><p class="sd">Financials, salaries, sensitive client notes go in your own owner-private repo, separate from the shared brain the team can see. Set it up once.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Help me set up my owner-private repo for financials and owner-only docs, separate from the shared agency brain.">Ask Claude: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
+          <div class="guide-panel" id="g-private"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">4</span><div><h4>Watch it mature</h4><p class="sd">Your Dashboard shows how your team's AI workforce is maturing: skills built, improving, earning trust. It never watches what people type or how they work.</p></div></div>
+          <div class="act"><button class="btn mut" data-go="owner">Go to your Dashboard</button></div>
+        </div>
+      </div>
+      <div class="card block">
+        <div class="sec">What help you've got <span class="note">for you or your scout</span></div>
+        <div class="buckets">
+          <div class="bucket">
+            <h3>In your brain</h3><p class="bsub">Run these any time; the written guides back them up.</p>
+            <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Sets you up and seeds your owner-private repo.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
+            <div class="res"><div><div class="rn">onboarding-owner.md</div><div class="rd">The full owner walkthrough.</div></div></div>
+          </div>
+          <div class="bucket">
+            <h3>Courses in the portal</h3><p class="bsub">For you or your scout.</p>
+            <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Best handed to whoever builds your skills.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
+            <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. The foundations, end to end.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
+            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/path">Open</span></div>
+          </div>
+          <div class="bucket">
+            <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask.</p>
+            <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
+            <div class="res"><div><div class="rn">"Set up my private space"</div><div class="rd">Creates your owner-only repo.</div></div><span class="lk" data-spawn="Help me set up my owner-private repo for owner-only docs.">Ask</span></div>
+            <div class="res"><div><div class="rn">Add your scout</div><div class="rd">Invite your first scout in the portal.</div></div><span class="lk" data-ext="https://agency.ads2ai.com">Open portal</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="getset-scout" hidden>
+      <div class="wc-hero" style="margin-bottom:22px">
+        <div class="wc-hero-main">
+          <div class="wc-eyebrow">Get set up</div>
+          <h1 class="wc-h">Your path from zero to a team running on the brain.</h1>
+          <p class="wc-sub">You're the scout: the one who sets the brain up and makes it better at the things your agency does over and over. You never touch a teammate's machine. This page is the order to do it in, and every piece of help you've got along the way.</p>
+        </div>
+        <aside class="wc-app">
+          <div class="wc-app-h">How to use this page</div>
+          <p>Work top to bottom. Each stage has an <b>Ask Claude</b> button that opens a session ready to walk you through it, and a <b>Read the guide</b> link that opens the written version.</p>
+        </aside>
+      </div>
+      <div class="card block">
+        <div class="sec">Your path <span class="note">five stages, top to bottom</span></div>
+        <p class="gsu-intro">Most scouts get through stages 0 and 1 on day one, build their first skill in week one, and bring the team on once a skill or two is worth using.</p>
+        <div class="stage">
+          <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what your job actually is. Five minutes of reading saves a lot of guessing.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Give me the quick orientation: what is Agency Brain, what's my job as a scout, and how do the Owner, Scout and Team roles differ?">Ask Claude to orient me</button><button class="btn ghost" data-guide="g-start">Read the guide</button></div>
+          <div class="guide-panel" id="g-start"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">1</span><div><h4>Get yourself running</h4><p class="sd">Four small steps to a working brain on your own machine.</p></div></div>
+          <div class="substeps">
+            <div class="ss"><b>Clone the brain.</b> The Agency Brain app does this for you when you paste your invite code. Prefer Claude Code? You can clone the repo by hand instead.</div>
+            <div class="ss"><b>Set up your CLAUDE.md.</b> Fill the shared agency file with the tune-brain prompt, and seed your own <code>personal/&lt;you&gt;/CLAUDE.md</code>.</div>
+            <div class="ss"><b>Get the Command Centre and sync working.</b> Run Smart Start, leave the menu-bar app running, confirm a change syncs.</div>
+            <div class="ss"><b>Use it for yourself.</b> Open Cowork or Claude Code, run a skill, save with <code>/save</code>.</div>
+          </div>
+          <div class="act"><button class="btn" data-spawn="Walk me through setting up my CLAUDE.md files as a scout: the shared agency file and my personal one.">Ask Claude: set up my CLAUDE.md</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
+          <div class="guide-panel" id="g-claudemd"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">2</span><div><h4>Build skills for the team</h4><p class="sd">Find a repetitive workflow, build it with <code>/skill-creator</code>, start it at draft. This is the heart of the scout job.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Walk me through creating my first skill for the team using /skill-creator. Help me pick a good first workflow to automate.">Ask Claude: build my first skill</button><button class="btn ghost" data-guide="g-creating">Read: creating skills</button></div>
+          <div class="guide-panel" id="g-creating"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Bring your team on</h4><p class="sd">Add people in the portal, the invite email does the rest. Know what your teammate sees so you can help if they get stuck.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://agency.ads2ai.com">Open the portal to add a member</button><button class="btn ghost" data-guide="g-onboard">Read: onboarding your team</button></div>
+          <div class="guide-panel" id="g-onboard"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">4</span><div><h4>Keep it healthy</h4><p class="sd">Share skills as they earn trust (draft to live to trusted), and know the handful of things that go wrong so you can unstick anyone fast.</p></div></div>
+          <div class="act"><button class="btn ghost" data-guide="g-sharing">Read: sharing a skill</button><button class="btn ghost" data-guide="g-trouble">Read: troubleshooting</button></div>
+          <div class="guide-panel" id="g-sharing"></div>
+          <div class="guide-panel" id="g-trouble"></div>
+        </div>
+      </div>
+      <div class="card block">
+        <div class="sec">What help you've got <span class="note">everything available to you</span></div>
+        <div class="buckets">
+          <div class="bucket">
+            <h3>In your brain</h3><p class="bsub">Skills you can run right now, and the written guides.</p>
+            <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Onboards you or a teammate, role-aware.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/skill-creator</code></div><div class="rd">Builds a new skill from a plain description.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
+            <div class="res"><div><div class="rn">docs/scout-guide/</div><div class="rd">The six written guides linked above.</div></div></div>
+          </div>
+          <div class="bucket">
+            <h3>Courses in the portal</h3><p class="bsub">Deeper learning when you want it.</p>
+            <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Building skills, deploying to your team and clients. The most relevant one.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
+            <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. Foundations: environment, context engineering, what skills are.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
+            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/path">Open</span></div>
+            <div class="applies"><b>What applies to you:</b> the automation phases and the Cowork for Scouts course map straight onto agency work. The personal-brain nodes (voice input, your own morning briefing) are optional and personal, not required for the agency.</div>
+          </div>
+          <div class="bucket">
+            <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask. These open a fresh session ready to help.</p>
+            <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
+            <div class="res"><div><div class="rn">"Help me build a skill"</div><div class="rd">Picks a workflow and walks you through it.</div></div><span class="lk" data-spawn="Help me build a skill for my team. Ask me about a workflow I do repeatedly, then create it.">Ask</span></div>
+            <div class="res"><div><div class="rn">"My sync looks stuck"</div><div class="rd">Diagnoses and unsticks a sync problem.</div></div><span class="lk" data-spawn="My Agency Brain sync looks stuck. Help me work out what's wrong and fix it.">Ask</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="view" id="view-welcome">
     <div class="welcome">
       <div class="wc-hero">
@@ -488,6 +675,7 @@
 
   <!-- ============ SKILLS (team + scout) ============ -->
   <section class="view" id="view-skills">
+    <div class="start-here hidden" id="start-here"></div>
     <div class="card skills-page">
       <div class="sp-list">
         <input class="skill-search" id="sp-search" type="search" placeholder="Search skills…" autocomplete="off">
@@ -501,6 +689,7 @@
 
   <!-- ============ FLAG-SKILL (how feedback works) ============ -->
   <section class="view" id="view-flag">
+    <div id="flag-submit">
     <div class="sec">Flag a skill <span class="note">tell the Scout when a skill fell short</span></div>
     <p class="fs-intro">Two ways to flag a skill, whichever's easier. <strong>1.</strong> Fill in the quick form. <strong>2.</strong> In any Claude session, run <code>/flag-skill</code> — it reads your conversation, drafts an answer to each question, and you just confirm or tweak.</p>
     <div class="grid flag-grid">
@@ -529,6 +718,12 @@
           </div>
         </div>
       </div>
+    </div>
+    </div>
+    <div id="flag-scout" hidden>
+      <div class="sec">Feedback <span class="note">every flag your team has raised</span></div>
+      <p class="fs-intro">This is where flags from your team land. Each one is a teammate telling you a skill fell short. Action the urgent ones from your Dashboard fix queue; this is the full log so you can spot patterns, since a skill that keeps getting flagged is telling you something.</p>
+      <div class="card"><div class="sec">Open flags <span class="note" id="fb-open-n"></span></div><div id="fb-open"><p class="empty">Loading…</p></div></div>
     </div>
   </section>
 
@@ -951,12 +1146,27 @@
     if(role==='head-scout') role='scout';
     var isTeam=(role==='team'), isOwner=(role==='owner'), isScout=(role==='scout');
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
+    setTab('getset', isOwner||isScout);  // onboarding/help page — owner + scout each get their own
     setTab('welcome', isTeam);
     setTab('owner', isOwner);
     setTab('scout', isScout);
     setTab('skills', true);   // owner+scout+team can all browse the full skill list here
     setTab('flag', true);
     setTab('gads', true);
+    // Get set up: owner and scout each see their own version of the page.
+    var go=$('getset-owner'), gsc=$('getset-scout');
+    if(go) go.hidden=!isOwner;
+    if(gsc) gsc.hidden=!isScout;
+    // Flag tab: team + owner submit a flag; the scout RECEIVES them, so the scout
+    // gets a Feedback inbox instead and the tab is relabelled.
+    var fsub=$('flag-submit'), fsco=$('flag-scout');
+    if(fsub) fsub.hidden=isScout;
+    if(fsco) fsco.hidden=!isScout;
+    var flagTab=document.querySelector('.tab[data-view="flag"]');
+    if(flagTab) flagTab.innerHTML = isScout ? 'Feedback' : 'Flag a skill <span style="font-weight:500;color:inherit">(how feedback works)</span>';
+    // "Start here" featured strip is for NEW users only (team). Scouts/owners know the skills.
+    renderStartHere(isTeam);
+    if(isScout) renderFeedback();
     // Google Ads: owners/scouts get the credential form, team gets paste-and-connect.
     var gs=$('gads-scout'), gm=$('gads-member');
     if(gs) gs.hidden=isTeam;
@@ -1177,7 +1387,7 @@
   }
 
   // Called whenever OBS or ROSTER changes; each sub-render guards on its own data.
-  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); }
+  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); }
 
   function renderOwnerView(){
     if(!OBS) return;
@@ -1374,6 +1584,81 @@
   loadObservability();
   setInterval(function(){ loadObservability(); loadRoster(); },30000);
 })();
+  // ===== Get set up page + team-only Start here strip + scout Feedback inbox (2026-05-25) =====
+  function renderStartHere(isTeam){
+    var sh=$('start-here'); if(!sh) return;
+    var feat=(OBS&&OBS.featured)||[];
+    if(isTeam && feat.length){
+      sh.className='start-here';
+      sh.innerHTML='<div class="sh-label">Start here</div><div class="sh-sub">New to the brain? These are great first skills to try.</div><div class="sh-grid">'
+        +feat.map(function(f){ return '<div class="sh-card"><div class="n">'+esc(f.name)+'</div><div class="d">'+esc((f.description||'').replace(/^["']\s*/,'').slice(0,80))+'</div></div>'; }).join('')+'</div>';
+    } else { sh.className='start-here hidden'; sh.innerHTML=''; }
+  }
+  function renderFeedback(){
+    var box=$('fb-open'), n=$('fb-open-n'); if(!box) return;
+    var fl=((OBS&&OBS.flagEntries)||[]).slice().sort(function(a,b){ var ac=a.client?0:1, bc=b.client?0:1; if(ac!==bc) return ac-bc; return (b.flaggedAt||'').localeCompare(a.flaggedAt||''); });
+    if(n) n.textContent=fl.length?(fl.length+' waiting on you'):'';
+    box.innerHTML = fl.length ? fl.map(function(f){
+      var meta=[f.client&&('client: '+f.client), f.flaggedBy&&('flagged by '+f.flaggedBy), f.flaggedAt&&ago(f.flaggedAt)].filter(Boolean).map(esc).join(' · ');
+      var body=(f.body||'').replace(/^##\s+/gm,'').trim();
+      return '<div class="work"><div class="wh"><h4>'+esc(f.skill)+'</h4></div>'+(meta?'<div class="meta">'+meta+'</div>':'')+(body?'<p>'+esc(body)+'</p>':'')
+        +'<div class="act"><button class="btn sm" data-fbfix="1" data-skill="'+esc(f.skill)+'" data-client="'+esc(f.client||'')+'" data-body="'+esc(body)+'">Open in Claude to fix</button></div></div>';
+    }).join('') : '<p class="empty">No open flags. When the team runs <code>/flag-skill</code>, it lands here.</p>';
+  }
+  var GUIDES={
+    'g-start':{html:'<h2>Start here (orientation)</h2><p class="gp-path">docs/scout-guide/00-start-here.md</p>'
+      +'<p>Agency Brain is one shared folder your whole agency runs with Claude. Everyone\'s copy stays in sync automatically, so the skills you build and the client context you write are instantly available to the whole team.</p>'
+      +'<h3>The three roles</h3><ul><li><b>Owner</b> sets direction, owns billing, and can keep a separate private space for owner-only docs.</li><li><b>Scout</b> (you) builds the skills the team uses and onboards people.</li><li><b>Team</b> uses the skills. They read everywhere and write only inside their own personal folder.</li></ul>'
+      +'<h3>Your job in one line</h3><p>You\'re the explainer, not the installer. You never touch a teammate\'s machine. You add people in the portal, tell them what to expect, build skills, and help when someone gets stuck.</p>'},
+    'g-claudemd':{html:'<h2>Setting up your CLAUDE.md files</h2><p class="gp-path">docs/scout-guide/your-claude-md.md</p>'
+      +'<p><code>CLAUDE.md</code> is how you tell Claude how your agency works. Claude reads it automatically at the start of every session in this folder. There are three levels, and they stack.</p>'
+      +'<h3>1. The shared agency CLAUDE.md</h3><p>The root file is the one everyone shares: who you are, services, clients, tools, voice, working preferences. Change it and sync, and every teammate picks it up within about a minute. Fill the placeholders with the tune-brain prompt at <code>agency.ads2ai.com</code> or by running <code>/agency-brain-context-setup</code>. You have write access; team members don\'t.</p>'
+      +'<h3>2. Your personal CLAUDE.md</h3><p>You get <code>personal/&lt;you&gt;/CLAUDE.md</code> for how you like to work. <code>/agency-team-join</code> seeds it. Everyone can see your personal folder, so keep anything truly private out of it.</p>'
+      +'<h3>3. Subfolder CLAUDE.md files</h3><p>A <code>clients/acme/CLAUDE.md</code> carries that client\'s tone and rules. Client-specific rules belong with the client, not the root file.</p>'},
+    'g-creating':{html:'<h2>Creating skills for your team</h2><p class="gp-path">docs/scout-guide/creating-skills.md</p>'
+      +'<p>A skill is a repeatable job your team runs by name: a markdown file at <code>.claude/skills/&lt;name&gt;/SKILL.md</code>. When a skill gets something wrong, you fix the markdown.</p>'
+      +'<h3>Find one worth building</h3><p>Watch for repetition: a monthly report, an audit, the questions you ask every new client. Start with one that\'s painful and frequent.</p>'
+      +'<h3>Build it with /skill-creator</h3><p>Run <code>/skill-creator</code> and describe what you want. It interviews you, then writes the <code>SKILL.md</code>. Learn by reading <code>client-setup</code> and <code>agency-meeting-prep</code>.</p>'
+      +'<h3>Start at draft</h3><pre>---\nname: client-monthly-review\nmaturity: draft\n---</pre><p>Run it on real work, fix what comes out wrong, and move it to <code>live</code> only when it behaves.</p>'},
+    'g-sharing':{html:'<h2>Sharing a skill with your team</h2><p class="gp-path">docs/scout-guide/sharing-skills.md</p>'
+      +'<p>No publish button, no install step. A skill lives in the shared brain, so the moment it syncs, every teammate has it. The synced folder is the catalogue.</p>'
+      +'<h3>How it reaches them</h3><ol><li>Build or improve the skill.</li><li>Run <code>/save</code>; it pulls team changes, shows what you changed, commits and pushes.</li><li>Every teammate pulls within about a minute. They run it by name.</li></ol>'
+      +'<h3>Set maturity to say it\'s ready</h3><p><code>draft</code> = still building. <code>live</code> = works. <code>trusted</code> = you vouch for it. Flip the field and <code>/save</code>.</p>'
+      +'<h3>The feedback loop</h3><p>Teammates flag with <code>/flag-skill</code>; the flag lands where you\'ll see it. Fix, save, the better version reaches everyone.</p>'},
+    'g-onboard':{html:'<h2>Onboarding your team</h2><p class="gp-path">docs/scout-guide/onboarding-your-team.md</p>'
+      +'<p>You add people in the portal at <code>agency.ads2ai.com</code>: name, email, role. The portal emails them an invite immediately.</p>'
+      +'<h3>What the teammate receives</h3><ul><li>A short, plain explanation.</li><li>A 6-character code to paste into the app.</li><li>Download links for the Agency Brain app and the Claude desktop app.</li></ul><p>There is no GitHub step for them. The agency owns the GitHub side; they borrow access transparently.</p>'
+      +'<h3>If they already use a personal 8020brain</h3><p>Fresh install. Don\'t merge. Two folders, two purposes, leave the personal one alone.</p>'},
+    'g-trouble':{html:'<h2>Troubleshooting</h2><p class="gp-path">docs/scout-guide/troubleshooting.md</p>'
+      +'<h3>Common stuck points</h3><ol><li><b>Icon stays grey.</b> Re-run the wizard from the app menu.</li><li><b>Can\'t find the invite email.</b> Check spam, or resend from the portal.</li><li><b>"Git is not installed" (Windows).</b> Point them at git-scm.com.</li><li><b>Cowork can\'t see files.</b> Wrong folder; the app menu shows the watched path.</li><li><b>Icon went red.</b> A conflict; use "Discard my changes".</li></ol>'
+      +'<h3>Two real gotchas</h3><ul><li><b>Windows clone never pushes</b> if it had no git identity. Newer app versions self-heal on launch.</li><li><b>Smart Start first-run toast on Mac</b> is benign: click Allow on the OS pop-up, then run it again.</li></ul>'},
+    'g-owner-setup':{html:'<h2>Owner setup walkthrough</h2><p class="gp-path">onboarding-owner.md</p>'
+      +'<p>If you\'re setting the brain up yourself rather than handing it to a scout, this is the path.</p>'
+      +'<ol><li><b>Create the brain.</b> The portal creates your agency\'s GitHub repo from the template when you set up; you don\'t do this by hand.</li><li><b>Install the Agency Brain app</b> from the link in your email and let it clone the brain to your machine.</li><li><b>Connect Cowork</b> by pointing it at the folder the app keeps in sync.</li><li><b>Fill your agency context</b> with the tune-brain prompt or <code>/agency-brain-context-setup</code>.</li><li><b>Add your people</b> in the portal: scouts first, then team.</li></ol>'
+      +'<p>You don\'t have to do any of this yourself. Add a scout and hand them steps 2 to 5.</p>'},
+    'g-private':{html:'<h2>Your owner-private brain</h2><p class="gp-path">onboarding-owner.md (private repo)</p>'
+      +'<p>The shared agency brain is visible to your whole team. Anything that should never be (financials, salaries, contractor rates, sensitive client notes) goes in a separate <b>owner-private repo</b> that only you can see.</p>'
+      +'<h3>Set it up once</h3><p>Run <code>/agency-team-join</code> as the owner and it offers to create your private repo, or ask Claude to set one up from the owner-private template. It clones to its own folder, separate from the shared brain.</p>'
+      +'<h3>How you use it</h3><p>Point a Claude Code or Cowork session at that folder when you\'re working on owner-only things. It never syncs to the team, so nothing in it can leak into the shared brain.</p>'}
+  };
+  GUIDES['g-start-o']=GUIDES['g-start'];
+  GUIDES['g-onboard-o']=GUIDES['g-onboard'];
+  function closeGuides(except){ document.querySelectorAll('.guide-panel.open').forEach(function(p){ if(p.id!==except) p.classList.remove('open'); }); }
+  document.addEventListener('click',function(ev){
+    var t=ev.target;
+    var gb=t.closest&&t.closest('[data-guide]');
+    if(gb){ var id=gb.getAttribute('data-guide'), panel=$(id); if(panel){ var open=panel.classList.contains('open'); closeGuides(id); if(!open){ panel.innerHTML=(GUIDES[id]||{}).html||'<p>(guide)</p>'; panel.classList.add('open'); panel.scrollIntoView({behavior:'smooth',block:'nearest'}); } else panel.classList.remove('open'); } return; }
+    var ext=t.closest&&t.closest('[data-ext]'); if(ext){ ev.preventDefault(); var u=ext.getAttribute('data-ext'); if(/^https?:/.test(u)) window.open(u,'_blank'); return; }
+    var gob=t.closest&&t.closest('[data-go]'); if(gob){ activateView(gob.getAttribute('data-go')); window.scrollTo({top:0,behavior:'smooth'}); return; }
+    var sp=t.closest&&t.closest('[data-spawn]');
+    if(sp){ var pr=sp.getAttribute('data-spawn'), o=sp.textContent; sp.disabled=true; sp.textContent='Opening…';
+      api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:pr})}).then(function(){ sp.textContent='Opened in Claude'; }).catch(function(e){ sp.disabled=false; sp.textContent=o; alert('Couldn’t open: '+e.message); }); return; }
+    var fb=t.closest&&t.closest('[data-fbfix]');
+    if(fb){ var sk=fb.getAttribute('data-skill'), cl=fb.getAttribute('data-client'), bd=fb.getAttribute('data-body');
+      var p='A teammate flagged the "'+sk+'" skill'+(cl?(' (client: '+cl+')'):'')+'. Their note:\n\n'+(bd||'(no detail given)')+'\n\nOpen .claude/skills/'+sk+'/SKILL.md, work out what went wrong, and fix it. The brain root is your working directory.';
+      fb.disabled=true; fb.textContent='Opening…';
+      api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})}).then(function(){ fb.textContent='Opened in Claude'; }).catch(function(e){ fb.disabled=false; fb.textContent='Open in Claude to fix'; alert('Couldn’t open: '+e.message); }); return; }
+  });
 </script>
 </body>
 </html>
