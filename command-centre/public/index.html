@@ -910,9 +910,9 @@
       var help='';
       if(!(py.present&&py.ok) || !px.present){
         var win=(d.platform==='win32');
-        var cmds=win ? 'winget install Python.Python.3.12\npy -m pip install --user pipx\npy -m pipx ensurepath'
+        var cmds=win ? 'winget install Python.Python.3.12\n$env:Path=[Environment]::GetEnvironmentVariable("Path","Machine")+";"+[Environment]::GetEnvironmentVariable("Path","User")\npython -m pip install --user pipx\npython -m pipx ensurepath'
                      : 'brew install python@3.12 pipx\npipx ensurepath';
-        help='<details class="esc"><summary>Something\'s missing — how do I install it?</summary><p>Run these in '+(win?'PowerShell':'Terminal')+', then reopen it and come back:</p><div class="copyblock" id="ga-install-cmds" data-copy="'+esc(cmds)+'">'+esc(cmds)+'</div></details>';
+        help='<details class="esc"><summary>Something\'s missing — how do I install it?</summary><p>Run these in '+(win?'PowerShell':'Terminal')+' (one paste), then reopen it and come back.'+(win?' The PATH line lets this same window see Python right after winget installs it. If <code>python</code> opens the Microsoft Store instead of installing, turn off its App Execution Alias (Settings &gt; Apps &gt; Advanced app settings &gt; App execution aliases) and retry.':'')+'</p><div class="copyblock" id="ga-install-cmds" data-copy="'+esc(cmds)+'">'+esc(cmds)+'</div></details>';
       }
       box.innerHTML='<div class="sec" style="margin-top:4px">On this machine</div>'+rows+help;
       copyBlock($('ga-install-cmds'));
