@@ -368,30 +368,38 @@
         </aside>
       </div>
       <div class="card block">
-        <div class="sec">Your path <span class="note">what's yours to do</span></div>
-        <p class="gsu-intro">Do it all yourself, or add a scout at stage 2 and hand them the setup and the skill-building. Your job never stops being: set direction, decide what's private, and keep an eye on how the brain matures.</p>
+        <div class="sec">Your path <span class="note">do it yourself, or hand it to a scout</span></div>
+        <p class="gsu-intro">You can set this up yourself, or add a scout at step 4 and hand them the setup and the skill-building. Your job stays the same either way: set direction, decide what's private, and keep an eye on how the brain matures. Nothing here needs a terminal command from you; each step is a guide or a prompt you paste into Claude Code.</p>
         <div class="stage">
           <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what's yours as the owner: direction, billing, and deciding what stays private.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Give me the quick orientation as the agency owner: what is Agency Brain, what's my job as owner, and how do the Owner, Scout and Team roles differ?">Ask Claude to orient me</button><button class="btn ghost" data-guide="g-start-o">Read the guide</button></div>
+          <div class="act"><button class="btn" data-spawn="Give me the quick orientation as the agency owner: what is Agency Brain, what's my job as owner, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start-o">Read the guide</button></div>
           <div class="guide-panel" id="g-start-o"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">1</span><div><h4>Get the brain running</h4><p class="sd">Install the Agency Brain app and point Cowork at the shared folder. Don't want to? Skip to stage 2, add a scout, and let them set it up.</p></div></div>
-          <div class="act"><button class="btn ghost" data-guide="g-owner-setup">Read: owner setup walkthrough</button></div>
+          <div class="sh"><span class="snum">1</span><div><h4>Set up your computer</h4><p class="sd">A few free tools, once: Node.js, Git, a code editor, and a GitHub account. Rather not? Skip steps 1 to 3, add a scout at step 4, and let them do the hands-on part.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://m.ads2ai.com/mastery">Open the setup guide</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads to AI subscription. No API key needed.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://code.claude.com/docs/en/quickstart">Install Claude Code</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Install Agency Brain</h4><p class="sd">Download the app, install it, and sign in with your email. It downloads your agency's brain and keeps it synced. No invite code needed.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://ads2ai.com/downloads">Download Agency Brain</button><button class="btn ghost" data-guide="g-owner-setup">Read: owner setup walkthrough</button></div>
           <div class="guide-panel" id="g-owner-setup"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Bring your people on</h4><p class="sd">Add your scout first (they build the skills), then your team (they use them). The invite email does the rest; nobody needs a GitHub account.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://agency.ads2ai.com">Open the portal to add people</button><button class="btn ghost" data-guide="g-onboard-o">Read: onboarding your team</button></div>
+          <div class="sh"><span class="snum">4</span><div><h4>Bring your people on</h4><p class="sd">Add your scout first (they build the skills), then your team. Add anyone from your Dashboard; they sign in with their own email, so there's no code to pass around and no GitHub account.</p></div></div>
+          <div class="act"><button class="btn mut" data-go="owner">Add people on your Dashboard</button><button class="btn ghost" data-guide="g-onboard-o">Read: onboarding your team</button></div>
           <div class="guide-panel" id="g-onboard-o"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">3</span><div><h4>Keep what's private, private</h4><p class="sd">Financials, salaries, sensitive client notes go in your own owner-private repo, separate from the shared brain the team can see. Set it up once.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Help me set up my owner-private repo for financials and owner-only docs, separate from the shared agency brain.">Ask Claude: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
+          <div class="sh"><span class="snum">5</span><div><h4>Keep what's private, private</h4><p class="sd">Financials, salaries, sensitive client notes go in your own owner-private repo, separate from the shared brain the team can see. Set it up once.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Help me set up my owner-private repo for financials and owner-only docs, separate from the shared agency brain.">Copy a prompt: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
           <div class="guide-panel" id="g-private"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">4</span><div><h4>Watch it mature</h4><p class="sd">Your Dashboard shows how your team's AI workforce is maturing: skills built, improving, earning trust. It never watches what people type or how they work.</p></div></div>
+          <div class="sh"><span class="snum">6</span><div><h4>Watch it mature</h4><p class="sd">Your Dashboard shows how your team's AI workforce is maturing: skills built, improving, earning trust. It never watches what people type or how they work.</p></div></div>
           <div class="act"><button class="btn mut" data-go="owner">Go to your Dashboard</button></div>
         </div>
       </div>
@@ -415,7 +423,7 @@
             <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask.</p>
             <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
             <div class="res"><div><div class="rn">"Set up my private space"</div><div class="rd">Creates your owner-only repo.</div></div><span class="lk" data-spawn="Help me set up my owner-private repo for owner-only docs.">Ask</span></div>
-            <div class="res"><div><div class="rn">Add your scout</div><div class="rd">Invite your first scout in the portal.</div></div><span class="lk" data-ext="https://agency.ads2ai.com">Open portal</span></div>
+            <div class="res"><div><div class="rn">Add your scout</div><div class="rd">Add your first scout from your Dashboard.</div></div><span class="lk" data-go="owner">Dashboard</span></div>
           </div>
         </div>
       </div>
@@ -430,40 +438,52 @@
         </div>
         <aside class="wc-app">
           <div class="wc-app-h">How to use this page</div>
-          <p>Work top to bottom. Each stage has an <b>Ask Claude</b> button that opens a session ready to walk you through it, and a <b>Read the guide</b> link that opens the written version.</p>
+          <p>Work top to bottom. Each step is either a guide to open or a <b>prompt to copy</b>. Paste a copied prompt into Claude Code and it does the work, walking you through it as it goes. You never type a terminal command yourself.</p>
         </aside>
       </div>
       <div class="card block">
-        <div class="sec">Your path <span class="note">five stages, top to bottom</span></div>
-        <p class="gsu-intro">Most scouts get through stages 0 and 1 on day one, build their first skill in week one, and bring the team on once a skill or two is worth using.</p>
+        <div class="sec">Your path <span class="note">top to bottom, no terminal commands to memorise</span></div>
+        <p class="gsu-intro">Work down the list. Each step is a guide to follow or a prompt you copy and paste into Claude Code. The first three steps are the same setup everyone does; the rest is the scout job. Most scouts are running by day one and build their first skill in week one.</p>
         <div class="stage">
           <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what your job actually is. Five minutes of reading saves a lot of guessing.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Give me the quick orientation: what is Agency Brain, what's my job as a scout, and how do the Owner, Scout and Team roles differ?">Ask Claude to orient me</button><button class="btn ghost" data-guide="g-start">Read the guide</button></div>
+          <div class="act"><button class="btn" data-spawn="Give me the quick orientation: what is Agency Brain, what's my job as a scout, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start">Read the guide</button></div>
           <div class="guide-panel" id="g-start"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">1</span><div><h4>Get yourself running</h4><p class="sd">Four small steps to a working brain on your own machine.</p></div></div>
+          <div class="sh"><span class="snum">1</span><div><h4>Set up your computer</h4><p class="sd">A few free tools, once: Node.js, Git, a code editor (Cursor or VS Code), and a GitHub account. The guide walks you through each one.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://m.ads2ai.com/mastery">Open the setup guide</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads to AI subscription. No API key, no per-token billing; the login covers it.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://code.claude.com/docs/en/quickstart">Install Claude Code</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Install Agency Brain</h4><p class="sd">The Agency Brain app puts your agency's shared brain on your computer and keeps it in sync. You don't need an invite code.</p></div></div>
           <div class="substeps">
-            <div class="ss"><b>Clone the brain.</b> The Agency Brain app does this for you when you paste your invite code. Prefer Claude Code? You can clone the repo by hand instead.</div>
-            <div class="ss"><b>Set up your CLAUDE.md.</b> Fill the shared agency file with the tune-brain prompt, and seed your own <code>personal/&lt;you&gt;/CLAUDE.md</code>.</div>
-            <div class="ss"><b>Get the Command Centre and sync working.</b> Run Smart Start, leave the menu-bar app running, confirm a change syncs.</div>
-            <div class="ss"><b>Use it for yourself.</b> Open Cowork or Claude Code, run a skill, save with <code>/save</code>.</div>
+            <div class="ss"><b>Download and install it</b> from <code>ads2ai.com/downloads</code>; it picks the right version for your computer. The first launch needs one "open anyway" click, since the app isn't code-signed yet.</div>
+            <div class="ss"><b>Open it and choose "Sign in with your email."</b> It sends you a 6-digit code. That's all you need, no invite code to track down.</div>
+            <div class="ss"><b>Pick your agency</b> if it asks, and it downloads the brain and starts syncing.</div>
+            <div class="ss"><b>Got an invite code?</b> You can paste that on the first screen instead. Either way lands you in the same place.</div>
           </div>
-          <div class="act"><button class="btn" data-spawn="Walk me through setting up my CLAUDE.md files as a scout: the shared agency file and my personal one.">Ask Claude: set up my CLAUDE.md</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
+          <div class="act"><button class="btn mut" data-ext="https://ads2ai.com/downloads">Download Agency Brain</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">4</span><div><h4>Set up your CLAUDE.md and use it</h4><p class="sd">Fill the shared agency CLAUDE.md so Claude knows how your agency works, then run a skill so you've felt the loop end to end. Save with <code>/save</code>.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Walk me through setting up my CLAUDE.md files as a scout: the shared agency file and my personal one.">Copy a prompt: set up my CLAUDE.md</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
           <div class="guide-panel" id="g-claudemd"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Build skills for the team</h4><p class="sd">Find a repetitive workflow, build it with <code>/skill-creator</code>, start it at draft. This is the heart of the scout job.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Walk me through creating my first skill for the team using /skill-creator. Help me pick a good first workflow to automate.">Ask Claude: build my first skill</button><button class="btn ghost" data-guide="g-creating">Read: creating skills</button></div>
+          <div class="sh"><span class="snum">5</span><div><h4>Build skills for the team</h4><p class="sd">Find a repetitive workflow, build it with <code>/skill-creator</code>, start it at draft. This is the heart of the scout job.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Walk me through creating my first skill for the team using /skill-creator. Help me pick a good first workflow to automate.">Copy a prompt: build my first skill</button><button class="btn ghost" data-guide="g-creating">Read: creating skills</button></div>
           <div class="guide-panel" id="g-creating"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">3</span><div><h4>Bring your team on</h4><p class="sd">Add people in the portal, the invite email does the rest. Know what your teammate sees so you can help if they get stuck.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://agency.ads2ai.com">Open the portal to add a member</button><button class="btn ghost" data-guide="g-onboard">Read: onboarding your team</button></div>
+          <div class="sh"><span class="snum">6</span><div><h4>Bring your team on</h4><p class="sd">Add anyone (team, another scout, even the owner) from your Dashboard. They install Agency Brain and sign in with their own email, so there's no code to pass around and no GitHub account.</p></div></div>
+          <div class="act"><button class="btn mut" data-go="scout">Add people on your Dashboard</button><button class="btn ghost" data-guide="g-onboard">Read: onboarding your team</button></div>
           <div class="guide-panel" id="g-onboard"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">4</span><div><h4>Keep it healthy</h4><p class="sd">Share skills as they earn trust (draft to live to trusted), and know the handful of things that go wrong so you can unstick anyone fast.</p></div></div>
+          <div class="sh"><span class="snum">7</span><div><h4>Keep it healthy</h4><p class="sd">Share skills as they earn trust (draft to live to trusted), and know the handful of things that go wrong so you can unstick anyone fast.</p></div></div>
           <div class="act"><button class="btn ghost" data-guide="g-sharing">Read: sharing a skill</button><button class="btn ghost" data-guide="g-trouble">Read: troubleshooting</button></div>
           <div class="guide-panel" id="g-sharing"></div>
           <div class="guide-panel" id="g-trouble"></div>
@@ -1707,8 +1727,8 @@
       +'<h3>Set maturity to say it\'s ready</h3><p><code>draft</code> = still building. <code>live</code> = works. <code>trusted</code> = you vouch for it. Flip the field and <code>/save</code>.</p>'
       +'<h3>The feedback loop</h3><p>Teammates flag with <code>/flag-skill</code>; the flag lands where you\'ll see it. Fix, save, the better version reaches everyone.</p>'},
     'g-onboard':{html:'<h2>Onboarding your team</h2><p class="gp-path">docs/scout-guide/onboarding-your-team.md</p>'
-      +'<p>You add people in the portal at <code>agency.ads2ai.com</code>: name, email, role. The portal emails them an invite immediately.</p>'
-      +'<h3>What the teammate receives</h3><ul><li>A short, plain explanation.</li><li>A 6-character code to paste into the app.</li><li>Download links for the Agency Brain app and the Claude desktop app.</li></ul><p>There is no GitHub step for them. The agency owns the GitHub side; they borrow access transparently.</p>'
+      +'<p>You add people from your <b>Dashboard</b> (Add member): name, email, role. That registers their email and emails them an invite. You can add team members, other scouts, even the owner.</p>'
+      +'<h3>How they get in</h3><ul><li>They download Agency Brain from <code>ads2ai.com/downloads</code> and install it.</li><li>They open it and <b>sign in with their email</b> (a 6-digit code by email), and it finds the agency you added them to. No invite code needed.</li><li>If they have the invite code from the email, they can paste that instead. Either way works.</li></ul><p>There is no GitHub step for them. The agency owns the GitHub side; they borrow access transparently.</p>'
       +'<h3>If they already use a personal 8020brain</h3><p>Fresh install. Don\'t merge. Two folders, two purposes, leave the personal one alone.</p>'},
     'g-trouble':{html:'<h2>Troubleshooting</h2><p class="gp-path">docs/scout-guide/troubleshooting.md</p>'
       +'<h3>Common stuck points</h3><ol><li><b>Icon stays grey.</b> Re-run the wizard from the app menu.</li><li><b>Can\'t find the invite email.</b> Check spam, or resend from the portal.</li><li><b>"Git is not installed" (Windows).</b> Point them at git-scm.com.</li><li><b>Cowork can\'t see files.</b> Wrong folder; the app menu shows the watched path.</li><li><b>Icon went red.</b> A conflict; use "Discard my changes".</li></ol>'
@@ -1731,14 +1751,18 @@
     if(gb){ var id=gb.getAttribute('data-guide'), panel=$(id); if(panel){ var open=panel.classList.contains('open'); closeGuides(id); if(!open){ panel.innerHTML=(GUIDES[id]||{}).html||'<p>(guide)</p>'; panel.classList.add('open'); panel.scrollIntoView({behavior:'smooth',block:'nearest'}); } else panel.classList.remove('open'); } return; }
     var ext=t.closest&&t.closest('[data-ext]'); if(ext){ ev.preventDefault(); var u=ext.getAttribute('data-ext'); if(/^https?:/.test(u)) window.open(u,'_blank'); return; }
     var gob=t.closest&&t.closest('[data-go]'); if(gob){ activateView(gob.getAttribute('data-go')); window.scrollTo({top:0,behavior:'smooth'}); return; }
+    // Buttons copy a prompt to the clipboard; the member pastes it into the
+    // Claude Code / Cowork session they already have open. No session spawning.
     var sp=t.closest&&t.closest('[data-spawn]');
-    if(sp){ var pr=sp.getAttribute('data-spawn'), o=sp.textContent; sp.disabled=true; sp.textContent='Opening…';
-      api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:pr})}).then(function(){ sp.textContent='Opened in Claude'; }).catch(function(e){ sp.disabled=false; sp.textContent=o; alert('Couldn’t open: '+e.message); }); return; }
+    if(sp){ var pr=sp.getAttribute('data-spawn'), o=sp.textContent;
+      navigator.clipboard.writeText(pr).then(function(){ sp.textContent='Copied, paste into Claude Code'; }).catch(function(){ sp.textContent='Copy failed, select it by hand'; });
+      setTimeout(function(){ sp.textContent=o; },2400); return; }
     var fb=t.closest&&t.closest('[data-fbfix]');
     if(fb){ var sk=fb.getAttribute('data-skill'), cl=fb.getAttribute('data-client'), bd=fb.getAttribute('data-body');
       var p='A teammate flagged the "'+sk+'" skill'+(cl?(' (client: '+cl+')'):'')+'. Their note:\n\n'+(bd||'(no detail given)')+'\n\nOpen .claude/skills/'+sk+'/SKILL.md, work out what went wrong, and fix it. The brain root is your working directory.';
-      fb.disabled=true; fb.textContent='Opening…';
-      api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})}).then(function(){ fb.textContent='Opened in Claude'; }).catch(function(e){ fb.disabled=false; fb.textContent='Open in Claude to fix'; alert('Couldn’t open: '+e.message); }); return; }
+      var fo=fb.textContent;
+      navigator.clipboard.writeText(p).then(function(){ fb.textContent='Copied, paste into Claude Code'; }).catch(function(){ fb.textContent='Copy failed, select it by hand'; });
+      setTimeout(function(){ fb.textContent=fo; },2400); return; }
   });
 })();
 </script>
