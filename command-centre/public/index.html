@@ -1583,8 +1583,11 @@
   loadRoster();
   loadObservability();
   setInterval(function(){ loadObservability(); loadRoster(); },30000);
-})();
+
   // ===== Get set up page + team-only Start here strip + scout Feedback inbox (2026-05-25) =====
+  // NOTE: these MUST stay inside the IIFE — they call esc/ago/$/api/activateView/OBS/CCROLE,
+  // which are scoped to this IIFE. Defined outside it (v0.8.34) they threw ReferenceError
+  // inside applyRoleTabs, which aborted before un-hiding the Google Ads panels (blank page).
   function renderStartHere(isTeam){
     var sh=$('start-here'); if(!sh) return;
     var feat=(OBS&&OBS.featured)||[];
@@ -1659,6 +1662,7 @@
       fb.disabled=true; fb.textContent='Opening…';
       api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})}).then(function(){ fb.textContent='Opened in Claude'; }).catch(function(e){ fb.disabled=false; fb.textContent='Open in Claude to fix'; alert('Couldn’t open: '+e.message); }); return; }
   });
+})();
 </script>
 </body>
 </html>
