@@ -640,6 +640,13 @@
     <div class="grid cols2 block">
       <div class="stack">
         <div class="card">
+          <div class="sec">The brain in action <span class="note">what your team has built</span></div>
+          <div class="maturity" id="owner-maturity-s"></div>
+          <div class="sec" style="margin:22px 0 12px">Improvements shipped per week</div>
+          <svg id="chart-improve-s" viewBox="0 0 540 180" width="100%" height="180" role="img"></svg>
+          <div class="integrity" id="owner-integrity-s"></div>
+        </div>
+        <div class="card">
           <div class="sec">Fix queue <span class="note">flagged skills, client-tagged first</span></div>
           <div id="fix-queue"><p class="empty">Loading…</p></div>
         </div>
@@ -650,6 +657,24 @@
       </div>
       <div class="stack">
         <div class="kpis" id="scout-kpis"></div>
+        <div class="card">
+          <div class="sec sec-row">Who's in <span class="note">your team on the brain</span>
+            <button class="add-btn secondary" id="add-member-s" hidden>+ Add member</button>
+          </div>
+          <div class="add-form" id="add-form-s" hidden>
+            <input id="af-name-s" placeholder="Full name" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
+            <input id="af-email-s" type="email" placeholder="email@agency.com" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
+            <select id="af-role-s"><option value="team">Team</option><option value="scout">Scout</option><option value="owner">Owner</option></select>
+            <button class="add-btn" id="af-send-s">Send invite</button>
+            <span class="af-status" id="af-status-s"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="team-table">
+              <thead id="team-head-s"><tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th></tr></thead>
+              <tbody id="team-tbody-s"></tbody>
+            </table>
+          </div>
+        </div>
         <div class="card">
           <div class="sec">Get people going <span class="note">who needs unsticking</span></div>
           <div id="get-going"><p class="empty">Loading…</p></div>
@@ -852,14 +877,18 @@
       $('who-role').textContent=(role?cap(role):'No role')+' view';
       // Owners and scouts can add members right here (server-side invite via the
       // member's own token). Team members don't see the control.
-      var ab=$('add-member');
-      if(ab && (role==='owner'||role==='scout'||role==='head-scout')){
-        ab.hidden=false;
-        if(!ab.__wired){ ab.__wired=true; ab.addEventListener('click',function(){ var f=$('add-form'); f.hidden=!f.hidden; if(!f.hidden) $('af-name').focus(); }); }
-      } else {
-        if(ab) ab.hidden=true;
-        var af=$('add-form'); if(af) af.hidden=true;
-      }
+      // Owner + scout both get the "Add member" control (owner-view IDs and the
+      // scout-view -s copies). Either role can add anyone, including an owner.
+      [['add-member','add-form','af-name'],['add-member-s','add-form-s','af-name-s']].forEach(function(t){
+        var ab=$(t[0]);
+        if(ab && (role==='owner'||role==='scout'||role==='head-scout')){
+          ab.hidden=false;
+          if(!ab.__wired){ ab.__wired=true; ab.addEventListener('click',function(){ var f=$(t[1]); f.hidden=!f.hidden; if(!f.hidden) $(t[2]).focus(); }); }
+        } else {
+          if(ab) ab.hidden=true;
+          var af=$(t[1]); if(af) af.hidden=true;
+        }
+      });
       $('who-email').textContent=h.memberEmail||'';
       $('brand-ver').textContent=h.version?('v'+h.version):'';
       $('ft-ver').textContent='Agency Brain'+(h.version?(' v'+h.version):'');
@@ -1014,8 +1043,7 @@
 
   // Inline edit + remove, delegated off the roster body.
   (function(){
-    var tb=$('team-tbody'); if(!tb) return;
-    tb.addEventListener('click', function(ev){
+    var handler=function(ev){
       var btn=ev.target.closest && ev.target.closest('button[data-act]'); if(!btn) return;
       var act=btn.getAttribute('data-act'), slug=btn.getAttribute('data-slug'), tr=btn.closest('tr');
       if(!tr) return;
@@ -1023,7 +1051,8 @@
       if(act==='cancel') return loadRoster();
       if(act==='save') return saveEdit(tr, slug);
       if(act==='remove') return removeMember(slug, btn.getAttribute('data-name'));
-    });
+    };
+    ['team-tbody','team-tbody-s'].forEach(function(id){ var tb=$(id); if(tb) tb.addEventListener('click', handler); });
   })();
 
   function startEdit(tr){
@@ -1060,17 +1089,20 @@
   // add-member form. Visible "Sending…" state + a hard timeout so a click is
   // never silent, even if the server is slow warming up.
   (function(){
-    var send=$('af-send'); if(!send) return;
-    send.addEventListener('click',function(){
-      var name=$('af-name').value.trim(), email=$('af-email').value.trim(), role=$('af-role').value, st=$('af-status');
-      if(!name||!email){ st.textContent='Name and email are both required.'; return; }
-      send.disabled=true; send.textContent='Sending…';
-      st.textContent='Warming up the server and sending the invite — this can take a few seconds…';
-      var ctrl=new AbortController(), to=setTimeout(function(){ctrl.abort();},30000);
-      api('/api/team-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,role:role}),signal:ctrl.signal})
-        .then(function(){ st.textContent='Invite sent to '+email+'.'; $('af-name').value=''; $('af-email').value=''; loadRoster(); setTimeout(function(){ $('add-form').hidden=true; st.textContent=''; },1800); })
-        .catch(function(e){ st.textContent='Failed: '+(e.name==='AbortError'?'timed out — try again':e.message); })
-        .then(function(){ clearTimeout(to); send.disabled=false; send.textContent='Send invite'; });
+    // owner form + scout form (-s) share the same invite logic.
+    [['af-send','af-name','af-email','af-role','af-status','add-form'],['af-send-s','af-name-s','af-email-s','af-role-s','af-status-s','add-form-s']].forEach(function(t){
+      var send=$(t[0]); if(!send) return;
+      send.addEventListener('click',function(){
+        var name=$(t[1]).value.trim(), email=$(t[2]).value.trim(), role=$(t[3]).value, st=$(t[4]);
+        if(!name||!email){ st.textContent='Name and email are both required.'; return; }
+        send.disabled=true; send.textContent='Sending…';
+        st.textContent='Warming up the server and sending the invite, this can take a few seconds…';
+        var ctrl=new AbortController(), to=setTimeout(function(){ctrl.abort();},30000);
+        api('/api/team-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,role:role}),signal:ctrl.signal})
+          .then(function(){ st.textContent='Invite sent to '+email+'.'; $(t[1]).value=''; $(t[2]).value=''; loadRoster(); setTimeout(function(){ $(t[5]).hidden=true; st.textContent=''; },1800); })
+          .catch(function(e){ st.textContent='Failed: '+(e.name==='AbortError'?'timed out — try again':e.message); })
+          .then(function(){ clearTimeout(to); send.disabled=false; send.textContent='Send invite'; });
+      });
     });
   })();
 
@@ -1110,10 +1142,12 @@
     drawChart(svg,{data:data,labels:labels,type:runsType,max:max,yticks:[0,Math.round(max/2),max]});
   }
   function drawImprove(){
-    var svg=$('chart-improve'); if(!svg||!OBS) return;
+    if(!OBS) return;
     var ip=OBS.improvementsPerWeek||[]; var data=ip.map(function(p){return p.count;}); var max=niceMax(Math.max(1,Math.max.apply(null,data.concat([0]))));
     var labels=ip.map(function(p){return p.weekStart.slice(5);});
-    drawChart(svg,{data:data,labels:labels,type:'bar',max:max,yticks:[0,Math.round(max/2),max]});
+    var cfg={data:data,labels:labels,type:'bar',max:max,yticks:[0,Math.round(max/2),max]};
+    // owner + scout both show this chart (the scout copy has id chart-improve-s)
+    ['chart-improve','chart-improve-s'].forEach(function(id){ var svg=$(id); if(svg) drawChart(svg,cfg); });
   }
 
   async function loadObservability(){
@@ -1395,7 +1429,14 @@
   }
 
   // Called whenever OBS or ROSTER changes; each sub-render guards on its own data.
-  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); }
+  // The scout Dashboard reuses the owner's roster, maturity and integrity views
+  // (rendered into owner-view IDs). Copy them into the scout-view -s copies so a
+  // scout sees Who's-in + the charts too, without duplicating the render logic.
+  function mirrorRoster(){
+    [['team-tbody','team-tbody-s'],['team-head','team-head-s'],['owner-maturity','owner-maturity-s'],['owner-integrity','owner-integrity-s']]
+      .forEach(function(p){ var src=$(p[0]), dst=$(p[1]); if(src&&dst) dst.innerHTML=src.innerHTML; });
+  }
+  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); mirrorRoster(); }
 
   function renderOwnerView(){
     if(!OBS) return;
