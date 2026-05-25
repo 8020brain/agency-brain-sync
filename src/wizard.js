@@ -328,15 +328,27 @@
     try {
       const report = await api.detectMachine();
       list.innerHTML = '';
+      let anyMissing = false;
       report.tools.forEach((t) => {
+        if (!t.present) anyMissing = true;
         const row = document.createElement('div');
         row.className = 'check-row ' + (t.present ? 'ok' : 'missing');
         const detail = t.present && t.version ? `<span class="check-detail">${escapeHtml(t.version)}</span>` : '';
         row.innerHTML = `<span class="check-mark">${t.present ? '&#10003;' : '&#43;'}</span>
           <span class="check-label">${escapeHtml(t.label)}</span>${detail}
-          <span class="check-status">${t.present ? 'installed' : 'will install'}</span>`;
+          <span class="check-status">${t.present ? 'installed' : 'not found'}</span>`;
         list.appendChild(row);
       });
+      // Detection is a heads-up, never a gate — false negatives shouldn't trap
+      // anyone, so Continue is always live. If something's missing, say so
+      // plainly and let them proceed (they can install it and the watcher /
+      // Claude pick it up).
+      if (anyMissing) {
+        const note = document.createElement('div');
+        note.className = 'check-note';
+        note.innerHTML = "Anything marked <em>not found</em>? Install it when you get a chance — you can carry on now either way. The check can also miss things that are installed.";
+        list.appendChild(note);
+      }
     } catch (e) {
       list.innerHTML = `<div class="check-row missing"><span class="check-mark">!</span><span class="check-label">Detection failed</span><span class="check-status">${escapeHtml(String(e))}</span></div>`;
     }

@@ -240,6 +240,13 @@
   .update-toast .ut-h{font-size:13px;font-weight:700;color:var(--ink);}
   .update-toast .ut-v{font-size:11.5px;color:var(--muted);margin-top:1px;}
   .update-toast .ut-arrow{margin-left:auto;color:var(--accent);font-weight:800;font-size:15px;}
+  .cw-overlay{position:fixed;inset:0;z-index:80;background:rgba(26,26,26,.42);display:flex;align-items:center;justify-content:center;padding:24px;}
+  .cw-overlay[hidden]{display:none;}
+  .cw-card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:2px;padding:24px 26px;max-width:440px;box-shadow:0 12px 40px rgba(0,0,0,.18);}
+  .cw-card .cw-h{font-family:'Oxanium',sans-serif;font-weight:700;font-size:17px;color:var(--ink);margin-bottom:8px;}
+  .cw-card .cw-p{font-size:13.5px;color:#5a4538;line-height:1.55;margin:0 0 18px;}
+  .cw-card .cw-p kbd{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#f1efec;border:1px solid var(--line);border-radius:2px;padding:1px 5px;}
+  .cw-actions{display:flex;gap:8px;}
   footer .dev-switch:not([hidden]){display:flex;align-items:center;gap:4px;}
   footer .dev-switch .ds-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px;}
   footer .dev-switch button{appearance:none;font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer;background:none;border:1px solid var(--line);border-radius:2px;padding:2px 8px;color:var(--muted);}
@@ -584,6 +591,17 @@
   <div class="ut-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg></div>
   <div class="ut-text"><div class="ut-h">Relaunch to update</div><div class="ut-v" id="ut-version"></div></div>
   <div class="ut-arrow">→</div>
+</div>
+<div class="cw-overlay" id="cw-overlay" hidden>
+  <div class="cw-card">
+    <div class="cw-h">Copied — now paste it into Claude</div>
+    <p class="cw-p">Your agency brain is open in <b>Cowork</b> or the <b>Claude desktop app</b>. Switch to it, paste (<kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>), and press enter. Claude works right inside your brain folder — no terminal or extra tools needed.</p>
+    <div class="cw-actions">
+      <button class="btn" id="cw-open">Open Claude</button>
+      <button class="btn ghost" id="cw-copy">Copy again</button>
+      <button class="btn ghost" id="cw-done">Done</button>
+    </div>
+  </div>
 </div>
 <footer>
   <span class="ver" id="ft-ver">Agency Brain</span>
@@ -1305,18 +1323,37 @@
     }).join('')+'</tbody></table>' : '<p class="empty">Everyone’s active. Nobody needs unsticking right now.</p>';
   }
 
-  // Fix-queue "Open in Claude to fix" → dispatch a Claude session (the proven
-  // /api/spawn path) seeded with the flag so the scout can fix it in place.
+  // Dispatch a task to Claude the way members actually work: copy a ready-made
+  // prompt and point them at their brain folder in Cowork / the Claude desktop
+  // app. No Node, no command-line tool — the old CLI-terminal spawn needed both,
+  // which a fresh member machine doesn't have (decision 2026-05-25).
+  var CW_PROMPT='';
+  function dispatchToCowork(prompt){
+    CW_PROMPT=prompt;
+    try{ navigator.clipboard.writeText(prompt); }catch(e){}
+    var ov=$('cw-overlay'); if(ov) ov.hidden=false;
+  }
+  (function(){
+    var ov=$('cw-overlay'); if(!ov) return;
+    var close=function(){ ov.hidden=true; };
+    $('cw-done').addEventListener('click',close);
+    ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+    $('cw-copy').addEventListener('click',function(){ try{ navigator.clipboard.writeText(CW_PROMPT); }catch(e){} var b=$('cw-copy'); b.textContent='Copied'; setTimeout(function(){ b.textContent='Copy again'; },1400); });
+    var ob=$('cw-open');
+    if(window.agencyBrain && window.agencyBrain.launchClaudeApp){
+      ob.addEventListener('click',function(){ window.agencyBrain.launchClaudeApp(); });
+    } else if(ob){ ob.hidden=true; } // no Electron bridge (plain browser) → no launch button
+  })();
+
+  // Fix-queue "Open in Claude to fix" → copy the fix prompt + open Claude.
   (function(){
     var fq=$('fix-queue'); if(!fq) return;
     fq.addEventListener('click',function(ev){
       var b=ev.target.closest&&ev.target.closest('button[data-fix]'); if(!b) return;
       var f=FIXQ[Number(b.getAttribute('data-fix'))]; if(!f) return;
-      b.disabled=true; b.textContent='Opening…';
-      var prompt='A teammate flagged the "'+f.skill+'" skill'+(f.client?(' (client: '+f.client+')'):'')+'. Their note:\n\n'+(f.body||'(no detail given)')+'\n\nOpen .claude/skills/'+f.skill+'/SKILL.md, work out what went wrong, and fix it. The brain root is your working directory.';
-      api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt})})
-        .then(function(){ b.textContent='Opened in Claude'; })
-        .catch(function(e){ b.disabled=false; b.textContent='Open in Claude to fix'; alert('Couldn’t open: '+e.message); });
+      var prompt='A teammate flagged the "'+f.skill+'" skill'+(f.client?(' (client: '+f.client+')'):'')+'. Their note:\n\n'+(f.body||'(no detail given)')+'\n\nOpen .claude/skills/'+f.skill+'/SKILL.md, work out what went wrong, and fix it. Your agency brain folder is your working directory.';
+      dispatchToCowork(prompt);
+      var orig=b.textContent; b.textContent='Copied — paste into Claude'; setTimeout(function(){ b.textContent=orig; },2400);
     });
   })();
 

@@ -994,6 +994,30 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
     ? (repoUrl || tokenRepoUrl)
     : `https://github.com/${(repoUrl || tokenRepoUrl).replace(/^.*github.com[:/]/, '')}`;
   await runGit(['-C', targetFolder, 'remote', 'set-url', 'origin', cleanRemote]);
+  // Seed .team-config/roles.json from the live roster if the repo doesn't ship
+  // one. The watcher reads it to resolve each member's role for push filtering;
+  // without it, role resolution falls back to a hint. Teams created via the raw
+  // admin API skip the agency-create CLI's seeding step, so seeding at clone
+  // time (rather than at provision time) covers every path. Best-effort — a
+  // failure here never fails the clone.
+  try {
+    const rolesPath = path.join(targetFolder, '.team-config', 'roles.json');
+    if (!fs.existsSync(rolesPath)) {
+      const sumRes = await fetch(`${API_BASE}/api/team-brain/team-summary?team=${encodeURIComponent(teamSlug)}`, {
+        headers: { Authorization: `Bearer ${memberToken}` },
+      });
+      if (sumRes.ok) {
+        const sum = await sumRes.json();
+        const roles = {
+          team_slug: (sum.team && sum.team.slug) || teamSlug,
+          team_name: (sum.team && sum.team.name) || teamSlug,
+          members: (sum.members || []).map((m) => ({ email: m.email, name: m.name, role: m.role })),
+        };
+        fs.mkdirSync(path.dirname(rolesPath), { recursive: true });
+        fs.writeFileSync(rolesPath, JSON.stringify(roles, null, 2) + '\n');
+      }
+    }
+  } catch (e) { /* best-effort: the watcher falls back to the role hint */ }
   return { ok: true };
 });
 
@@ -1091,16 +1115,19 @@ function toolVersion(toolPath, arg) {
 // detect_machine — same result shape as the Rust command:
 // { tools: [{ key, label, present, version, path }] }
 function detectMachine() {
+  // What a member actually needs now (Cowork dispatch model, 2026-05-25): Git
+  // (the sync watcher clones/commits/pushes) and the Claude desktop app (where
+  // they do the work, in their brain folder). Node + the Claude CLI are NOT
+  // required — the app runs on Electron's bundled node and dispatch is Cowork,
+  // not a terminal. Checking for Node here only produced scary false negatives
+  // ("Node.js — will install", which nothing then installed), so it's dropped.
   const isWin = process.platform === 'win32';
   const specs = isWin
     ? [
-        { key: 'git', label: 'Git', candidates: ['C:\\Program Files\\Git\\cmd\\git.exe'], varg: '--version' },
-        { key: 'node', label: 'Node.js', candidates: [], varg: '--version' },
+        { key: 'git', label: 'Git', candidates: ['C:\\Program Files\\Git\\cmd\\git.exe', 'C:\\Program Files\\Git\\bin\\git.exe', 'C:\\Program Files (x86)\\Git\\cmd\\git.exe'], varg: '--version' },
       ]
     : [
-        { key: 'brew', label: 'Homebrew', candidates: ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'], varg: '--version' },
         { key: 'git', label: 'Git', candidates: ['/usr/bin/git', '/opt/homebrew/bin/git', '/usr/local/bin/git'], varg: '--version' },
-        { key: 'node', label: 'Node.js', candidates: ['/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node'], varg: '--version' },
       ];
   const tools = specs.map((s) => {
     const p = whichTool(s.key) || s.candidates.find((c) => fs.existsSync(c)) || null;
