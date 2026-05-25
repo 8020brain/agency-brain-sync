@@ -257,8 +257,15 @@ async function classifyState() {
 
 async function pushChanges(s) {
   // s.statusLines come from porcelain output. Parse files we need to stage.
-  // Format: "XY filename"; rename: "XY oldname -> newname"
-  const files = (s.statusLines || []).map((line) => line.slice(3).split(' -> ').pop());
+  // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
+  // git() .trim()s the whole status blob, which strips the leading space off the
+  // FIRST line when its index column is blank (" M path" -> "M path"). A fixed
+  // slice(3) then eats the first path char ("context/..." -> "ontext/..."), which
+  // also mis-classifies an allowed personal file as a protected violation. Strip
+  // the status field (1-2 cols, tolerating that trim) plus its single space instead.
+  const files = (s.statusLines || []).map((line) =>
+    line.replace(/^[ MADRCU!?]{1,2} /, '').split(' -> ').pop()
+  );
 
   if (MODE === 'agency') {
     const role = currentRole();
