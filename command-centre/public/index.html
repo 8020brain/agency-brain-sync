@@ -215,6 +215,9 @@
   .upsell-banner .ub-p{font-size:13px;color:#5a4538;margin-top:2px;}
   .upsell-banner .ub-p a{color:var(--accent);font-weight:700;text-decoration:none;}
   .upsell-banner .ub-cta{margin-left:auto;font-family:'Oxanium',sans-serif;font-weight:600;font-size:12.5px;background:var(--accent);color:#fff;border-radius:2px;padding:7px 14px;text-decoration:none;white-space:nowrap;}
+  .upsell-banner .ub-x{margin-left:10px;flex:none;appearance:none;border:none;background:none;cursor:pointer;font-size:20px;line-height:1;color:var(--muted);padding:2px 4px;border-radius:2px;}
+  .upsell-banner .ub-x:hover{color:var(--accent);background:rgba(214,76,0,.08);}
+  .upsell-banner .ub-text{flex:1;}
 
   /* flag-skill (team) view */
   .fs-intro{font-size:14.5px;color:var(--muted);max-width:760px;margin:0 0 22px;}
@@ -365,6 +368,7 @@
       <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></div>
       <div class="ub-text"><div class="ub-h" id="ub-h"></div><div class="ub-p" id="ub-p"></div></div>
       <a class="ub-cta" id="ub-cta" href="mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20upgrade">Email Mike for a coupon</a>
+      <button class="ub-x" id="ub-x" title="Dismiss" aria-label="Dismiss">&times;</button>
     </div>
 
     <div class="verdict" id="owner-verdict" hidden></div>
@@ -434,6 +438,7 @@
     <div class="upsell-banner" id="upsell-banner-s" hidden>
       <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></div>
       <div class="ub-text"><div class="ub-h" id="ub-h-s"></div><div class="ub-p" id="ub-p-s"></div></div>
+      <button class="ub-x" id="ub-x-s" title="Dismiss" aria-label="Dismiss">&times;</button>
     </div>
 
     <div class="verdict" id="scout-verdict" hidden></div>
@@ -629,6 +634,7 @@
   async function loadHealth(){
     try{
       var h=await api('/api/health');
+      TEAMSLUG=h.teamSlug||'';
       $('brand-team').textContent=(h.teamSlug||'Your agency');
       var role=uiRole((h.memberRole||'').toLowerCase());
       $('who-role').textContent=(role?cap(role):'No role')+' view';
@@ -755,10 +761,21 @@
         SCOUT_SEATS = d.team.scoutSeats==null ? SCOUT_SEATS : Number(d.team.scoutSeats);
         PACKAGE_TIER = d.team.packageTier ? d.team.packageTier : PACKAGE_TIER;
       }
+      // Role is server-authoritative. If it changed since login (config is
+      // stale), the roster's requester.role is the truth — re-apply the view so
+      // it switches without a re-login. uiRole() preserves a dev-switch/?as= override.
       var rr=uiRole(((d.requester&&d.requester.role)||'').toLowerCase());
+      if(rr && rr!==CCROLE){
+        CCROLE=rr;
+        applyRoleTabs((d.requester&&d.requester.role)||'');
+        $('who-role').textContent=(rr?cap(rr):'No role')+' view';
+      }
       var canEdit=(rr==='owner'||rr==='scout'||rr==='head-scout');
       th.innerHTML='<tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th>'+(canEdit?'<th></th>':'')+'</tr>';
-      SCOUT_COUNT=(d.members||[]).filter(function(m){return /scout/.test(String(m.role||''));}).length; maybeBanner();
+      SCOUT_COUNT=(d.members||[]).filter(function(m){return /scout/.test(String(m.role||''));}).length;
+      // Seats used = owner + scout (the priced portal seats), what the N+1 cap counts.
+      SEATS_USED=(d.members||[]).filter(function(m){return /owner|scout|head/.test(String(m.role||''));}).length;
+      maybeBanner();
       tb.innerHTML = d.members.length ? d.members.map(function(m){
         var stt = memberStatus(m);
         var synced = '<span class="st '+stt.cls+'">'+stt.label+'</span>'
@@ -1081,31 +1098,48 @@
   // /api/team-roster; also /api/health if present). Null/0 until an admin links a
   // package, so the banner + plan card stay hidden until then. SCOUT_COUNT + ROSTER
   // are the live server roster. ME / ME_NAME identify the signed-in member.
-  var CCROLE='', SCOUT_SEATS=0, SCOUT_COUNT=0, PACKAGE_TIER=null, RENEWAL=null;
-  var ME='', ME_NAME='', ROSTER=null, ROSTER_REQ=null;
+  var CCROLE='', SCOUT_SEATS=0, SCOUT_COUNT=0, SEATS_USED=0, PACKAGE_TIER=null, RENEWAL=null;
+  var ME='', ME_NAME='', ROSTER=null, ROSTER_REQ=null, TEAMSLUG='', CUR_BANNER_SIG='';
+  // Seats = owner + scout, capped at the package's scout count + 1 (the owner's
+  // free seat + N scout seats). The banner + plan card display it in scout-seat
+  // terms (owner's seat unnamed): scout seats used = max(0, owner+scout - 1).
   var NEXT_TIER={2:'5-scout',5:'10-scout'};
   var PKG_PRICE={'Solo':799,'Solo + coaching':999,'Team of 2':1199,'Team of 5':1995,'Team of 10':2995};
   function planLabel(t){ return ({'Team of 2':'+2 scouts','Team of 5':'+5 scouts','Team of 10':'+10 scouts'})[t]||t; }
   function ccRole(){ var r=CCROLE; return r==='head-scout'?'scout':r; }
 
+  // Dismiss is keyed on team + scout-seat count, so the banner reappears if the
+  // plan changes (an upgrade resets it), but stays gone within the same plan.
+  function bannerDismissed(){ try{ return localStorage.getItem('ab-upsell-dismissed')===CUR_BANNER_SIG; }catch(e){ return false; } }
+  function wireDismiss(btn, banner){
+    if(!btn || btn.__wired) return; btn.__wired=true;
+    btn.addEventListener('click', function(){ try{ localStorage.setItem('ab-upsell-dismissed', CUR_BANNER_SIG); }catch(e){} banner.hidden=true; });
+  }
   function maybeBanner(){
-    var r=ccRole(), seats=SCOUT_SEATS||0;
-    var atCap=(r==='owner'||r==='scout') && seats>0 && SCOUT_COUNT>=seats;
+    var r=ccRole(), n=SCOUT_SEATS||0;
+    // Scout seats used = owner+scout minus the owner's free seat. The cap is the
+    // package's N scout seats (a 2nd owner just uses one). We don't name the
+    // owner's free seat — public framing stays "Team of N = N scout seats".
+    var used=Math.max(0, (SEATS_USED||0)-1);
+    var atCap=(r==='owner'||r==='scout') && n>0 && used>=n;
+    CUR_BANNER_SIG=(TEAMSLUG||'')+':'+n;
+    var show=atCap && !bannerDismissed();
+    var word=(n===2 ? 'Both scout seats' : 'All '+n+' scout seats');
     var ob=$('upsell-banner');
     if(ob){
-      if(atCap && r==='owner'){
-        var next=NEXT_TIER[seats]||'next';
-        $('ub-h').textContent='All '+seats+' scout seat'+(seats===1?'':'s')+' are in use.';
+      if(show && r==='owner'){
+        var next=NEXT_TIER[n]||'next';
+        $('ub-h').textContent=word+' are in use.';
         $('ub-p').innerHTML='To add more scouts, email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for a coupon — you only pay the difference up to the '+next+' plan.';
-        ob.hidden=false;
+        ob.hidden=false; wireDismiss($('ub-x'), ob);
       } else ob.hidden=true;
     }
     var sb=$('upsell-banner-s');
     if(sb){
-      if(atCap && r==='scout'){
-        $('ub-h-s').textContent='All '+seats+' scout seat'+(seats===1?'':'s')+' are full.';
+      if(show && r==='scout'){
+        $('ub-h-s').textContent=word+' are full.';
         $('ub-p-s').innerHTML='Want another scout on the team? Ask your owner to email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for an upgrade coupon — they only pay the difference.';
-        sb.hidden=false;
+        sb.hidden=false; wireDismiss($('ub-x-s'), sb);
       } else sb.hidden=true;
     }
   }
@@ -1149,7 +1183,9 @@
     if(!card||!box) return;
     if(!PACKAGE_TIER){ card.hidden=true; return; } // no package linked yet (null or "")
     card.hidden=false;
-    var seats=SCOUT_SEATS||0, used=SCOUT_COUNT||0, full=seats>0 && used>=seats, price=PKG_PRICE[PACKAGE_TIER];
+    // Scout seats consumed = owner+scout minus the owner's free seat (a 2nd
+    // owner uses a scout seat). Matches the banner's at-cap math.
+    var seats=SCOUT_SEATS||0, used=Math.max(0,(SEATS_USED||0)-1), full=seats>0 && used>=seats, price=PKG_PRICE[PACKAGE_TIER];
     if(note) note.textContent=full?'scout seats full':'';
     var h=[];
     h.push('<div class="bill-row"><span class="k">Plan</span><span class="v">'+esc(planLabel(PACKAGE_TIER))+(price?(' · €'+price.toLocaleString()+'/yr'):'')+'</span></div>');

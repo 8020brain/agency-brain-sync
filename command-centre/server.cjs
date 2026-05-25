@@ -236,6 +236,10 @@ const server = http.createServer(async (req, res) => {
       // offline / signed out / the API is cold.
       let scoutSeats = SCOUT_SEATS_ENV;
       let packageTier = PACKAGE_TIER_ENV;
+      // memberRole is server-authoritative: config.json is set at login and goes
+      // stale if the role changes, so prefer the live value. Falls back to the
+      // config snapshot when offline / signed out / the API is cold.
+      let memberRole = MEMBER_ROLE;
       if (MEMBER_TOKEN && TEAM_SLUG) {
         try {
           const r = await fetch(API_BASE + '/api/team-brain/my-teams', {
@@ -248,13 +252,14 @@ const server = http.createServer(async (req, res) => {
             if (t) {
               if (t.scoutSeats != null) scoutSeats = Number(t.scoutSeats) || 0;
               if (t.packageTier) packageTier = t.packageTier;
+              if (t.role) memberRole = t.role;
             }
           }
         } catch (e) { /* offline / slow / signed out — keep the snapshot */ }
       }
       return send(res, 200, {
         ok: true, brainRoot: BRAIN_ROOT,
-        memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole: MEMBER_ROLE, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
+        memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
         scoutSeats, packageTier,
       });
     }
