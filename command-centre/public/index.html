@@ -14,7 +14,9 @@
     --draft:#6b6b6b; --draft-bg:#efedea;
     --live:#D64C00; --live-bg:#fbeee7;
     --trusted:#1a1a1a; --trusted-bg:#e9e7e2;
-    --warn:#9a4a00;
+    --warn:#9a4a00; --warn-soft:#f7ecdf;
+    --ok:#1f8a4c; --ok-soft:#e7f3ec;
+    --hi:#b1442a; --hi-soft:#fbe9e3;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Oxanium',system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased;line-height:1.45;padding-bottom:40px;}
@@ -241,6 +243,43 @@
   footer .dev-switch button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   footer .path{font-family:ui-monospace,Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28%;}
 
+  /* ---- v5: owner + scout action surfaces ---- */
+  .verdict{display:flex;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:2px;padding:18px 22px;margin-bottom:22px;}
+  .verdict[hidden]{display:none;}
+  .verdict.amber{border-left-color:var(--warn);}
+  .verdict .dot{flex:none;width:13px;height:13px;border-radius:50%;background:var(--ok);margin-top:5px;box-shadow:0 0 0 4px var(--ok-soft);}
+  .verdict.amber .dot{background:var(--warn);box-shadow:0 0 0 4px var(--warn-soft);}
+  .verdict .vh{font-size:19px;font-weight:700;line-height:1.3;color:var(--ink);}
+  .verdict .vp{font-size:14px;color:var(--muted);margin-top:4px;} .verdict .vp b{color:var(--ink);font-weight:600;}
+  .verdict .vact{margin-top:12px;display:flex;gap:9px;flex-wrap:wrap;}
+  .btn{font-family:inherit;font-weight:600;font-size:13px;padding:7px 15px;border:0;border-radius:2px;background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block;}
+  .btn:hover{background:#b94000;}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent);} .btn.ghost:hover{background:var(--accent-soft);}
+  .btn.sm{font-size:11.5px;padding:4px 11px;} .btn.mut{background:#fff;color:var(--muted);border:1px solid var(--line);} .btn.mut:hover{border-color:var(--accent);color:var(--accent);}
+  .btn[disabled]{opacity:.5;cursor:default;}
+  .maturity{display:flex;gap:10px;}
+  .maturity .m{flex:1;border:1px solid var(--line);border-radius:2px;padding:11px 13px;}
+  .maturity .m .n{font-size:24px;font-weight:800;line-height:1;color:var(--ink);} .maturity .m .k{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:5px;}
+  .maturity .m.draft{border-left:3px solid var(--draft);} .maturity .m.live{border-left:3px solid var(--accent);} .maturity .m.trusted{border-left:3px solid var(--ink);}
+  .scouts-built{font-size:13.5px;}
+  .built-row{padding:9px 0;border-bottom:1px solid var(--line);} .built-row:last-child{border-bottom:0;}
+  .built-row .who{color:var(--accent);font-weight:600;} .built-row .when{color:var(--muted);font-size:12px;}
+  .st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:2px;white-space:nowrap;}
+  .st.active{background:var(--ok-soft);color:var(--ok);} .st.quiet{background:var(--draft-bg);color:var(--draft);} .st.dormant{background:var(--warn-soft);color:var(--warn);}
+  .bill-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;} .bill-row:last-child{border-bottom:0;}
+  .bill-row .k{color:var(--muted);} .bill-row .v{font-weight:600;text-align:right;} .bill-row .v.cap{color:var(--accent);}
+  .seatbar{height:8px;background:var(--draft-bg);border-radius:2px;overflow:hidden;margin:10px 0 4px;} .seatbar>i{display:block;height:100%;background:var(--accent);}
+  .plan-cta{margin-top:12px;}
+  .work{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:13px 16px;margin-bottom:12px;}
+  .work:last-child{margin-bottom:0;}
+  .work .wh{display:flex;align-items:center;gap:9px;margin-bottom:4px;} .work h4{margin:0;font-size:14.5px;font-weight:700;color:var(--ink);}
+  .work .meta{font-size:11.5px;color:var(--muted);margin-bottom:8px;} .work p{margin:0 0 10px;font-size:13.5px;line-height:1.5;color:var(--ink);}
+  .work .act{display:flex;gap:8px;flex-wrap:wrap;}
+  .impact{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:2px;background:var(--hi-soft);color:var(--hi);}
+  .promo{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);} .promo:last-child{border-bottom:0;}
+  .promo .pi{flex:1;font-size:13px;} .promo .pi .nm{font-weight:700;color:var(--ink);} .promo .pi .ev{color:var(--muted);font-size:12px;margin-top:2px;}
+  .month-stat{font-size:14px;color:var(--ink);} .month-stat b{font-weight:700;}
+
   @media(max-width:1080px){ .wrap{padding:20px;} .cols2{grid-template-columns:1fr;} .topbar{flex-direction:column;align-items:flex-start;} .who{text-align:left;} }
 </style>
 </head>
@@ -254,6 +293,7 @@
     <div class="tabs">
       <button class="tab" data-view="welcome" hidden>Welcome</button>
       <button class="tab active" data-view="owner">Dashboard</button>
+      <button class="tab" data-view="scout" hidden>Dashboard</button>
       <button class="tab" data-view="skills" hidden>Skills</button>
       <button class="tab" data-view="flag">Flag a skill <span style="font-weight:500;color:inherit">(how feedback works)</span></button>
       <button class="tab" data-view="gads" hidden>Google Ads</button>
@@ -327,51 +367,27 @@
       <a class="ub-cta" id="ub-cta" href="mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20upgrade">Email Mike for a coupon</a>
     </div>
 
+    <div class="verdict" id="owner-verdict" hidden></div>
+
     <div class="grid cols2 block">
       <div class="stack">
         <div class="card">
-          <div class="sec">The pulse <span class="note">what changed in the brain</span></div>
-          <div class="pulse" id="pulse">Loading…</div>
-        </div>
-
-        <div class="card">
-          <div class="chead">
-            <div class="sec">Skills</div>
-            <input class="skill-search" id="skill-search" type="search" placeholder="Search skills…" autocomplete="off">
-          </div>
-          <div class="skill-filters">
-            <select id="skill-maturity"><option value="all">All maturity</option><option value="draft">Draft</option><option value="live">Live</option><option value="trusted">Trusted</option></select>
-            <select id="skill-flags"><option value="all">All flags</option><option value="flagged">Flagged only</option></select>
-            <span class="skill-count" id="skill-count"></span>
-          </div>
-          <div class="start-here" id="start-here"></div>
-          <div class="skills-scroll">
-            <table id="skills-table">
-              <thead id="skills-head"></thead>
-              <tbody id="skills-tbody"></tbody>
-            </table>
-          </div>
-          <div class="integrity" id="integrity"></div>
-        </div>
-
-        <div class="card" id="runs-card">
-          <div class="chead">
-            <div class="sec">Skill runs per day</div>
-            <div class="toggle" id="runs-toggle"><button class="tg active" data-type="line">Line</button><button class="tg" data-type="bar">Bar</button></div>
-          </div>
-          <svg id="chart-runs" viewBox="0 0 540 180" width="100%" height="180" role="img"></svg>
-        </div>
-
-        <div class="card">
-          <div class="sec">Improvements shipped per week</div>
+          <div class="sec">The brain in action <span class="note">what your team has built</span></div>
+          <div class="maturity" id="owner-maturity"></div>
+          <div class="sec" style="margin:22px 0 12px">Improvements shipped per week</div>
           <svg id="chart-improve" viewBox="0 0 540 180" width="100%" height="180" role="img"></svg>
+          <div class="integrity" id="owner-integrity"></div>
         </div>
 
+        <div class="card">
+          <div class="sec">What your scouts built <span class="note">the curious few making this yours</span></div>
+          <div class="scouts-built" id="scouts-built"><p class="empty">Loading…</p></div>
+        </div>
       </div>
 
       <div class="stack">
         <div class="card">
-          <div class="sec sec-row">The team
+          <div class="sec sec-row">Who's in <span class="note">your team on the brain</span>
             <button class="add-btn secondary" id="add-member" hidden>+ Add member</button>
           </div>
           <div class="add-form" id="add-form" hidden>
@@ -388,11 +404,10 @@
             </table>
           </div>
         </div>
-        <div class="kpis" id="kpis"></div>
 
-        <div class="card">
-          <div class="sec">Open feedback <span class="note">from /flag-skill, newest first</span></div>
-          <div id="feedback"></div>
+        <div class="card" id="owner-plan-card" hidden>
+          <div class="sec">Your plan <span class="note" id="owner-plan-note"></span></div>
+          <div id="owner-plan"></div>
         </div>
 
         <div class="card">
@@ -407,6 +422,52 @@
               <li>Time-of-day activity heatmaps</li>
             </ul>
             <p class="why">Tracking the right things signals pride in the team's work. Tracking the wrong things signals distrust.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCOUT DASHBOARD ============ -->
+  <section class="view" id="view-scout">
+
+    <div class="upsell-banner" id="upsell-banner-s" hidden>
+      <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></div>
+      <div class="ub-text"><div class="ub-h" id="ub-h-s"></div><div class="ub-p" id="ub-p-s"></div></div>
+    </div>
+
+    <div class="verdict" id="scout-verdict" hidden></div>
+
+    <div class="grid cols2 block">
+      <div class="stack">
+        <div class="card">
+          <div class="sec">Fix queue <span class="note">flagged skills, client-tagged first</span></div>
+          <div id="fix-queue"><p class="empty">Loading…</p></div>
+        </div>
+        <div class="card">
+          <div class="sec">Promotion candidates <span class="note">drafts that have settled, ready to go live</span></div>
+          <div id="promotions"><p class="empty">Loading…</p></div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="kpis" id="scout-kpis"></div>
+        <div class="card">
+          <div class="sec">Get people going <span class="note">who needs unsticking</span></div>
+          <div id="get-going"><p class="empty">Loading…</p></div>
+        </div>
+        <div class="card">
+          <div class="sec">Your month <span class="note">what you've sharpened</span></div>
+          <div class="month-stat" id="your-month"></div>
+        </div>
+        <div class="card">
+          <div class="sec">What this dashboard does not track</div>
+          <div class="anti">
+            <h3>Deliberately off the table</h3>
+            <p class="lead">This view shows the skills you look after. It never watches the people using them.</p>
+            <ul>
+              <li><strong>What anyone types into Claude.</strong> Prompts and conversations are never read, logged, or shown here.</li>
+              <li>Token usage per person · time-of-day heatmaps.</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -587,7 +648,10 @@
       $('ft-built').textContent=h.servedAt?('· built '+new Date(h.servedAt).toLocaleTimeString()):'';
       $('ft-path').textContent=h.brainRoot||'';
       applyRoleTabs(h.memberRole);
-      CCROLE=role; SCOUT_SEATS=Number(h.scoutSeats)||0; maybeBanner();
+      CCROLE=role; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
+      if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
+      if(h.packageTier) PACKAGE_TIER=h.packageTier;
+      maybeBanner();
       var sw=$('dev-switch');
       if(sw){
         var dev=/preview|dev/i.test(h.version||'');
@@ -595,21 +659,6 @@
         if(dev){ var eff=uiRole((h.memberRole||'').toLowerCase()); sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.role===eff); }); }
       }
     }catch(e){}
-  }
-
-  function buildPulse(d){
-    var s=d.summary, b=[];
-    b.push('Your agency brain has <b>'+s.totalSkills+' skill'+(s.totalSkills===1?'':'s')+'</b>.');
-    if(s.improved30d>0){
-      var names=(d.recentlyImproved||[]).slice(0,3).map(function(x){return esc(x.name);});
-      b.push('<b>'+s.improved30d+'</b> improved in the last 30 days'+(names.length?' (including '+names.join(', ')+')':'')+'.');
-    } else { b.push('Nothing has been improved in the last 30 days.'); }
-    if(s.openFlags>0){
-      var fe=(d.flagEntries||[])[0];
-      b.push('There '+(s.openFlags===1?'is':'are')+' <b>'+s.openFlags+' open feedback flag'+(s.openFlags===1?'':'s')+'</b>'+(fe?(' — most recently on <b>'+esc(fe.skill)+'</b>'):'')+', worth a look.');
-    } else { b.push('No open feedback flags right now.'); }
-    if(s.hasDrift && s.driftCount>0){ b.push('<b>'+s.driftCount+'</b> skill'+(s.driftCount===1?' differs':'s differ')+' from the canonical version.'); }
-    return b.join(' ');
   }
 
   function buildIntegrity(d){
@@ -620,7 +669,7 @@
 
   var ORDER={draft:0,live:1,trusted:2};
   var SK={data:null, q:'', maturity:'all', flags:'all', sortKey:'maturity', sortDir:1};
-  function renderSkills(d){ SK.data=d; renderSkillTable(); $('integrity').innerHTML=buildIntegrity(d); }
+  function renderSkills(d){ SK.data=d; renderSkillTable(); var ig=$('integrity'); if(ig) ig.innerHTML=buildIntegrity(d); }
   function skillSortVal(sk,key){
     if(key==='name') return (sk.name||'').toLowerCase();
     if(key==='maturity') return ORDER[sk.maturity]!=null?ORDER[sk.maturity]:9;
@@ -631,6 +680,7 @@
   }
   function renderSkillTable(){
     var d=SK.data; if(!d) return;
+    if(!$('skills-head')) return; // owner skills table removed in v5 — Skills tab owns the full list now
     var hasRuns=!!d.summary.hasRuns, hasDrift=!!d.summary.hasDrift;
     function hdr(key,label,cls){ var on=SK.sortKey===key; return '<th class="sortable'+(cls?' '+cls:'')+'" data-sk="'+key+'">'+label+' <span class="arr">'+(on?(SK.sortDir>0?'▲':'▼'):'')+'</span></th>'; }
     $('skills-head').innerHTML='<tr>'+hdr('name','Skill')+hdr('maturity','Maturity')+(hasRuns?hdr('runs7d','Runs 7d','num'):'')+hdr('flags','Flags','num')+hdr('lastImproved','Last improved')+'</tr>';
@@ -697,23 +747,32 @@
       if(d.unavailable || !d.members){
         th.innerHTML=head4;
         tb.innerHTML='<tr><td class="empty" colspan="4">Roster unavailable'+(d.reason?(' ('+esc(d.reason)+')'):'')+'. It syncs from the server once you’re signed in to a team.</td></tr>';
+        ROSTER=null; renderAll();
         return;
+      }
+      ROSTER=d.members||null; ROSTER_REQ=d.requester||null;
+      if(d.team){
+        SCOUT_SEATS = d.team.scoutSeats==null ? SCOUT_SEATS : Number(d.team.scoutSeats);
+        PACKAGE_TIER = d.team.packageTier ? d.team.packageTier : PACKAGE_TIER;
       }
       var rr=uiRole(((d.requester&&d.requester.role)||'').toLowerCase());
       var canEdit=(rr==='owner'||rr==='scout'||rr==='head-scout');
       th.innerHTML='<tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th>'+(canEdit?'<th></th>':'')+'</tr>';
       SCOUT_COUNT=(d.members||[]).filter(function(m){return /scout/.test(String(m.role||''));}).length; maybeBanner();
       tb.innerHTML = d.members.length ? d.members.map(function(m){
-        var syncedAt = m.lastSyncedAt || m.installCompletedAt;
-        var synced = syncedAt ? ('<span class="synced">'+agoFine(syncedAt)+'</span>')
-          : (m.pendingClaim ? '<span class="notsynced">pending claim</span>' : '<span class="notsynced">not yet</span>');
-        var actions = canEdit ? '<td class="row-actions"><button class="mini icon" data-act="edit" data-slug="'+esc(m.slug)+'" title="Edit name / role" aria-label="Edit">'+ICON_EDIT+'</button><button class="mini icon danger" data-act="remove" data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||m.email)+'" title="Remove from team" aria-label="Remove">'+ICON_TRASH+'</button></td>' : '';
+        var stt = memberStatus(m);
+        var synced = '<span class="st '+stt.cls+'">'+stt.label+'</span>'
+          + (stt.sa ? ' <span class="ago" style="font-size:11px">'+agoFine(stt.sa)+'</span>'
+             : (m.pendingClaim ? ' <span class="notsynced">pending</span>' : ''));
+        var nudge = (canEdit && stt.cls!=='active') ? '<button class="mini" data-nudge="'+esc(m.slug)+'" data-email="'+esc(m.email)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role||'')+'" title="Resend their invite">Nudge</button>' : '';
+        var actions = canEdit ? '<td class="row-actions">'+nudge+'<button class="mini icon" data-act="edit" data-slug="'+esc(m.slug)+'" title="Edit name / role" aria-label="Edit">'+ICON_EDIT+'</button><button class="mini icon danger" data-act="remove" data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||m.email)+'" title="Remove from team" aria-label="Remove">'+ICON_TRASH+'</button></td>' : '';
         return '<tr data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role)+'">'
           +'<td class="name">'+esc(m.name||m.email)+'</td>'
           +'<td class="mut email" title="'+esc(m.email)+'">'+esc(m.email)+'</td>'
           +'<td class="role-cell">'+esc(m.role)+'</td>'
           +'<td>'+synced+'</td>'+actions+'</tr>';
       }).join('') : '<tr><td class="empty" colspan="'+(canEdit?5:4)+'">No members yet.</td></tr>';
+      renderAll();
     }catch(e){ th.innerHTML=head4; tb.innerHTML='<tr><td class="empty" colspan="4">Couldn’t load the roster: '+esc(e.message)+'</td></tr>'; }
   }
 
@@ -779,23 +838,6 @@
     });
   })();
 
-  function renderKpis(d){
-    var s=d.summary;
-    function k(n,l,sub){return '<div class="kpi"><div class="n">'+esc(n)+'</div><div class="l">'+esc(l)+(sub?' <span>'+esc(sub)+'</span>':'')+'</div></div>';}
-    $('kpis').innerHTML = k(s.hasRuns?s.runs7d:'—','Skill runs','· last 7 days')
-      + k(s.improved30d,'Skills improved','· last 30 days')
-      + k(s.openFlags,'Open feedback flags')
-      + k(s.totalSkills,'Skills in the agency brain');
-  }
-
-  function renderFeedback(d){
-    var fe=d.flagEntries||[];
-    $('feedback').innerHTML = fe.length ? fe.map(function(f){
-      var meta=[f.flaggedBy&&('by '+f.flaggedBy), f.client&&('client: '+f.client), f.flaggedAt&&ago(f.flaggedAt)].filter(Boolean).map(esc).join(' · ');
-      return '<div class="flag"><h4>'+esc(f.skill)+'</h4><div class="meta">'+meta+'</div><pre>'+esc(f.body)+'</pre></div>';
-    }).join('') : '<p class="empty">No open feedback. The team hasn’t flagged any skill — they raise these with <code>/flag-skill</code> from inside a session.</p>';
-  }
-
   // ---- charts (ported from the prototype) ----
   function drawChart(svg,cfg){
     var data=cfg.data,labels=cfg.labels,type=cfg.type||'line',max=cfg.max,yticks=cfg.yticks,color='#D64C00';
@@ -841,14 +883,16 @@
   async function loadObservability(){
     try{
       OBS=await api('/api/observability');
-      $('pulse').innerHTML=buildPulse(OBS);
-      renderKpis(OBS); renderSkills(OBS); renderFeedback(OBS); renderSkillsList(); if(SP_SEL) renderSkillDetail(SP_SEL); populateFlagSkills(); renderWelcomeStats();
-      drawRuns(); drawImprove();
-    }catch(e){ $('pulse').textContent='Could not load observability: '+e.message; }
+      renderSkills(OBS); // sets SK.data for the Skills tab + flag dropdown (owner table is gone)
+      renderSkillsList(); if(SP_SEL) renderSkillDetail(SP_SEL); populateFlagSkills(); renderWelcomeStats();
+      drawImprove();
+      renderAll();
+    }catch(e){ var ig=$('owner-integrity'); if(ig) ig.textContent='Could not load observability: '+e.message; }
   }
 
-  // runs chart toggle
-  $('runs-toggle').addEventListener('click',function(e){
+  // runs chart toggle (the runs card is owner-only and removed in v5; guard it)
+  var _runsToggle=$('runs-toggle');
+  if(_runsToggle) _runsToggle.addEventListener('click',function(e){
     var b=e.target.closest('.tg'); if(!b) return;
     runsType=b.dataset.type;
     var tgs=this.querySelectorAll('.tg'); for(var i=0;i<tgs.length;i++) tgs[i].classList.toggle('active',tgs[i]===b);
@@ -863,22 +907,27 @@
   document.querySelectorAll('.tab').forEach(function(t){
     t.addEventListener('click',function(){ activateView(t.dataset.view); });
   });
-  // Role gates the tabs: team = Skills + Flag (no dashboard); scout = all three;
-  // owner = Dashboard + Flag (the dashboard already carries the skills card).
+  // Role gates the tabs (v5 owner/scout split):
+  //   owner → #view-owner (Dashboard) · scout → #view-scout (Dashboard) · team → #view-welcome
+  // Everyone gets Skills (browse all), Flag, and Google Ads. head-scout is a
+  // legacy alias of scout. The API still enforces real permissions server-side.
   function applyRoleTabs(serverRole){
     var role=uiRole((serverRole||'').toLowerCase());
-    var isTeam=(role==='team');
-    var tw=document.querySelector('.tab[data-view="welcome"]'); if(tw) tw.hidden=!isTeam;
-    var td=document.querySelector('.tab[data-view="owner"]'); if(td) td.hidden=isTeam;
-    var ts=document.querySelector('.tab[data-view="skills"]'); if(ts) ts.hidden=(role==='owner');
-    // Google Ads tab: everyone sees it. Owners/scouts get the credential form,
-    // team members get the paste-and-connect view.
-    var tg=document.querySelector('.tab[data-view="gads"]'); if(tg) tg.hidden=false;
+    if(role==='head-scout') role='scout';
+    var isTeam=(role==='team'), isOwner=(role==='owner'), isScout=(role==='scout');
+    var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
+    setTab('welcome', isTeam);
+    setTab('owner', isOwner);
+    setTab('scout', isScout);
+    setTab('skills', true);   // owner+scout+team can all browse the full skill list here
+    setTab('flag', true);
+    setTab('gads', true);
+    // Google Ads: owners/scouts get the credential form, team gets paste-and-connect.
     var gs=$('gads-scout'), gm=$('gads-member');
     if(gs) gs.hidden=isTeam;
     if(gm) gm.hidden=!isTeam;
     if(isTeam) gadsDetect();
-    activateView(isTeam?'welcome':'owner');
+    activateView(isTeam?'welcome':(isScout?'scout':'owner'));
   }
   // Dev-only role switcher (footer). Shown only on preview/dev builds; lets Mike
   // flip owner/scout/team without the ?as= URL trick. Members never see it —
@@ -1027,21 +1076,225 @@
     if(confirm('Sign out of Agency Brain? It keeps running in the menu bar, but you’ll need to re-enter your email and code to sync again.')) window.agencyBrain.signOut();
   });
 
-  // Upgrade nudge: shown only to an owner/scout whose agency has its scout seats
-  // full. SCOUT_SEATS comes from the team's package via /api/health once the
-  // backend sets it (data design in projects/agencybrain/data-tracking-explainer.html);
-  // until then it's 0 and the banner stays hidden. SCOUT_COUNT is the live roster.
-  var CCROLE='', SCOUT_SEATS=0, SCOUT_COUNT=0;
+  // ---- v5 owner/scout action surfaces ----------------------------------------
+  // SCOUT_SEATS / PACKAGE_TIER come from the team's package (team-summary via
+  // /api/team-roster; also /api/health if present). Null/0 until an admin links a
+  // package, so the banner + plan card stay hidden until then. SCOUT_COUNT + ROSTER
+  // are the live server roster. ME / ME_NAME identify the signed-in member.
+  var CCROLE='', SCOUT_SEATS=0, SCOUT_COUNT=0, PACKAGE_TIER=null, RENEWAL=null;
+  var ME='', ME_NAME='', ROSTER=null, ROSTER_REQ=null;
   var NEXT_TIER={2:'5-scout',5:'10-scout'};
+  var PKG_PRICE={'Solo':799,'Solo + coaching':999,'Team of 2':1199,'Team of 5':1995,'Team of 10':2995};
+  function planLabel(t){ return ({'Team of 2':'+2 scouts','Team of 5':'+5 scouts','Team of 10':'+10 scouts'})[t]||t; }
+  function ccRole(){ var r=CCROLE; return r==='head-scout'?'scout':r; }
+
   function maybeBanner(){
-    var b=$('upsell-banner'); if(!b) return;
-    var r=CCROLE, atCap=(r==='owner'||r==='scout'||r==='head-scout') && SCOUT_SEATS>0 && SCOUT_COUNT>=SCOUT_SEATS;
-    if(!atCap){ b.hidden=true; return; }
-    var next=NEXT_TIER[SCOUT_SEATS]||'next';
-    $('ub-h').textContent='All '+SCOUT_SEATS+' scout seat'+(SCOUT_SEATS===1?'':'s')+' are in use.';
-    $('ub-p').innerHTML='To add more scouts, email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for a coupon — you only pay the difference up to the '+next+' plan.';
-    b.hidden=false;
+    var r=ccRole(), seats=SCOUT_SEATS||0;
+    var atCap=(r==='owner'||r==='scout') && seats>0 && SCOUT_COUNT>=seats;
+    var ob=$('upsell-banner');
+    if(ob){
+      if(atCap && r==='owner'){
+        var next=NEXT_TIER[seats]||'next';
+        $('ub-h').textContent='All '+seats+' scout seat'+(seats===1?'':'s')+' are in use.';
+        $('ub-p').innerHTML='To add more scouts, email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for a coupon — you only pay the difference up to the '+next+' plan.';
+        ob.hidden=false;
+      } else ob.hidden=true;
+    }
+    var sb=$('upsell-banner-s');
+    if(sb){
+      if(atCap && r==='scout'){
+        $('ub-h-s').textContent='All '+seats+' scout seat'+(seats===1?'':'s')+' are full.';
+        $('ub-p-s').innerHTML='Want another scout on the team? Ask your owner to email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for an upgrade coupon — they only pay the difference.';
+        sb.hidden=false;
+      } else sb.hidden=true;
+    }
   }
+
+  // status of one roster member: active (<7d synced) / quiet (>=7d) / not started.
+  function memberStatus(m){
+    var sa=m.lastSyncedAt||m.installCompletedAt;
+    if(!sa) return {cls:'dormant',label:'not started',sa:null};
+    var days=Math.floor((Date.now()-new Date(sa).getTime())/86400000);
+    if(days>=7) return {cls:'quiet',label:'quiet',sa:sa};
+    return {cls:'active',label:'active',sa:sa};
+  }
+  function rosterBuckets(){
+    var notStarted=[], quiet=[];
+    (ROSTER||[]).forEach(function(m){ var s=memberStatus(m); if(s.cls==='dormant') notStarted.push(m); else if(s.cls==='quiet') quiet.push(m); });
+    return {notStarted:notStarted, quiet:quiet};
+  }
+
+  // Called whenever OBS or ROSTER changes; each sub-render guards on its own data.
+  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); }
+
+  function renderOwnerView(){
+    if(!OBS) return;
+    var s=OBS.summary, md=s.maturityDist||{};
+    var mm=$('owner-maturity');
+    if(mm) mm.innerHTML=[['draft','Draft'],['live','Live'],['trusted','Trusted']].map(function(p){
+      return '<div class="m '+p[0]+'"><div class="n">'+(md[p[0]]||0)+'</div><div class="k">'+p[1]+'</div></div>';
+    }).join('');
+    var ig=$('owner-integrity'); if(ig) ig.innerHTML=buildIntegrity(OBS);
+    var sb=$('scouts-built');
+    if(sb){
+      var ri=(OBS.recentlyImproved||[]).slice(0,6);
+      sb.innerHTML = ri.length ? ri.map(function(x){
+        return '<div class="built-row"><span class="who">'+esc(x.lastImprovedBy||'someone')+'</span> improved <b>'+esc(x.name)+'</b> <span class="when">'+ago(x.lastImproved)+'</span></div>';
+      }).join('') : '<p class="empty">Nothing improved in the last 30 days yet. When a scout sharpens a skill, it shows up here.</p>';
+    }
+  }
+
+  function renderOwnerPlan(){
+    var card=$('owner-plan-card'), box=$('owner-plan'), note=$('owner-plan-note');
+    if(!card||!box) return;
+    if(!PACKAGE_TIER){ card.hidden=true; return; } // no package linked yet (null or "")
+    card.hidden=false;
+    var seats=SCOUT_SEATS||0, used=SCOUT_COUNT||0, full=seats>0 && used>=seats, price=PKG_PRICE[PACKAGE_TIER];
+    if(note) note.textContent=full?'scout seats full':'';
+    var h=[];
+    h.push('<div class="bill-row"><span class="k">Plan</span><span class="v">'+esc(planLabel(PACKAGE_TIER))+(price?(' · €'+price.toLocaleString()+'/yr'):'')+'</span></div>');
+    if(seats>0){
+      h.push('<div class="bill-row"><span class="k">Scout seats</span><span class="v'+(full?' cap':'')+'">'+used+' of '+seats+' used'+(full?' · full':'')+'</span></div>');
+      h.push('<div class="seatbar"><i style="width:'+Math.min(100,Math.round(used/seats*100))+'%"></i></div>');
+    } else {
+      h.push('<div class="bill-row"><span class="k">Scouts</span><span class="v">none on this plan</span></div>');
+    }
+    h.push('<div class="bill-row"><span class="k">Team members</span><span class="v">unlimited</span></div>');
+    if(RENEWAL) h.push('<div class="bill-row"><span class="k">Next renewal</span><span class="v">'+esc(RENEWAL)+'</span></div>');
+    if(full) h.push('<div class="plan-cta"><a class="btn ghost sm" href="mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20upgrade">Add more scouts</a></div>');
+    box.innerHTML=h.join('');
+  }
+
+  // Promotion candidates (interim, runs-blocked): a DRAFT skill with zero flags
+  // that has settled for a week is ready for the draft→live bump. We deliberately
+  // do NOT suggest live→trusted here — that needs run evidence (how often it's
+  // used, across how many clients), which doesn't exist until session logging
+  // ships. So "stable + unflagged" only earns the first promotion, not the second.
+  function promotionCandidates(){
+    return ((OBS&&OBS.skills)||[]).filter(function(sk){
+      return sk.maturity==='draft' && (sk.flags||0)===0 && sk.daysStale!=null && sk.daysStale>=7;
+    }).sort(function(a,b){ return (b.daysStale||0)-(a.daysStale||0); });
+  }
+
+  var FIXQ=[];
+  function renderScoutView(){
+    if(!OBS) return;
+    var s=OBS.summary;
+    // fix queue — client-tagged float to the top, then most recent.
+    FIXQ=(OBS.flagEntries||[]).slice().sort(function(a,b){
+      var ac=a.client?0:1, bc=b.client?0:1; if(ac!==bc) return ac-bc;
+      return (b.flaggedAt||'').localeCompare(a.flaggedAt||'');
+    });
+    var fq=$('fix-queue');
+    if(fq) fq.innerHTML = FIXQ.length ? FIXQ.map(function(f,i){
+      var badge=f.client?'<span class="impact">Client · '+esc(f.client)+'</span>':'';
+      var meta=[f.flaggedBy&&('flagged by '+f.flaggedBy), f.flaggedAt&&ago(f.flaggedAt)].filter(Boolean).map(esc).join(' · ');
+      var body=(f.body||'').replace(/^##\s+/gm,'').trim(); // strip markdown headers from the flag entry
+      return '<div class="work"><div class="wh">'+badge+'<h4>'+esc(f.skill)+'</h4></div>'
+        +(meta?'<div class="meta">'+meta+'</div>':'')
+        +(body?'<p>'+esc(body)+'</p>':'')
+        +'<div class="act"><button class="btn sm" data-fix="'+i+'">Open in Claude to fix</button></div></div>';
+    }).join('') : '<p class="empty">Nothing flagged right now. When the team runs <code>/flag-skill</code>, it lands here — the client-tagged ones first, so the widest-reaching fix is on top.</p>';
+
+    var allCands=promotionCandidates(), cands=allCands.slice(0,6);
+    var pr=$('promotions');
+    if(pr) pr.innerHTML = cands.length ? (cands.map(function(sk){
+      var wks=Math.floor((sk.daysStale||0)/7);
+      var ev='stable '+(wks>=1?(wks+' week'+(wks===1?'':'s')):((sk.daysStale)+' days'))+' · 0 flags';
+      return '<div class="promo"><div class="pi"><span class="nm">'+esc(sk.name)+'</span> <span class="pill '+esc(sk.maturity)+'">'+esc(sk.maturity)+'</span><div class="ev">'+ev+'</div></div><span class="st quiet">ready for Live</span></div>';
+    }).join('') + (allCands.length>cands.length?'<p class="mut" style="margin:10px 0 0;font-size:12px">+'+(allCands.length-cands.length)+' more ready for Live</p>':''))
+      : '<p class="empty">No draft skills are ready to promote yet. A draft shows up here once it has held steady for a week with no flags — the cue to take it live.</p>';
+
+    var openF=s.openFlags||0, sk2=$('scout-kpis');
+    if(sk2){
+      var k=function(n,l){return '<div class="kpi"><div class="n">'+esc(n)+'</div><div class="l">'+esc(l)+'</div></div>';};
+      sk2.innerHTML=k(openF,'Flag'+(openF===1?'':'s')+' waiting on you')+k(allCands.length,'Ready to promote');
+    }
+    renderYourMonth();
+  }
+
+  function renderYourMonth(){
+    var box=$('your-month'); if(!box||!OBS) return;
+    var me=ME_NAME, meLocal=(ME||'').split('@')[0];
+    var mine=(OBS.recentlyImproved||[]).filter(function(x){
+      var by=(x.lastImprovedBy||'').toLowerCase();
+      return by && (by===me || (me&&by.indexOf(me)>=0) || (meLocal&&by.indexOf(meLocal)>=0));
+    });
+    box.innerHTML='<b>'+mine.length+'</b> skill'+(mine.length===1?'':'s')+' improved by you in the last 30 days.'
+      +(mine.length?' <span class="mut">('+mine.slice(0,4).map(function(x){return esc(x.name);}).join(', ')+')</span>':' Flag-fixes and tweaks you commit show up here.');
+  }
+
+  function renderVerdicts(){
+    var ov=$('owner-verdict');
+    if(ov){
+      if(!ROSTER){ ov.hidden=true; }
+      else{
+        var b=rosterBuckets();
+        if(b.notStarted.length){
+          var m=b.notStarted[0], fn=esc((m.name||m.email).split(' ')[0]);
+          ov.className='verdict amber'; ov.hidden=false;
+          ov.innerHTML='<span class="dot"></span><div>'
+            +'<div class="vh">'+(b.notStarted.length===1?'One teammate hasn’t started yet.':b.notStarted.length+' teammates haven’t started yet.')+'</div>'
+            +'<div class="vp"><b>'+esc(m.name||m.email)+'</b> hasn’t opened the brain. A nudge from you lands harder than one from anyone else.</div>'
+            +'<div class="vact"><button class="btn" data-nudge="'+esc(m.slug||'')+'" data-email="'+esc(m.email)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role||'')+'">Resend invite to '+fn+'</button></div></div>';
+        } else {
+          ov.className='verdict'; ov.hidden=false;
+          ov.innerHTML='<span class="dot"></span><div><div class="vh">Everyone’s on the brain.</div><div class="vp">Your whole team has connected. Nothing needs you right now.</div></div>';
+        }
+      }
+    }
+    var sv=$('scout-verdict');
+    if(sv && OBS){
+      var s=OBS.summary, flags=s.openFlags||0, cands=promotionCandidates().length;
+      var go=ROSTER?rosterBuckets():{notStarted:[],quiet:[]}, nGo=go.notStarted.length+go.quiet.length;
+      var parts=[flags+' flag'+(flags===1?'':'s')+' to fix', cands+' to promote', nGo+' to get going'];
+      var lead;
+      if(flags>0){ var top=(OBS.flagEntries||[]).filter(function(f){return f.client;})[0]||(OBS.flagEntries||[])[0];
+        lead='Start with the flag'+(top&&top.client?(' on <b>'+esc(top.skill)+'</b> (client: '+esc(top.client)+'), so the fix lands widest'):'')+'.'; }
+      else if(cands>0){ lead='No flags waiting. '+cands+' skill'+(cands===1?'':'s')+' look ready for a maturity bump.'; }
+      else { lead='Nothing urgent. Keep an eye on the flag queue and the team.'; }
+      sv.className='verdict'+(flags>0?' amber':''); sv.hidden=false;
+      sv.innerHTML='<span class="dot"></span><div><div class="vh">Today: '+parts.join(' · ')+'.</div><div class="vp">'+lead+'</div></div>';
+    } else if(sv){ sv.hidden=true; }
+  }
+
+  function renderGetGoing(){
+    var box=$('get-going'); if(!box) return;
+    if(!ROSTER){ box.innerHTML='<p class="empty">The roster loads once you’re signed in to a team.</p>'; return; }
+    var b=rosterBuckets();
+    var rows=b.notStarted.map(function(m){return {m:m,why:'invited, never connected'};})
+      .concat(b.quiet.map(function(m){return {m:m,why:'quiet for over a week'};}));
+    box.innerHTML = rows.length ? '<table><tbody>'+rows.map(function(r){
+      return '<tr><td class="name">'+esc(r.m.name||r.m.email)+'</td><td class="mut" style="color:var(--muted)">'+esc(r.why)+'</td><td class="row-actions"><button class="btn sm mut" data-nudge="'+esc(r.m.slug||'')+'" data-email="'+esc(r.m.email)+'" data-name="'+esc(r.m.name||'')+'" data-role="'+esc(r.m.role||'')+'">Resend</button></td></tr>';
+    }).join('')+'</tbody></table>' : '<p class="empty">Everyone’s active. Nobody needs unsticking right now.</p>';
+  }
+
+  // Fix-queue "Open in Claude to fix" → dispatch a Claude session (the proven
+  // /api/spawn path) seeded with the flag so the scout can fix it in place.
+  (function(){
+    var fq=$('fix-queue'); if(!fq) return;
+    fq.addEventListener('click',function(ev){
+      var b=ev.target.closest&&ev.target.closest('button[data-fix]'); if(!b) return;
+      var f=FIXQ[Number(b.getAttribute('data-fix'))]; if(!f) return;
+      b.disabled=true; b.textContent='Opening…';
+      var prompt='A teammate flagged the "'+f.skill+'" skill'+(f.client?(' (client: '+f.client+')'):'')+'. Their note:\n\n'+(f.body||'(no detail given)')+'\n\nOpen .claude/skills/'+f.skill+'/SKILL.md, work out what went wrong, and fix it. The brain root is your working directory.';
+      api('/api/spawn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt})})
+        .then(function(){ b.textContent='Opened in Claude'; })
+        .catch(function(e){ b.disabled=false; b.textContent='Open in Claude to fix'; alert('Couldn’t open: '+e.message); });
+    });
+  })();
+
+  // Nudge / Resend (owner verdict + roster + scout get-going) → re-send the
+  // member's invite via the server (owner/scout only; enforced server-side).
+  document.addEventListener('click',function(ev){
+    var b=ev.target.closest&&ev.target.closest('button[data-nudge]'); if(!b) return;
+    var email=b.getAttribute('data-email'), slug=b.getAttribute('data-nudge');
+    var name=b.getAttribute('data-name')||'', role=b.getAttribute('data-role')||''; if(!email) return;
+    var orig=b.textContent; b.disabled=true; b.textContent='Sending…';
+    api('/api/team-resend-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,memberSlug:slug,name:name,role:role})})
+      .then(function(){ b.textContent='Invite resent'; })
+      .catch(function(e){ b.disabled=false; b.textContent=orig; alert('Couldn’t resend: '+e.message); });
+  });
 
   loadHealth();
   loadRoster();

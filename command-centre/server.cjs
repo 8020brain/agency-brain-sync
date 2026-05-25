@@ -357,6 +357,26 @@ const server = http.createServer(async (req, res) => {
         return send(res, err.statusCode || 500, { error: err.message });
       }
     }
+    // Resend an existing member's invite (regenerate token + email it). Drives the
+    // owner verdict + roster Nudge / scout get-people-going Resend buttons. Owner/
+    // scout only (enforced server-side by invite-token). Name/role preserve the
+    // member's record so a re-issued invite never downgrades a scout to team.
+    if (req.method === 'POST' && p === '/api/team-resend-invite') {
+      const body = await readBody(req);
+      const email = String(body.email || '').trim().toLowerCase();
+      const name = String(body.name || '').trim();
+      const role = ['scout', 'team', 'owner'].includes(String(body.role || '').toLowerCase()) ? String(body.role).toLowerCase() : 'team';
+      if (!email) return send(res, 400, { error: 'email is required' });
+      if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 400, { error: 'not signed in to a team' });
+      try {
+        await apiCall('GET', '/api/team-dashboard/version', null, 1).catch(() => {});
+        await apiCall('POST', '/api/team-brain/invite-token', { teamSlug: TEAM_SLUG, memberEmail: email, memberName: name, memberRole: role });
+        await apiCall('POST', '/api/team-brain/send-invite', { teamSlug: TEAM_SLUG, memberEmail: email });
+        return send(res, 200, { ok: true, email });
+      } catch (err) {
+        return send(res, err.statusCode || 500, { error: err.message });
+      }
+    }
     // Flag a skill from the web form. Writes the SAME structured feedback file
     // the /flag-skill skill produces (.team-config/feedback/<skill>.md), so the
     // dashboard's flag counts + Open feedback pick it up identically. Local
