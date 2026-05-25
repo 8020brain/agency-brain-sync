@@ -565,6 +565,13 @@
       <button class="ub-x" id="ub-x" title="Dismiss" aria-label="Dismiss">&times;</button>
     </div>
 
+    <div class="upsell-banner" id="portal-nudge" hidden>
+      <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+      <div class="ub-text"><div class="ub-h">Your A2AI members portal is included</div><div class="ub-p">Every course, the Mastery Path, the weekly videos and the monthly Q&amp;A live there. Sign in at m.ads2ai.com with your agency email.</div></div>
+      <span class="ub-cta" data-ext="https://m.ads2ai.com">Open the portal</span>
+      <button class="ub-x" id="portal-nudge-x" title="Dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+
     <div class="verdict" id="owner-verdict" hidden></div>
 
     <div class="grid cols2 block">
@@ -633,6 +640,13 @@
       <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg></div>
       <div class="ub-text"><div class="ub-h" id="ub-h-s"></div><div class="ub-p" id="ub-p-s"></div></div>
       <button class="ub-x" id="ub-x-s" title="Dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+
+    <div class="upsell-banner" id="portal-nudge-s" hidden>
+      <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+      <div class="ub-text"><div class="ub-h">Your A2AI members portal is included</div><div class="ub-p">Every course, the Mastery Path, the weekly videos and the monthly Q&amp;A live there. Sign in at m.ads2ai.com with your agency email.</div></div>
+      <span class="ub-cta" data-ext="https://m.ads2ai.com">Open the portal</span>
+      <button class="ub-x" id="portal-nudge-x-s" title="Dismiss" aria-label="Dismiss">&times;</button>
     </div>
 
     <div class="verdict" id="scout-verdict" hidden></div>
@@ -898,7 +912,7 @@
       CCROLE=role; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
       if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
       if(h.packageTier) PACKAGE_TIER=h.packageTier;
-      maybeBanner();
+      maybeBanner(); maybePortalNudge();
       var sw=$('dev-switch');
       if(sw){
         // Super-admin backdoor: Mike's two emails get the owner/scout/team view switcher
@@ -1023,7 +1037,7 @@
       SCOUT_COUNT=(d.members||[]).filter(function(m){return /scout/.test(String(m.role||''));}).length;
       // Seats used = owner + scout (the priced portal seats), what the N+1 cap counts.
       SEATS_USED=(d.members||[]).filter(function(m){return /owner|scout|head/.test(String(m.role||''));}).length;
-      maybeBanner();
+      maybeBanner(); maybePortalNudge();
       tb.innerHTML = d.members.length ? d.members.map(function(m){
         var stt = memberStatus(m);
         var synced = '<span class="st '+stt.cls+'">'+stt.label+'</span>'
@@ -1385,6 +1399,21 @@
     if(!btn || btn.__wired) return; btn.__wired=true;
     btn.addEventListener('click', function(){ try{ localStorage.setItem('ab-upsell-dismissed', CUR_BANNER_SIG); }catch(e){} banner.hidden=true; });
   }
+  function portalNudgeDismissed(){ try{ return localStorage.getItem('ab-portal-dismissed')==='1'; }catch(e){ return false; } }
+  function maybePortalNudge(){
+    // Members-portal access is owner+scout only (locked decision), so the nudge only
+    // shows on those dashboards. Members-portal only for now — agency members aren't
+    // auto-added to Circle, so no Circle line yet. Dismissible, remembered.
+    var r=ccRole();
+    var show=(r==='owner'||r==='scout') && !portalNudgeDismissed();
+    ['portal-nudge','portal-nudge-s'].forEach(function(id){ var el=$(id); if(el) el.hidden=!show; });
+    [['portal-nudge-x','portal-nudge'],['portal-nudge-x-s','portal-nudge-s']].forEach(function(p){
+      var btn=$(p[0]); if(btn && !btn.__wired){ btn.__wired=true; btn.addEventListener('click', function(){
+        try{ localStorage.setItem('ab-portal-dismissed','1'); }catch(e){}
+        ['portal-nudge','portal-nudge-s'].forEach(function(id){ var e2=$(id); if(e2) e2.hidden=true; });
+      }); }
+    });
+  }
   function maybeBanner(){
     var r=ccRole(), n=SCOUT_SEATS||0;
     // Scout seats used = owner+scout minus the owner's free seat. The cap is the
@@ -1436,7 +1465,7 @@
     [['team-tbody','team-tbody-s'],['team-head','team-head-s'],['owner-maturity','owner-maturity-s'],['owner-integrity','owner-integrity-s']]
       .forEach(function(p){ var src=$(p[0]), dst=$(p[1]); if(src&&dst) dst.innerHTML=src.innerHTML; });
   }
-  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); mirrorRoster(); }
+  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); maybePortalNudge(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); mirrorRoster(); }
 
   function renderOwnerView(){
     if(!OBS) return;
