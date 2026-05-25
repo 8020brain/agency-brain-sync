@@ -183,10 +183,14 @@ function buildGadsYaml(f) {
     '',
   ].join('\n');
 }
-// ISOLATED: where + how the credential file lands. Built to google-ads.yaml;
-// only this function changes if the test says the server needs an ADC file.
+// ISOLATED: where + how the credential file lands. Written INTO the brain folder
+// (not ~) so Cowork — which is scoped to the folder the member authorises — can
+// read it for direct Google Ads API use (scripts save big pulls straight to local
+// CSVs, no context-window bloat). google-ads.yaml is gitignored in the template,
+// so it never syncs to GitHub. Only this function changes if the laptop test says
+// the server needs an ADC file instead.
 function writeCredentialFile(yamlText) {
-  const dest = path.join(os.homedir(), 'google-ads.yaml');
+  const dest = path.join(BRAIN_ROOT, 'google-ads.yaml');
   fs.writeFileSync(dest, yamlText, { mode: 0o600 });
   return dest;
 }
@@ -253,6 +257,10 @@ const server = http.createServer(async (req, res) => {
         GOOGLE_PROJECT_ID: f.project || '',
         GOOGLE_ADS_DEVELOPER_TOKEN: f.dev || '',
         GOOGLE_ADS_LOGIN_CUSTOMER_ID: f.mcc || '',
+        // The yaml now lives in the brain folder (so Cowork can read it for the
+        // API). The MCP's OAuth bits live in that file, so point it at the new
+        // location rather than the google-ads default (~/google-ads.yaml).
+        GOOGLE_ADS_CONFIGURATION_FILE_PATH: yamlPath,
       });
       return send(res, 200, { ok: true, yamlPath, configPath, verifyPrompt: GADS_VERIFY_PROMPT });
     }
