@@ -276,6 +276,8 @@
   .built-row .who{color:var(--accent);font-weight:600;} .built-row .when{color:var(--muted);font-size:12px;}
   .st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:2px;white-space:nowrap;}
   .st.active{background:var(--ok-soft);color:var(--ok);} .st.quiet{background:var(--draft-bg);color:var(--draft);} .st.dormant{background:var(--warn-soft);color:var(--warn);}
+  .st.installed{background:var(--accent-soft);color:var(--accent);}
+  .tag-build{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:2px;background:var(--accent-soft);color:var(--accent);margin-left:6px;}
   .bill-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;} .bill-row:last-child{border-bottom:0;}
   .bill-row .k{color:var(--muted);} .bill-row .v{font-weight:600;text-align:right;} .bill-row .v.cap{color:var(--accent);}
   .seatbar{height:8px;background:var(--draft-bg);border-radius:2px;overflow:hidden;margin:10px 0 4px;} .seatbar>i{display:block;height:100%;background:var(--accent);}
@@ -289,6 +291,25 @@
   .promo{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);} .promo:last-child{border-bottom:0;}
   .promo .pi{flex:1;font-size:13px;} .promo .pi .nm{font-weight:700;color:var(--ink);} .promo .pi .ev{color:var(--muted);font-size:12px;margin-top:2px;}
   .month-stat{font-size:14px;color:var(--ink);} .month-stat b{font-weight:700;}
+
+  /* ---- agency progress strip (milestones, 2026-05-26) ---- */
+  .agency-progress{margin-bottom:18px;}
+  .ap-card{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;padding:16px 18px;background:var(--card);}
+  .ap-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px;}
+  .ap-eyebrow{font-weight:800;letter-spacing:.05em;text-transform:uppercase;font-size:12px;color:var(--ink);}
+  .ap-count{font-size:13px;font-weight:700;color:var(--muted);}
+  .ap-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .ap-step{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid var(--line);border-left:3px solid var(--line);border-radius:2px;background:#fff;}
+  .ap-step.done{border-left-color:var(--ok);}
+  .ap-step.next{border-left-color:var(--accent);background:var(--accent-soft);}
+  .ap-mark{flex:none;width:21px;height:21px;display:flex;align-items:center;justify-content:center;border-radius:2px;font-size:12px;font-weight:800;background:var(--draft-bg);color:var(--muted);}
+  .ap-step.done .ap-mark{background:var(--ok);color:#fff;}
+  .ap-step.next .ap-mark{background:var(--accent);color:#fff;}
+  .ap-label{font-weight:700;font-size:13px;color:var(--ink);line-height:1.25;}
+  .ap-detail{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;}
+  .ap-next{margin-top:13px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--ink);line-height:1.45;}
+  .ap-next.all-done{color:var(--ok);font-weight:600;}
+  @media(max-width:1080px){ .ap-steps{grid-template-columns:1fr 1fr;} }
 
   @media(max-width:1080px){ .wrap{padding:20px;} .cols2{grid-template-columns:1fr;} .topbar{flex-direction:column;align-items:flex-start;} .who{text-align:left;} }
   /* ---- scout onboarding: Get set up, Feedback, scout density (2026-05-25) ---- */
@@ -594,6 +615,8 @@
 
     <div class="verdict" id="owner-verdict" hidden></div>
 
+    <div class="agency-progress" id="owner-progress" hidden></div>
+
     <div class="grid cols2 block">
       <div class="stack">
         <div class="card">
@@ -670,6 +693,8 @@
     </div>
 
     <div class="verdict" id="scout-verdict" hidden></div>
+
+    <div class="agency-progress" id="owner-progress-s" hidden></div>
 
     <div class="grid cols2 block">
       <div class="stack">
@@ -1065,8 +1090,9 @@
              : (m.pendingClaim ? ' <span class="notsynced">pending</span>' : ''));
         var nudge = (canEdit && stt.cls!=='active') ? '<button class="mini" data-nudge="'+esc(m.slug)+'" data-email="'+esc(m.email)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role||'')+'" title="Resend their invite">Nudge</button>' : '';
         var actions = canEdit ? '<td class="row-actions">'+nudge+'<button class="mini icon" data-act="edit" data-slug="'+esc(m.slug)+'" title="Edit name / role" aria-label="Edit">'+ICON_EDIT+'</button><button class="mini icon danger" data-act="remove" data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||m.email)+'" title="Remove from team" aria-label="Remove">'+ICON_TRASH+'</button></td>' : '';
+        var bld = (/scout|owner|head/.test(String(m.role||'')) && hasShipped(m)) ? '<span class="tag-build" title="Has sharpened a skill">building</span>' : '';
         return '<tr data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role)+'">'
-          +'<td class="name">'+esc(m.name||m.email)+'</td>'
+          +'<td class="name">'+esc(m.name||m.email)+bld+'</td>'
           +'<td class="mut email" title="'+esc(m.email)+'">'+esc(m.email)+'</td>'
           +'<td class="role-cell">'+esc(m.role)+'</td>'
           +'<td>'+synced+'</td>'+actions+'</tr>';
@@ -1463,10 +1489,31 @@
     }
   }
 
-  // status of one roster member: active (<7d synced) / quiet (>=7d) / not started.
+  // Join a roster member to their personal/<self>/usage.jsonl stats. The folder
+  // name follows log-usage.cjs's resolution order: roles.json personal slug →
+  // slugify(name) → slugify(email local-part). Try each so the join survives
+  // whichever the member's machine used.
+  function ccSlug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function memberUsage(m){
+    if(!m) return null;
+    var mu=(OBS&&OBS.milestones&&OBS.milestones.members)||{};
+    return mu[m.slug] || mu[ccSlug(m.name)] || mu[ccSlug(String(m.email||'').split('@')[0])] || null;
+  }
+  // Did this member author a skill improvement since setup? (git author = name)
+  function hasShipped(m){
+    if(!OBS||!m) return false;
+    var nm=String(m.name||'').toLowerCase();
+    return (OBS.recentlyImproved||[]).some(function(s){ return String(s.lastImprovedBy||'').toLowerCase()===nm; });
+  }
+
+  // status of one roster member. "installed" (NEW) = app synced but zero sessions
+  // logged — the blind spot the sync heartbeat alone hides (app running, person
+  // hasn't actually opened Claude). active (<7d + has runs) / quiet (>=7d) / not started.
   function memberStatus(m){
     var sa=m.lastSyncedAt||m.installCompletedAt;
     if(!sa) return {cls:'dormant',label:'not started',sa:null};
+    var u=memberUsage(m); var runs=u?u.runs:0;
+    if(runs===0) return {cls:'installed',label:'installed',sa:sa};
     var days=Math.floor((Date.now()-new Date(sa).getTime())/86400000);
     if(days>=7) return {cls:'quiet',label:'quiet',sa:sa};
     return {cls:'active',label:'active',sa:sa};
@@ -1482,10 +1529,35 @@
   // (rendered into owner-view IDs). Copy them into the scout-view -s copies so a
   // scout sees Who's-in + the charts too, without duplicating the render logic.
   function mirrorRoster(){
-    [['team-tbody','team-tbody-s'],['team-head','team-head-s'],['owner-maturity','owner-maturity-s'],['owner-integrity','owner-integrity-s']]
-      .forEach(function(p){ var src=$(p[0]), dst=$(p[1]); if(src&&dst) dst.innerHTML=src.innerHTML; });
+    [['team-tbody','team-tbody-s'],['team-head','team-head-s'],['owner-maturity','owner-maturity-s'],['owner-integrity','owner-integrity-s'],['owner-progress','owner-progress-s']]
+      .forEach(function(p){ var src=$(p[0]), dst=$(p[1]); if(src&&dst){ dst.innerHTML=src.innerHTML; dst.hidden=src.hidden; } });
   }
-  function renderAll(){ renderOwnerView(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); maybePortalNudge(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); mirrorRoster(); }
+
+  // Agency progress = the value journey (customised → first client → first skill
+  // sharpened → a skill trusted), each derived from the synced repo. The headline
+  // that turns "everyone synced" into "here's how far the agency actually got".
+  function renderAgencyProgress(){
+    var el=$('owner-progress'); if(!el) return;
+    var ms=(OBS&&OBS.milestones&&OBS.milestones.agency)||[];
+    if(!ms.length){ el.hidden=true; return; }
+    el.hidden=false;
+    var doneCount=ms.filter(function(m){return m.done;}).length;
+    var nextIdx=-1; for(var i=0;i<ms.length;i++){ if(!ms[i].done){ nextIdx=i; break; } }
+    var steps=ms.map(function(m,i){
+      var state=m.done?'done':(i===nextIdx?'next':'todo');
+      var mark=m.done?'✓':String(i+1);
+      return '<div class="ap-step '+state+'"><span class="ap-mark">'+mark+'</span>'
+        +'<div class="ap-body"><div class="ap-label">'+esc(m.label)+'</div>'
+        +'<div class="ap-detail">'+esc(m.detail||'')+'</div></div></div>';
+    }).join('');
+    var next = (nextIdx>=0)
+      ? '<div class="ap-next"><strong>Next:</strong> '+esc(ms[nextIdx].action||ms[nextIdx].label)+'</div>'
+      : '<div class="ap-next all-done">All four milestones reached — your agency brain is fully up and running.</div>';
+    el.innerHTML='<div class="ap-card"><div class="ap-head"><span class="ap-eyebrow">Agency progress</span>'
+      +'<span class="ap-count">'+doneCount+' of '+ms.length+'</span></div>'
+      +'<div class="ap-steps">'+steps+'</div>'+next+'</div>';
+  }
+  function renderAll(){ renderOwnerView(); renderAgencyProgress(); renderOwnerPlan(); renderScoutView(); renderVerdicts(); renderGetGoing(); maybeBanner(); maybePortalNudge(); renderStartHere(CCROLE==='team'); if(CCROLE==='scout') renderFeedback(); mirrorRoster(); }
 
   function renderOwnerView(){
     if(!OBS) return;

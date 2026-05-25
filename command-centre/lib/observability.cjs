@@ -294,6 +294,79 @@ function loadUsage(repoPath) {
   return out;
 }
 
+// ---- milestones -------------------------------------------------------------
+// Agency progress = the value journey, derived ENTIRELY from the synced repo
+// (no Neon, no new events, no stored flag). Each milestone is a passive check so
+// nothing has to remember to "mark it done". This is what replaces the dead
+// setup_complete boolean: a milestone is true when the repo proves it's true.
+
+// "Made it yours": the template ships {{ AGENCY NAME }}-style uppercase brace
+// placeholders; the tune-brain prompt removes them. Lowercase {{ braces }} (the
+// instructional example in the template note) and markdown links never match.
+function isCustomised(repoPath) {
+  try {
+    const txt = fs.readFileSync(path.join(repoPath, 'CLAUDE.md'), 'utf8');
+    return !/\{\{\s*[A-Z][A-Z ]{2,}\s*\}\}/.test(txt);
+  } catch { return false; }
+}
+
+// The template ships ZERO client folders (just clients/CLAUDE.md), so any
+// subdirectory is a real client.
+function clientCount(repoPath) {
+  try {
+    return fs.readdirSync(path.join(repoPath, 'clients'), { withFileTypes: true })
+      .filter(d => d.isDirectory() && !d.name.startsWith('.') && !/^(example|client-example|_example)$/i.test(d.name))
+      .length;
+  } catch { return 0; }
+}
+
+// Per-member activity from usage.jsonl (the only personal/<self>/ file that
+// syncs team-wide). Lets the owner see "installed but never opened Claude" —
+// the blind spot the sync heartbeat alone can't show.
+function memberUsageStats(usageRecords) {
+  const acc = {};
+  for (const r of usageRecords) {
+    const slug = r.member; if (!slug) continue;
+    const e = acc[slug] || (acc[slug] = { runs: 0, lastRun: null, skills: new Set() });
+    e.runs++;
+    if (r.date && (!e.lastRun || r.date > e.lastRun)) e.lastRun = r.date;
+    for (const s of r.skills) e.skills.add(s);
+  }
+  const out = {};
+  for (const [slug, e] of Object.entries(acc)) {
+    out[slug] = { runs: e.runs, lastRun: e.lastRun, distinctSkills: e.skills.size };
+  }
+  return out;
+}
+
+function computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs) {
+  const customised = isCustomised(repoPath);
+  const clients = clientCount(repoPath);
+  let sharpened = 0, lastSharp = null;
+  for (const s of skills) {
+    if (!s.lastImproved) continue;
+    const t = new Date(s.lastImproved + 'T00:00:00Z').getTime();
+    if (sinceTs != null && t < sinceTs) continue; // only work done since this brain was set up
+    sharpened++;
+    if (!lastSharp || s.lastImproved > lastSharp.date) lastSharp = { date: s.lastImproved, by: s.lastImprovedBy, name: s.name };
+  }
+  const trusted = maturityDist.trusted || 0;
+  return [
+    { key: 'customised', label: 'Made it yours', done: customised,
+      detail: customised ? 'brain tailored to your agency' : 'still on the template',
+      action: 'Run the tune-brain prompt so CLAUDE.md describes your agency, not the template.' },
+    { key: 'firstClient', label: 'First client added', done: clients > 0,
+      detail: clients > 0 ? (clients + ' client' + (clients === 1 ? '' : 's')) : 'no client folders yet',
+      action: 'Add your first client with /client-setup.' },
+    { key: 'skillSharpened', label: 'First skill sharpened', done: sharpened > 0,
+      detail: sharpened > 0 ? ('“' + lastSharp.name + '” by ' + (lastSharp.by || 'a scout')) : 'no skill improved since setup',
+      action: 'Have a scout refine any skill — even a small edit counts.' },
+    { key: 'skillTrusted', label: 'A skill earned “trusted”', done: trusted > 0,
+      detail: trusted > 0 ? (trusted + ' trusted') : 'nothing promoted to trusted yet',
+      action: 'Promote a skill that has proven itself from live to trusted.' },
+  ];
+}
+
 // ---- main -------------------------------------------------------------------
 function getObservability(opts = {}) {
   const repoPath = opts.repoPath || BRAIN_ROOT;
@@ -368,9 +441,16 @@ function getObservability(opts = {}) {
   }
   const improvementsPerWeek = Object.entries(weekBuckets).map(([weekStart, count]) => ({ weekStart, count }));
 
+  const usageRecords = loadUsage(repoPath);
+  const milestones = {
+    agency: computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs),
+    members: memberUsageStats(usageRecords),
+  };
+
   return {
     repoPath,
     generatedAt: now.toISOString(),
+    milestones,
     summary: {
       totalSkills: skills.length,
       maturityDist,
