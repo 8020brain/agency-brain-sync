@@ -270,6 +270,30 @@ function readFeatured(repoPath, skills) {
   } catch { return []; }
 }
 
+// Agency usage source: when there's no distilled session index (an agency repo,
+// not Mike's brain), per-skill run counts come from each member's
+// personal/<self>/usage.jsonl — the coarse {ts,skill,client} lines written by
+// tools/log-usage.cjs. Reads ONLY usage.jsonl, never the rest of a personal folder.
+// Shaped like loadSessions output ({date: YYYY-MM-DD, skills:[name]}) so runCounts
+// and activityPerDay work unchanged.
+function loadUsage(repoPath) {
+  const base = path.join(repoPath, 'personal');
+  const out = [];
+  let dirs = [];
+  try { dirs = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name); } catch { return out; }
+  for (const member of dirs) {
+    let raw = '';
+    try { raw = fs.readFileSync(path.join(base, member, 'usage.jsonl'), 'utf8'); } catch { continue; }
+    for (const line of raw.split('\n')) {
+      const t = line.trim(); if (!t) continue;
+      let rec; try { rec = JSON.parse(t); } catch { continue; }
+      if (!rec || !rec.skill || !rec.ts) continue;
+      out.push({ date: String(rec.ts).slice(0, 10), skills: [rec.skill], client: rec.client || '', member });
+    }
+  }
+  return out;
+}
+
 // ---- main -------------------------------------------------------------------
 function getObservability(opts = {}) {
   const repoPath = opts.repoPath || BRAIN_ROOT;
@@ -279,7 +303,8 @@ function getObservability(opts = {}) {
 
   const names = listSkillDirs(skillsDir);
   const lastImproved = gitLastImprovedMap(repoPath);
-  const sessions = loadSessions(opts.sessionIndexPath);
+  let sessions = loadSessions(opts.sessionIndexPath);
+  if (sessions.length === 0) sessions = loadUsage(repoPath); // agency repo: usage.jsonl is the run-count source
   const runs7d = runCounts(sessions, 7, now);
   const runs30d = runCounts(sessions, 30, now);
   const flags = readFlags(repoPath);
