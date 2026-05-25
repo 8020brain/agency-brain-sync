@@ -800,7 +800,7 @@
 <footer>
   <span class="ver" id="ft-ver">Agency Brain</span>
   <span id="ft-built"></span>
-  <span class="dev-switch" id="dev-switch" hidden><span class="ds-label">dev view</span><button data-role="owner">Owner</button><button data-role="scout">Scout</button><button data-role="team">Team</button></span>
+  <span class="dev-switch" id="dev-switch" hidden><span class="ds-label">view as</span><button data-role="owner">Owner</button><button data-role="scout">Scout</button><button data-role="team">Team</button></span>
   <span class="foot-id"><span id="who-role"></span><span id="who-email"></span></span>
   <button class="foot-signout" id="sign-out">Sign out</button>
   <span class="path" id="ft-path"></span>
@@ -872,9 +872,16 @@
       maybeBanner();
       var sw=$('dev-switch');
       if(sw){
+        // Super-admin backdoor: Mike's two emails get the owner/scout/team view switcher
+        // on EVERY build (not just preview), so he can eyeball each role's view live
+        // instead of maintaining static prototype HTML. View-only — the server still
+        // enforces real permissions, so flipping the view grants no extra rights.
+        var SUPER_ADMINS=['mike@ads2ai.com','mike@mikerhodes.com.au'];
+        var superAdmin=SUPER_ADMINS.indexOf((h.memberEmail||'').toLowerCase().trim())!==-1;
         var dev=/preview|dev/i.test(h.version||'');
-        sw.hidden=!dev;
-        if(dev){ var eff=uiRole((h.memberRole||'').toLowerCase()); sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.role===eff); }); }
+        var showSwitch=superAdmin||dev;
+        sw.hidden=!showSwitch;
+        if(showSwitch){ var eff=uiRole((h.memberRole||'').toLowerCase()); sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.role===eff); }); }
       }
     }catch(e){}
   }
@@ -1173,9 +1180,10 @@
     if(isTeam) gadsDetect();
     activateView(isTeam?'welcome':(isScout?'scout':'owner'));
   }
-  // Dev-only role switcher (footer). Shown only on preview/dev builds; lets Mike
-  // flip owner/scout/team without the ?as= URL trick. Members never see it —
-  // real builds have a clean version string with no "preview"/"dev".
+  // Footer role switcher. Visible to the two super-admin emails on every build (see the
+  // gate in loadHealth), plus preview/dev builds; lets Mike flip owner/scout/team without
+  // the ?as= URL trick. Regular members never see it, and it only changes the view —
+  // the server enforces real permissions regardless of which role is selected here.
   (function(){
     var sw=$('dev-switch'); if(!sw) return;
     sw.querySelectorAll('button').forEach(function(b){
