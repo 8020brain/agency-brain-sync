@@ -45,6 +45,11 @@ const MEMBER_NAME = process.env.AGENCY_MEMBER_NAME || '';
 const MEMBER_ROLE = process.env.AGENCY_MEMBER_ROLE || '';
 const TEAM_SLUG = process.env.AGENCY_TEAM_SLUG || '';
 const APP_VERSION = process.env.AGENCY_VERSION || '';
+// Paid seat cap (+ package label) for the upgrade banner. At-install snapshot
+// from config; /api/health refreshes it live from the server so an upgrade
+// (or a clone whose config predates this field) reflects without a re-login.
+const SCOUT_SEATS_ENV = Number(process.env.AGENCY_SCOUT_SEATS) || 0;
+const PACKAGE_TIER_ENV = process.env.AGENCY_PACKAGE_TIER || '';
 // The member's login token + API base — used to act AS the member for team
 // management (live roster, add member). Never grants more than the member has.
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
@@ -224,9 +229,33 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'), true);
     }
     if (req.method === 'GET' && p === '/api/health') {
+      // Start from the at-install snapshot (fast, local), then best-effort
+      // refresh the seat cap live from the server so an upgrade — or a clone
+      // whose config predates this field — lights the banner without a
+      // re-login. A short timeout + try/catch keeps the header instant when
+      // offline / signed out / the API is cold.
+      let scoutSeats = SCOUT_SEATS_ENV;
+      let packageTier = PACKAGE_TIER_ENV;
+      if (MEMBER_TOKEN && TEAM_SLUG) {
+        try {
+          const r = await fetch(API_BASE + '/api/team-brain/my-teams', {
+            headers: { Authorization: 'Bearer ' + MEMBER_TOKEN },
+            signal: AbortSignal.timeout(2500),
+          });
+          if (r.ok) {
+            const j = await r.json();
+            const t = (j.teams || []).find((x) => x.slug === TEAM_SLUG);
+            if (t) {
+              if (t.scoutSeats != null) scoutSeats = Number(t.scoutSeats) || 0;
+              if (t.packageTier) packageTier = t.packageTier;
+            }
+          }
+        } catch (e) { /* offline / slow / signed out — keep the snapshot */ }
+      }
       return send(res, 200, {
         ok: true, brainRoot: BRAIN_ROOT,
         memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole: MEMBER_ROLE, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
+        scoutSeats, packageTier,
       });
     }
     if (req.method === 'GET' && p === '/api/observability') {

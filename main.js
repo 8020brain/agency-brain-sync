@@ -529,6 +529,11 @@ function startCommandCentre() {
       AGENCY_MEMBER_NAME: config.memberName || '',
       AGENCY_MEMBER_ROLE: config.memberRole || '',
       AGENCY_TEAM_SLUG: config.teamSlug || '',
+      // Paid seat cap (+ package label) for the upgrade banner. Snapshot from
+      // the my-teams response at install; server.cjs /api/health refreshes it
+      // live. Blank/0 means "not set" (banner stays hidden).
+      AGENCY_SCOUT_SEATS: config.scoutSeats == null ? '' : String(config.scoutSeats),
+      AGENCY_PACKAGE_TIER: config.packageTier || '',
       AGENCY_VERSION: require('./package.json').version,
       // The member's own login token + API base, so the Command Centre can do
       // team-management (live roster, add member) by acting AS the member —

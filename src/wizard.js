@@ -158,6 +158,8 @@
         teamSlug: res.teamSlug,
         teamName: res.teamName || res.teamSlug,
         repoUrl: res.repoUrl || '',
+        scoutSeats: res.scoutSeats == null ? null : Number(res.scoutSeats),
+        packageTier: res.packageTier || null,
         member: { email: authEmail, name: authName, role: m.role || res.memberRole || 'team' },
       };
       enterMachine();
@@ -308,6 +310,8 @@
       teamSlug: team.slug,
       teamName: team.name || team.slug,
       repoUrl: '',
+      scoutSeats: team.scoutSeats == null ? null : Number(team.scoutSeats),
+      packageTier: team.packageTier || null,
       member: { email: authEmail, name: authName, role: team.role || 'team' },
     };
     enterMachine();
@@ -489,6 +493,11 @@
         await api.saveConfig({
           brainPath: chosenFolder, mode: 'agency', teamSlug: teamInfo.teamSlug,
           memberEmail: authEmail, memberRole: (teamInfo.member || {}).role, memberToken: authToken, memberName: authName,
+          // Seat cap (+ package label) for the upgrade banner. Server is the
+          // source of truth; this is the at-install snapshot. server.cjs
+          // /api/health refreshes it live so an upgrade reflects without a
+          // re-login.
+          scoutSeats: teamInfo.scoutSeats, packageTier: teamInfo.packageTier,
         });
         api.markInstallComplete({ memberToken: authToken, teamSlug: teamInfo.teamSlug }).catch(() => {});
       } else {
