@@ -982,7 +982,7 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
     `https://x-access-token:${token}@`
   );
   if (!cloneUrl.startsWith('https://x-access-token:')) {
-    throw new Error('No repo URL configured for this team. Have your owner finish setup.');
+    throw new Error("Your agency's one-time setup isn't finished yet. The owner or a scout needs to create and connect your brain repo at agency.ads2ai.com first. Once that's done, sign in here again.");
   }
   // Make sure the target's parent exists
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
