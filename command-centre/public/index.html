@@ -870,7 +870,7 @@
             <div class="sec">Paste your gate token</div>
             <div class="flag-form">
               <div class="assure" id="gp-url-display" style="margin:0 0 10px;font-size:13px"></div>
-              <input id="gp-token" type="password" placeholder="gate token" autocomplete="off">
+              <input id="gp-token" type="password" placeholder="gate token (a short code, not your credentials)" autocomplete="off">
               <div class="flag-actions"><button class="add-btn" id="gp-connect">Connect Google Ads</button><span class="af-status" id="gp-connect-status"></span></div>
             </div>
           </div>
@@ -884,13 +884,13 @@
       </div>
       <!-- FALLBACK: paste the full credentials block (shown when no proxy URL is set) -->
       <div id="gads-member-yaml">
-      <div class="sec">Connect Google Ads <span class="note">paste what your Scout sent you</span></div>
-      <p class="fs-intro">Your Scout set everything up. Paste the block they sent you, click connect, and the app does the rest.</p>
+      <div class="sec">Connect Google Ads <span class="note">paste the credentials block your Scout sent you</span></div>
+      <p class="fs-intro">This pastes the agency's full Google Ads credentials (the <code>AGENCY-BRAIN-GADS:…</code> block your Scout generated and sent you). Paste it, click Connect, and the app saves it locally on your machine. Prefer the safer route? Ask your Scout to set up the Google Ads proxy, then you'd paste a short, revocable gate token instead of the full credentials.</p>
       <div class="grid flag-grid">
         <div class="card">
-          <div class="sec">Paste your setup block</div>
+          <div class="sec">Paste the credentials block</div>
           <div class="flag-form">
-            <textarea id="ga-paste" rows="4" placeholder="AGENCY-BRAIN-GADS:…"></textarea>
+            <textarea id="ga-paste" rows="4" placeholder="AGENCY-BRAIN-GADS:… (the full block your Scout sent you)"></textarea>
             <div class="flag-actions"><button class="add-btn" id="ga-connect">Connect Google Ads</button><span class="af-status" id="ga-connect-status"></span></div>
           </div>
           <div id="ga-tools" class="tools-note"></div>
