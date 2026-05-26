@@ -8,6 +8,11 @@
 // rebases the working tree, never resets. The 2026-04-24 data-loss
 // incident is the reason; see projects/agencybrain/8020sync-build-log.md.
 //
+// Large-file guard: before staging, any single file at/over MAX_FILE_MB
+// (default 50 MB — GitHub warns at 50, hard-rejects at 100) makes the watcher
+// STOP instead of commit. A dumped video would otherwise either wedge the
+// sync on a push GitHub rejects forever, or bloat every teammate's clone.
+//
 // Two modes, selected by BRAIN_SYNC_MODE env var:
 //
 //   personal   — uses the user's existing system git credentials, the same
@@ -29,6 +34,8 @@ const fs = require('fs');
 const REPO = process.env.BRAIN_PATH;
 const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_MS || '90000', 10);
 const PULL_INTERVAL_MS = parseInt(process.env.PULL_INTERVAL_MS || '60000', 10);
+const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '50', 10);
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 const MODE = process.env.BRAIN_SYNC_MODE || 'personal';
 const API_BASE = process.env.AGENCY_API_BASE || 'https://api.ads2ai.com';
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
@@ -196,6 +203,25 @@ function pathIsAllowed(relPath, allow) {
   return allow.some((prefix) => relPath === prefix || relPath.startsWith(prefix));
 }
 
+// ───── Large-file guard ─────
+
+// Nothing else checks size: pushChanges() would otherwise `git add -A` a
+// dumped video and commit it. GitHub hard-rejects any single file over 100 MB,
+// so that push fails every 60s tick forever (the commit is already local), and
+// a sub-100 MB binary pushes fine then bloats every teammate's clone for good.
+// So size each to-be-staged file first and STOP on anything at/over the limit —
+// same classify-don't-coerce contract as a conflict: leave it for a human.
+function oversizedFiles(files) {
+  const hits = [];
+  for (const rel of files) {
+    try {
+      const sz = fs.statSync(path.join(REPO, rel)).size;
+      if (sz >= MAX_FILE_BYTES) hits.push({ rel, mb: sz / (1024 * 1024) });
+    } catch (_) { /* deletion or rename-from: nothing on disk to size */ }
+  }
+  return hits;
+}
+
 // ───── Mid-operation guard ─────
 
 function midOperation() {
@@ -285,6 +311,18 @@ async function pushChanges(s) {
 
   if (!files.length) {
     writeState('running', 'nothing to push');
+    return;
+  }
+
+  const tooBig = oversizedFiles(files);
+  if (tooBig.length) {
+    console.log(`[${ts()}] STOP: ${tooBig.length} file(s) at/over ${MAX_FILE_MB} MB — GitHub would reject the push, so not committing:`);
+    for (const f of tooBig.slice(0, 10)) console.log(`    - ${f.rel} (${Math.round(f.mb)} MB)`);
+    if (tooBig.length > 10) console.log(`    (and ${tooBig.length - 10} more)`);
+    console.log(`[${ts()}]   leaving them in the working tree — move them out of the brain or add them to .gitignore and the sync resumes`);
+    const first = tooBig[0];
+    writeState('stop', `${first.rel} is ${Math.round(first.mb)} MB — too big to sync${tooBig.length > 1 ? ` (+${tooBig.length - 1} more)` : ''}; move it out or gitignore it`);
+    git('reset HEAD');
     return;
   }
 
@@ -424,7 +462,7 @@ function ensureGitIdentity() {
 // ───── Boot ─────
 
 console.log(`[${ts()}] watching ${REPO}`);
-console.log(`[${ts()}] mode=${MODE} debounce=${DEBOUNCE_MS / 1000}s pull-every=${PULL_INTERVAL_MS / 1000}s`);
+console.log(`[${ts()}] mode=${MODE} debounce=${DEBOUNCE_MS / 1000}s pull-every=${PULL_INTERVAL_MS / 1000}s max-file=${MAX_FILE_MB}MB`);
 if (MODE === 'agency') {
   console.log(`[${ts()}] team=${TEAM_SLUG} member=${MEMBER_EMAIL} role-hint=${MEMBER_ROLE_HINT}`);
 }
