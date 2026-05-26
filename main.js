@@ -817,6 +817,13 @@ function quietUpdateCheck() {
 // error) — which is how an otherwise-invisible update failure (e.g. on
 // Windows) becomes a readable message instead of nothing.
 async function checkForUpdatesManually() {
+  // The user explicitly asked, so bring the app — and every dialog below — to
+  // the foreground. The app runs dock-hidden (menu-bar only), so a parentless
+  // dialog otherwise opens BEHIND the frontmost window and only the dock bounces.
+  // steal:true is the macOS way to activate from a background/accessory app; the
+  // option is ignored on other platforms. The background "update downloaded"
+  // toast deliberately does NOT do this — unsolicited events shouldn't steal focus.
+  app.focus({ steal: true });
   if (!app.isPackaged) {
     dialog.showMessageBox({ type: 'info', title: APP_NAME, message: 'Updates run only in the installed app.', detail: "You're running an unpackaged dev build.", buttons: ['OK'] });
     return;
