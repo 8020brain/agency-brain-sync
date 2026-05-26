@@ -915,10 +915,12 @@ ipcMain.handle('resolve-invite-token', async (_evt, token) => {
 });
 
 ipcMain.handle('request-otp-code', async (_evt, email) => {
+  // `app: true` tells the backend this is the agency app, not the members
+  // portal, so Team-role members (portal-excluded) can still get a login code.
   const r = await fetch(`${API_BASE}/api/auth/request-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, app: true }),
   });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
