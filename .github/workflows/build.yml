@@ -82,3 +82,46 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+      # Mirror the installers to the PUBLIC downloads repo under stable, version-free
+      # filenames. ads2ai.com/downloads links to
+      # agency-brain-downloads/releases/latest/download/<stable-name>, so this keeps the
+      # site on the newest build with zero manual action. This replaces the old
+      # hand-run tools/mirror-agency-release.cjs (which got skipped for v0.8.48–.51 and
+      # left the site stuck on v0.8.47). It fails the build loudly if it can't mirror,
+      # so a stale download page can never hide behind a green release again.
+      # Needs DOWNLOADS_REPO_TOKEN: a fine-grained PAT with contents:write on
+      # 8020brain/agency-brain-downloads (the default GITHUB_TOKEN is scoped to THIS
+      # repo only and cannot write to another repo).
+      - name: Mirror installers to the public downloads repo
+        env:
+          GH_TOKEN: ${{ secrets.DOWNLOADS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::DOWNLOADS_REPO_TOKEN is not set. Create a fine-grained PAT with contents:write on 8020brain/agency-brain-downloads and add it as the DOWNLOADS_REPO_TOKEN secret on this repo."
+            exit 1
+          fi
+          DST=8020brain/agency-brain-downloads
+          TAG=${GITHUB_REF_NAME}
+          arm=$(ls artifacts/*-arm64.dmg 2>/dev/null | head -1 || true)
+          intel=$(ls artifacts/*.dmg 2>/dev/null | grep -v -- '-arm64' | head -1 || true)
+          exe=$(ls artifacts/*Setup.exe 2>/dev/null | head -1 || true)
+          if [ -z "$arm" ] || [ -z "$intel" ] || [ -z "$exe" ]; then
+            echo "::error::Missing an installer (arm='$arm' intel='$intel' exe='$exe')."; ls -la artifacts/; exit 1
+          fi
+          mkdir -p out
+          cp "$arm"   out/Agency-Brain-mac-arm64.dmg
+          cp "$intel" out/Agency-Brain-mac-intel.dmg
+          cp "$exe"   out/Agency-Brain-Setup.exe
+          ls -la out/
+          if gh release view "$TAG" -R "$DST" >/dev/null 2>&1; then
+            gh release upload "$TAG" -R "$DST" out/* --clobber
+            gh release edit "$TAG" -R "$DST" --latest
+          else
+            gh release create "$TAG" -R "$DST" --latest \
+              --title "Agency Brain ${TAG#v}" \
+              --notes "Mirror of ${GITHUB_REPOSITORY} ${TAG}." \
+              out/Agency-Brain-Setup.exe out/Agency-Brain-mac-arm64.dmg out/Agency-Brain-mac-intel.dmg
+          fi
+          echo "Mirrored $TAG -> https://github.com/$DST/releases/tag/$TAG"
