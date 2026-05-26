@@ -416,7 +416,7 @@
         </div>
         <div class="stage">
           <div class="sh"><span class="snum">5</span><div><h4>Keep what's private, private</h4><p class="sd">Financials, salaries, sensitive client notes go in your own owner-private repo, separate from the shared brain the team can see. Set it up once.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Help me set up my owner-private repo for financials and owner-only docs, separate from the shared agency brain.">Copy a prompt: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
+          <div class="act"><button class="btn" data-spawn="Set up my owner-private brain: a separate, private GitHub repo, just for me as the agency owner, that the team never sees and that never syncs to the shared agency brain. Please don't invent a structure from scratch. Start from the ready-made public template 8020brain/agency-brain-personal-template by running: gh repo create <my-agency>-private --private --template 8020brain/agency-brain-personal-template --clone, and clone it into a folder NEXT TO this shared brain, not inside it. (If gh isn't set up, walk me through the 'Use this template' button on that repo's GitHub page instead.) It ships with a root CLAUDE.md explaining this is my confidential space and what stays private versus shared, plus three folders: team/ (a board.md of who reports to me, a one-on-ones/ folder with one file per direct report for review notes, and a place for comp and salary), business/ (formation documents, contracts, partnerships, strategy), and finances/ (revenue, costs, rates, margins, forecasts). Once it's cloned, open its CLAUDE.md and rewrite it to describe MY agency, then interview me to seed the first real files: my direct reports into team/, my current numbers into finances/, and my live strategy into business/. Keep the air-gap absolute: this repo is owner-only, never add it to the shared agency brain or its sync, and never copy private numbers into the shared brain.">Copy a prompt: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
           <div class="guide-panel" id="g-private"></div>
         </div>
         <div class="stage">
@@ -443,7 +443,7 @@
           <div class="bucket">
             <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask.</p>
             <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
-            <div class="res"><div><div class="rn">"Set up my private space"</div><div class="rd">Creates your owner-only repo.</div></div><span class="lk" data-spawn="Help me set up my owner-private repo for owner-only docs.">Ask</span></div>
+            <div class="res"><div><div class="rn">"Set up my private space"</div><div class="rd">Creates your owner-only repo.</div></div><span class="lk" data-spawn="Set up my owner-private brain from the public GitHub template 8020brain/agency-brain-personal-template: a separate private repo (team/, business/, finances/ + a CLAUDE.md) that never syncs to the team. Walk me through creating it next to my shared brain with gh repo create --template, then tailor its CLAUDE.md to my agency and help me seed the first files.">Ask</span></div>
             <div class="res"><div><div class="rn">Add your scout</div><div class="rd">Add your first scout from your Dashboard.</div></div><span class="lk" data-go="owner">Dashboard</span></div>
           </div>
         </div>
@@ -815,7 +815,27 @@
   <section class="view" id="view-gads">
     <!-- SCOUT: enter creds once -> shareable block -->
     <div id="gads-scout" hidden>
-      <div class="sec">Google Ads in Cowork <span class="note">set up once, hand it to your team</span></div>
+      <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
+      <div class="sec">Google Ads proxy <span class="note">recommended — set up once, your team never holds the credentials</span></div>
+      <p class="fs-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. Prefer to run it yourself? The exact commands are in <code>.claude/skills/gads-proxy/cloudflare/README.md</code>.</p>
+      <div class="grid flag-grid">
+        <div class="card">
+          <div class="sec">Set your team's proxy URL</div>
+          <div class="flag-form">
+            <label for="gp-url">Worker URL</label><input id="gp-url" type="text" placeholder="https://gads-proxy.your-subdomain.workers.dev" autocomplete="off">
+            <div class="flag-actions"><button class="add-btn" id="gp-save">Save proxy URL</button><span class="af-status" id="gp-save-status"></span></div>
+          </div>
+          <div class="assure" id="gp-current" hidden></div>
+        </div>
+        <div class="card">
+          <div class="sec">Hand each team member the gate token</div>
+          <p class="fs-intro" style="margin-top:0">Send each person the gate token privately (a DM or password manager). They paste it on their own Google Ads page and click Connect. The URL you set here syncs to them automatically, so they never touch it.</p>
+          <div class="assure"><strong>Why this is recommended.</strong> The Google Ads credentials live only on the Worker. A team member's machine only ever holds a gate token, which you can revoke any time without touching the credentials.</div>
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px solid #e4e2dc;margin:26px 0">
+      <!-- FALLBACK: share the full credentials file directly. -->
+      <div class="sec">Alternative: share the credentials file <span class="note">simpler, but every team member ends up holding the full Google Ads credentials</span></div>
       <p class="fs-intro">Enter the agency Google Ads credentials once. The app turns them into a single block of text you send to a team member however you like. Their app turns it back into a working setup. Nothing here is sent to us, stored on GitHub, or seen by any AI.</p>
       <div class="grid flag-grid">
         <div class="card">
@@ -841,6 +861,29 @@
     </div>
     <!-- MEMBER (team): paste block -> one click -->
     <div id="gads-member" hidden>
+      <!-- RECOMMENDED: connect via the agency proxy (shown only when the Scout has set a URL) -->
+      <div id="gads-proxy-member" hidden>
+        <div class="sec">Connect Google Ads <span class="note">paste the gate token your Scout sent you</span></div>
+        <p class="fs-intro">Your Scout set up a secure proxy. Paste the gate token they sent, click Connect, and you're done. Nothing to install.</p>
+        <div class="grid flag-grid">
+          <div class="card">
+            <div class="sec">Paste your gate token</div>
+            <div class="flag-form">
+              <div class="assure" id="gp-url-display" style="margin:0 0 10px;font-size:13px"></div>
+              <input id="gp-token" type="password" placeholder="gate token" autocomplete="off">
+              <div class="flag-actions"><button class="add-btn" id="gp-connect">Connect Google Ads</button><span class="af-status" id="gp-connect-status"></span></div>
+            </div>
+          </div>
+          <div class="card" id="gp-done-card" hidden>
+            <div class="sec">Connected</div>
+            <div class="assure" id="gp-saved-where" style="font-size:13px;margin-top:0"></div>
+            <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork or Claude and paste this to confirm it works:</p>
+            <div class="copyblock" id="gp-prompt"></div>
+          </div>
+        </div>
+      </div>
+      <!-- FALLBACK: paste the full credentials block (shown when no proxy URL is set) -->
+      <div id="gads-member-yaml">
       <div class="sec">Connect Google Ads <span class="note">paste what your Scout sent you</span></div>
       <p class="fs-intro">Your Scout set everything up. Paste the block they sent you, click connect, and the app does the rest.</p>
       <div class="grid flag-grid">
@@ -859,6 +902,7 @@
           <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork (or the Claude desktop app) and paste the prompt below to confirm it works. If you'd rather use the google-ads connector, fully quit Claude and reopen it first so it loads the new setup.</p>
           <div class="copyblock" id="ga-prompt"></div>
         </div>
+      </div>
       </div>
     </div>
   </section>
@@ -1272,6 +1316,7 @@
     if(gs) gs.hidden=isTeam;
     if(gm) gm.hidden=!isTeam;
     if(isTeam) gadsDetect();
+    gadsProxyInit(role);
     activateView(isTeam?'welcome':(isScout?'scout':'owner'));
   }
   // Footer role switcher. Visible to the two super-admin emails on every build (see the
@@ -1343,6 +1388,50 @@
         var dc=$('ga-done-card'); if(dc) dc.hidden=false;
         var sw=$('ga-saved-where'); if(sw){ sw.innerHTML='Wrote <b>google-ads.yaml</b> to <code>'+esc(r.yamlPath||'?')+'</code>.'+(r.configPath?' Added a <b>google-ads</b> connector entry to <code>'+esc(r.configPath)+'</code>.':''); }
         var pr=$('ga-prompt'); if(pr){ pr.textContent=r.verifyPrompt; pr.dataset.copy=r.verifyPrompt; copyBlock(pr); }
+      }catch(e){ st.textContent=e.message; }
+    });
+  })();
+
+  // ---- Google Ads proxy (recommended path): Scout sets the URL once, team pastes a token ----
+  async function gadsProxyInit(role){
+    try{
+      var cfg=await api('/api/gads-proxy/config');
+      if(role==='team'){
+        var pm=$('gads-proxy-member'), yaml=$('gads-member-yaml');
+        if(cfg.configured){
+          if(pm) pm.hidden=false;
+          if(yaml) yaml.hidden=true;
+          var ud=$('gp-url-display'); if(ud) ud.innerHTML='Connecting through <b>'+esc(cfg.url)+'</b>';
+        } else {
+          if(pm) pm.hidden=true;
+          if(yaml) yaml.hidden=false;
+        }
+      } else {
+        var inp=$('gp-url'); if(inp && cfg.url && !inp.value) inp.value=cfg.url;
+        var cur=$('gp-current');
+        if(cur){ if(cfg.url){ cur.hidden=false; cur.innerHTML='Current team proxy URL: <code>'+esc(cfg.url)+'</code> — this syncs to your team automatically.'; } else { cur.hidden=true; } }
+      }
+    }catch(e){ /* transient; role switch or reload will retry */ }
+  }
+  (function(){
+    var save=$('gp-save');
+    if(save) save.addEventListener('click',async function(){
+      var st=$('gp-save-status'); st.textContent='Saving…';
+      try{
+        var r=await api('/api/gads-proxy/set-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ url:$('gp-url').value.trim() })});
+        st.textContent='Saved — it will sync to your team.';
+        var cur=$('gp-current'); if(cur){ cur.hidden=false; cur.innerHTML='Current team proxy URL: <code>'+esc(r.url)+'</code> — this syncs to your team automatically.'; }
+      }catch(e){ st.textContent=e.message; }
+    });
+    var conn=$('gp-connect');
+    if(conn) conn.addEventListener('click',async function(){
+      var st=$('gp-connect-status'); st.textContent='Connecting…';
+      try{
+        var r=await api('/api/gads-proxy/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ secret:$('gp-token').value.trim() })});
+        st.textContent='Connected.';
+        var dc=$('gp-done-card'); if(dc) dc.hidden=false;
+        var sw=$('gp-saved-where'); if(sw) sw.innerHTML='Wrote <b>gads-proxy.yaml</b> to <code>'+esc(r.yamlPath||'?')+'</code> (gitignored, never synced).';
+        var pr=$('gp-prompt'); if(pr){ pr.textContent=r.verifyPrompt; pr.dataset.copy=r.verifyPrompt; copyBlock(pr); }
       }catch(e){ st.textContent=e.message; }
     });
   })();
@@ -1809,10 +1898,11 @@
       +'<p>If you\'re setting the brain up yourself rather than handing it to a scout, this is the path.</p>'
       +'<ol><li><b>Create the brain.</b> The portal creates your agency\'s GitHub repo from the template when you set up; you don\'t do this by hand.</li><li><b>Install the Agency Brain app</b> from the link in your email and let it clone the brain to your machine.</li><li><b>Connect Cowork</b> by pointing it at the folder the app keeps in sync.</li><li><b>Fill your agency context</b> with the tune-brain prompt or <code>/agency-brain-context-setup</code>.</li><li><b>Add your people</b> in the portal: scouts first, then team.</li></ol>'
       +'<p>You don\'t have to do any of this yourself. Add a scout and hand them steps 2 to 5.</p>'},
-    'g-private':{html:'<h2>Your owner-private brain</h2><p class="gp-path">onboarding-owner.md (private repo)</p>'
-      +'<p>The shared agency brain is visible to your whole team. Anything that should never be (financials, salaries, contractor rates, sensitive client notes) goes in a separate <b>owner-private repo</b> that only you can see.</p>'
-      +'<h3>Set it up once</h3><p>Run <code>/agency-team-join</code> as the owner and it offers to create your private repo, or ask Claude to set one up from the owner-private template. It clones to its own folder, separate from the shared brain.</p>'
-      +'<h3>How you use it</h3><p>Point a Claude Code or Cowork session at that folder when you\'re working on owner-only things. It never syncs to the team, so nothing in it can leak into the shared brain.</p>'}
+    'g-private':{html:'<h2>Your owner-private brain</h2><p class="gp-path">github.com/8020brain/agency-brain-personal-template</p>'
+      +'<p>The shared agency brain is visible to your whole team. Anything that should never be (financials, salaries, contractor rates, sensitive client notes, strategy) goes in a separate <b>owner-private repo</b> that only you can see and that never syncs to the team.</p>'
+      +'<h3>Set it up once</h3><p>Use the <b>Copy a prompt</b> button above, or start the public template <code>8020brain/agency-brain-personal-template</code> yourself (its <b>Use this template</b> button, or <code>gh repo create &lt;my-agency&gt;-private --private --template 8020brain/agency-brain-personal-template --clone</code>). Clone it to its own folder, next to the shared brain, never inside it.</p>'
+      +'<h3>What it gives you</h3><ul><li><b>CLAUDE.md</b> at the root: explains this is your confidential space and what stays private versus shared. Rewrite it for your agency.</li><li><b>team/</b>: a board.md of who reports to you, a one-on-ones/ folder (one file per direct report for review notes), and room for comp and salary.</li><li><b>business/</b>: formation documents, contracts, partnerships, strategy.</li><li><b>finances/</b>: revenue, costs, rates, margins, forecasts.</li></ul>'
+      +'<h3>How you use it</h3><p>Point a Claude Code or Cowork session at that folder when you\'re working on owner-only things. It never syncs to the team, so nothing in it can leak into the shared brain, and you never copy private numbers back into the shared brain.</p>'}
   };
   GUIDES['g-start-o']=GUIDES['g-start'];
   GUIDES['g-onboard-o']=GUIDES['g-onboard'];

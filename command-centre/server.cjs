@@ -221,6 +221,25 @@ const GADS_VERIFY_PROMPT = "I've just connected Google Ads. There's a credential
 function encodeGadsBlock(fields) { return 'AGENCY-BRAIN-GADS:' + Buffer.from(JSON.stringify(fields), 'utf8').toString('base64'); }
 function decodeGadsBlock(block) { return JSON.parse(Buffer.from(String(block || '').trim().replace(/^AGENCY-BRAIN-GADS:/, ''), 'base64').toString('utf8')); }
 
+// ---- Google Ads PROXY connector (the recommended path; engine in the brain at
+// projects/sites/gads-proxy). The team proxy URL is a synced, committed file
+// (data/gads-proxy.json) so a Scout sets it once and it reaches every team
+// member's clone via the normal sync. The per-member gate token is NOT stored
+// there — each member pastes their own, and we write it to a gitignored
+// gads-proxy.yaml so the token never syncs to the shared agency repo.
+const GADS_PROXY_CONFIG = path.join(BRAIN_ROOT, 'data', 'gads-proxy.json');
+function readProxyConfig() {
+  try { return JSON.parse(fs.readFileSync(GADS_PROXY_CONFIG, 'utf8')); } catch { return {}; }
+}
+function ensureGitignored(name) {
+  const gi = path.join(BRAIN_ROOT, '.gitignore');
+  let txt = '';
+  try { txt = fs.readFileSync(gi, 'utf8'); } catch { /* no .gitignore yet */ }
+  if (txt.split(/\r?\n/).some((l) => l.trim() === name)) return;
+  fs.appendFileSync(gi, (txt && !txt.endsWith('\n') ? '\n' : '') + name + '\n');
+}
+const GADS_PROXY_VERIFY_PROMPT = "I've just connected our Google Ads proxy. There's a gads-proxy.yaml at the root of this brain with the proxy URL and a gate token. Confirm it works: use the gads-proxy skill to run a small query (list a few campaigns for one of our accounts) and show me the rows. Never print the token.";
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const p = url.pathname;
@@ -297,6 +316,40 @@ const server = http.createServer(async (req, res) => {
         GOOGLE_ADS_CONFIGURATION_FILE_PATH: yamlPath,
       });
       return send(res, 200, { ok: true, yamlPath, configPath, verifyPrompt: GADS_VERIFY_PROMPT });
+    }
+    // ---- Google Ads PROXY: read config (synced URL), Scout sets URL, team connects ----
+    if (req.method === 'GET' && p === '/api/gads-proxy/config') {
+      const cfg = readProxyConfig();
+      return send(res, 200, { configured: !!cfg.url, url: cfg.url || '', role: MEMBER_ROLE });
+    }
+    // Scout/Owner sets the team's proxy URL once. Written to a synced file so it
+    // propagates to every team member. Role is enforced server-side here.
+    if (req.method === 'POST' && p === '/api/gads-proxy/set-url') {
+      const role = (MEMBER_ROLE || '').toLowerCase();
+      if (!['owner', 'scout', 'head-scout'].includes(role)) {
+        return send(res, 403, { error: 'Only an Owner or Scout can set the proxy URL.' });
+      }
+      const b = await readBody(req);
+      const url = String(b.url || '').trim().replace(/\/+$/, '');
+      if (!/^https:\/\/[^\s/]+\.[^\s/]+/.test(url)) {
+        return send(res, 400, { error: 'Enter a valid https URL, e.g. https://gads-proxy.your-subdomain.workers.dev' });
+      }
+      fs.mkdirSync(path.dirname(GADS_PROXY_CONFIG), { recursive: true });
+      fs.writeFileSync(GADS_PROXY_CONFIG, JSON.stringify({ url }, null, 2) + '\n');
+      return send(res, 200, { ok: true, url });
+    }
+    // Team member pastes their gate token; we combine it with the synced URL and
+    // write a gitignored gads-proxy.yaml the gads-proxy skill reads at runtime.
+    if (req.method === 'POST' && p === '/api/gads-proxy/connect') {
+      const cfg = readProxyConfig();
+      if (!cfg.url) return send(res, 400, { error: 'No proxy URL is set for your team yet. Ask your Scout to set it on their Google Ads page.' });
+      const b = await readBody(req);
+      const secret = String(b.secret || '').trim();
+      if (!secret) return send(res, 400, { error: 'Paste the gate token your Scout sent you.' });
+      ensureGitignored('gads-proxy.yaml');
+      const dest = path.join(BRAIN_ROOT, 'gads-proxy.yaml');
+      fs.writeFileSync(dest, `url: ${cfg.url}\nsecret: ${secret}\n`, { mode: 0o600 });
+      return send(res, 200, { ok: true, yamlPath: dest, url: cfg.url, verifyPrompt: GADS_PROXY_VERIFY_PROMPT });
     }
     // Live team roster from the server (the source of truth), acting as the member.
     if (req.method === 'GET' && p === '/api/team-roster') {
