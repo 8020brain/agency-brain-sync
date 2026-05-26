@@ -464,34 +464,28 @@
       </div>
       <div class="card block">
         <div class="sec">Your path <span class="note">top to bottom, no terminal commands to memorise</span></div>
-        <p class="gsu-intro">Work down the list. Each step is a guide to follow or a prompt you copy and paste into Claude Code. The first three steps are the same setup everyone does; the rest is the scout job. Most scouts are running by day one and build their first skill in week one.</p>
+        <p class="gsu-intro">Work down the list. Each step is a guide to follow or a prompt you copy and paste into Claude Code. This page assumes your agency's brain is set up and synced (if you can see it in your Dashboard, it is). If it isn't yet, the one-time setup happens at <code>agency.ads2ai.com</code>. Most scouts are running by day one and build their first skill in week one.</p>
         <div class="stage">
           <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what your job actually is. Five minutes of reading saves a lot of guessing.</p></div></div>
           <div class="act"><button class="btn" data-spawn="Give me the quick orientation: what is Agency Brain, what's my job as a scout, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start">Read the guide</button></div>
           <div class="guide-panel" id="g-start"></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">1</span><div><h4>Set up your computer</h4><p class="sd">A few free tools, once: Node.js, Git, a code editor (Cursor or VS Code), and a GitHub account. The guide walks you through each one.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://m.ads2ai.com/mastery">Open the setup guide</button></div>
+          <div class="sh"><span class="snum">1</span><div><h4>Open the brain in Claude Code or your IDE</h4><p class="sd">The app keeps your agency's brain synced as a folder on your machine. You do the real work in it from Claude Code, in a terminal or in Cursor / VS Code, not in this window. Point your editor at the synced folder and you're in.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="What's in this folder? Give me a brief overview of what's here.">Copy a prompt: what's in this brain?</button></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads to AI subscription. No API key, no per-token billing; the login covers it.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://code.claude.com/docs/en/quickstart">Install Claude Code</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">3</span><div><h4>Install Agency Brain</h4><p class="sd">The Agency Brain app puts your agency's shared brain on your computer and keeps it in sync. You don't need an invite code.</p></div></div>
-          <div class="substeps">
-            <div class="ss"><b>Download and install it</b> from <code>ads2ai.com/downloads</code>; it picks the right version for your computer. The first launch needs one "open anyway" click, since the app isn't code-signed yet.</div>
-            <div class="ss"><b>Open it and choose "Sign in with your email."</b> It sends you a 6-digit code. That's all you need, no invite code to track down.</div>
-            <div class="ss"><b>Pick your agency</b> if it asks, and it downloads the brain and starts syncing.</div>
-            <div class="ss"><b>Got an invite code?</b> You can paste that on the first screen instead. Either way lands you in the same place.</div>
-          </div>
-          <div class="act"><button class="btn mut" data-ext="https://ads2ai.com/downloads">Download Agency Brain</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">4</span><div><h4>Set up your CLAUDE.md and use it</h4><p class="sd">Fill the shared agency CLAUDE.md so Claude knows how your agency works, then run a skill so you've felt the loop end to end. Save with <code>/save</code>.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Walk me through setting up my CLAUDE.md files as a scout: the shared agency file and my personal one.">Copy a prompt: set up my CLAUDE.md</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
+          <div class="sh"><span class="snum">2</span><div><h4>Teach the brain your agency</h4><p class="sd">Run <code>/agency-brain-context-setup</code>. It interviews you and fills the shared CLAUDE.md with your services, your voice, your departments, and the tools you use, so every teammate's Claude knows how your agency works.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Run /agency-brain-context-setup: interview me and fill the shared CLAUDE.md with our agency's services, voice, departments, and tools.">Copy a prompt: set up our context</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
           <div class="guide-panel" id="g-claudemd"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Set up your clients</h4><p class="sd">Run <code>/client-setup</code> for each client. It creates the client's folder and captures its context, so skills and reports have what they need about that account.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Run /client-setup to add a new client: create the client folder and capture its context (business, accounts, goals, contacts).">Copy a prompt: set up a client</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">4</span><div><h4>Connect Google Ads</h4><p class="sd">So the brain can pull Google Ads data, set up the Cloudflare proxy. In your brain, say "set up the Google Ads proxy"; the <code>gads-proxy</code> skill deploys a small Cloudflare Worker that holds the agency's credentials and hands you a Worker URL. Paste that URL into the Google Ads connector here; it syncs to the team, and each member only ever holds a revocable token, never the credentials.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Set up the Google Ads proxy for our agency: use the gads-proxy skill to deploy the Cloudflare Worker, set the secrets, and give me back the Worker URL and gate token.">Copy a prompt: set up the proxy</button><button class="btn mut" data-go="gads">Open the Google Ads connector</button></div>
         </div>
         <div class="stage">
           <div class="sh"><span class="snum">5</span><div><h4>Build skills for the team</h4><p class="sd">Find a repetitive workflow, build it with <code>/skill-creator</code>, start it at draft. This is the heart of the scout job.</p></div></div>
