@@ -18,6 +18,7 @@ const fs = require('fs');
 const os = require('os');
 const { spawn, execFile, execFileSync } = require('child_process');
 const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
+const { adoptBrain } = require('./lib/adopt-brain.cjs');
 
 const APP_NAME = 'Agency Brain';
 const USER_DATA = app.getPath('userData');
@@ -1044,6 +1045,21 @@ ipcMain.handle('inspect-brain-folder', async (_evt, folder) => {
     return { ok: false, state: 'error', block: true,
       blockReason: 'I couldn’t inspect that folder: ' + ((e && e.message) || e) };
   }
+});
+
+// Controlled adopt (adopt flow, Phase 2). The single careful write path: it
+// re-confirms state, protects the brain (gitignore), and runs one deliberate
+// first sync, streaming progress via wizard-log. It does NOT save config or
+// start the watcher — the renderer persists config only after this resolves,
+// which is what starts the watcher (so it inherits a clean, in-sync repo).
+ipcMain.handle('adopt-existing-brain', async (_evt, args) => {
+  const folder = path.normalize(String((args && args.folder) || ''));
+  return adoptBrain(folder, {
+    memberEmail: (args && args.memberEmail) || '',
+    memberName: (args && args.memberName) || '',
+    env: enrichedEnv(),
+    log: sendWizardLog,
+  });
 });
 
 ipcMain.handle('configure-identity', async (_evt, args) => {

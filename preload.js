@@ -19,6 +19,9 @@ const api = {
   // Adopt flow (Phase 1): read-only inspection of a brain folder the member
   // already has, so the wizard can show its state before anything is written.
   inspectBrainFolder: (folder) => ipcRenderer.invoke('inspect-brain-folder', folder),
+  // Adopt flow (Phase 2): the controlled first sync that brings an existing
+  // brain under the app. Resolves before any config is saved / watcher started.
+  adoptExistingBrain: (args) => ipcRenderer.invoke('adopt-existing-brain', args),
   configureIdentity: (args) => ipcRenderer.invoke('configure-identity', args),
   markInstallComplete: (args) => ipcRenderer.invoke('mark-install-complete', args),
 

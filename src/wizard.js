@@ -25,6 +25,7 @@
   let isSandbox = false;
   let chosenFolder = '';
   let demoMode = false;
+  let adopted = false;          // adopt flow saved config itself; enterDone must not re-save
 
   const DEMO_EMAIL = 'demo';
   const TOTAL = 7;
@@ -102,6 +103,14 @@
       if (/dev guard/i.test(msg)) return msg; // surface the dev guard verbatim to Mike
       if (net.test(msg)) return "I can't reach GitHub. Check your internet, then try again.";
       return "Something went wrong setting up your brain. Try again, or pick a different location.";
+    }
+    if (context === 'adopt') {
+      // The precise block reasons from inspect/adopt are already plain English —
+      // pass them straight through so the member sees exactly what to fix.
+      if (/moved on|reconcile|diverged|in progress|isn’t in a state|own repo|shared template|connect/i.test(msg)) return msg;
+      if (/permission|denied|403|forbidden|not have access|authentication/i.test(msg)) return "I couldn't push to your GitHub repo. Make sure this is a repo you own and your git is signed in to it, then try again. Your files weren't changed.";
+      if (net.test(msg)) return "I can't reach GitHub. Check your internet, then try again. Your files weren't changed.";
+      return "Something went wrong adopting your brain. Your files are untouched — have a look at the log, or try again.";
     }
     return "Something went wrong. Try again in a moment.";
   }
@@ -429,6 +438,7 @@
     mid_operation: { badge: 'Resolve first', headline: 'A git operation is in progress here.' },
     no_origin:     { badge: 'Connect GitHub', headline: 'Not connected to a GitHub repo yet.' },
     not_github:    { badge: 'Connect GitHub', headline: 'Its origin isn’t a GitHub repo.' },
+    template_origin: { badge: 'Use your own repo', headline: 'This points at the shared template, not your repo.' },
     not_git:       { badge: 'Not a brain', headline: 'That folder isn’t a git repository.' },
     fetch_failed:  { badge: 'Can’t reach GitHub', headline: 'Couldn’t compare it with GitHub.' },
     error:         { badge: 'Error', headline: 'Something went wrong inspecting it.' },
@@ -501,12 +511,39 @@
     return 'in sync';
   }
 
-  // Phase 1: inspection only. The controlled first sync + saveConfig + watcher
-  // start is Phase 2 — until it lands, confirm the brain looks adoptable and
-  // stop short of any write.
-  document.getElementById('btn-adopt-go').addEventListener('click', () => {
-    errorIn('err-adopt', 'Inspection looks good — this brain is safe to adopt. The adopt step itself is the next piece being built, so nothing has been changed.', true);
-  });
+  // The controlled adopt: run the one careful write path (re-confirm, protect,
+  // first sync), THEN persist config — which is what starts the watcher, so it
+  // only ever inherits a clean, in-sync, protected repo. Order matters: never
+  // saveConfig before adoptExistingBrain resolves.
+  document.getElementById('btn-adopt-go').addEventListener('click', doAdopt);
+
+  async function doAdopt() {
+    if (!adoptReport || adoptReport.block) return;
+    const btn = document.getElementById('btn-adopt-go');
+    const back = document.getElementById('btn-adopt-back');
+    clearError('err-adopt');
+    btn.disabled = true;
+    back.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Working…';
+    const log = document.getElementById('adoptLog');
+    if (log) log.textContent = '';
+    try {
+      await api.adoptExistingBrain({ folder: adoptFolder, memberEmail: authEmail, memberName: authName });
+      // Only NOW persist config — this is the single trigger that starts the
+      // watcher (mode 'personal' = the member's own git creds).
+      chosenFolder = adoptFolder;
+      adopted = true;
+      await api.saveConfig({ brainPath: adoptFolder, mode: 'personal', memberEmail: authEmail, memberName: authName });
+      btn.textContent = 'Done';
+      setTimeout(enterDone, 400);
+    } catch (err) {
+      errorIn('err-adopt', friendlyError(err, 'adopt'));
+      btn.disabled = false;
+      back.disabled = false;
+      btn.textContent = orig === 'Working…' ? 'Adopt this brain' : orig;
+    }
+  }
 
   // ====================================================================
   // 4 — files / clone
@@ -664,11 +701,13 @@
           scoutSeats: teamInfo.scoutSeats, packageTier: teamInfo.packageTier,
         });
         api.markInstallComplete({ memberToken: authToken, teamSlug: teamInfo.teamSlug }).catch(() => {});
-      } else {
+      } else if (!adopted) {
         // SOLO: store the path so the Command Centre + tray know it. mode
         // 'personal' uses the member's own git creds. NOTE: solo sync to a
         // backup repo is a follow-up (the clone tracks the read-only members
         // template; pulling/pushing against it is wrong). See build-log.
+        // The adopt path already saved config (which started the watcher) in
+        // doAdopt, so skip it here — re-saving would needlessly restart the watcher.
         await api.saveConfig({
           brainPath: chosenFolder, mode: 'personal',
           memberEmail: authEmail, memberName: authName,
@@ -684,9 +723,14 @@
   });
   document.getElementById('btn-close').addEventListener('click', () => api.closeWizard());
 
-  // ---- progress log from main (clone / npm) ----
+  // ---- progress log from main (clone / npm / adopt) ----
+  // Route each line to the log in whichever scene is active (scene-clone's
+  // cloneLog or scene-adopt's adoptLog), so adopt progress shows on the adopt
+  // screen rather than the hidden clone screen.
   api.onWizardLog((line) => {
-    const log = document.getElementById('cloneLog');
+    const active = document.querySelector('.screen.active');
+    const log = (active && active.querySelector('.log')) || document.getElementById('cloneLog');
+    if (!log) return;
     log.textContent += (log.textContent ? '\n' : '') + line;
     log.scrollTop = log.scrollHeight;
   });
