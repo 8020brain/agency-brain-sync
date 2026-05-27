@@ -484,11 +484,23 @@
       ? `<div class="ar-note">${escapeHtml(r.blockReason || 'Resolve this in your brain first, then come back.')}</div>`
       : (adoptIntentNote(r) ? `<div class="ar-note">${escapeHtml(adoptIntentNote(r))}</div>` : '');
 
+    // "You don't have your own repo connected yet" blocks: rather than dead-end,
+    // point them at the setup guide (the conversational Update prompt on the
+    // members portal). The app can't run that AskUserQuestion conversation itself
+    // — they run the prompt in Claude Code, then come back and pick the folder.
+    const fixableByPrompt = ['no_origin', 'not_github', 'template_origin'].includes(r.state);
+    const guide = fixableByPrompt
+      ? `<div class="ar-note">Quickest fix: open your setup guide, copy the <strong>Update</strong> prompt, and run it in Claude Code in this folder. It gets your own GitHub repo connected for you, then come back here and pick the folder again. <span class="link" id="adopt-setup-guide">Open the setup guide</span></div>`
+      : '';
+
     readout.innerHTML =
       `<div class="ar-head"><span class="ar-badge">${escapeHtml(meta.badge)}</span><span class="ar-headline">${escapeHtml(meta.headline)}</span></div>` +
       `<div class="ar-rows">${rows.join('')}</div>` +
-      note;
+      note + guide;
     readout.classList.remove('hidden');
+
+    const gl = document.getElementById('adopt-setup-guide');
+    if (gl) gl.addEventListener('click', () => api.openExternalUrl('https://m.ads2ai.com/install'));
 
     const go = document.getElementById('btn-adopt-go');
     if (blocked) {
