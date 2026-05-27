@@ -1054,12 +1054,27 @@ ipcMain.handle('inspect-brain-folder', async (_evt, folder) => {
 // which is what starts the watcher (so it inherits a clean, in-sync repo).
 ipcMain.handle('adopt-existing-brain', async (_evt, args) => {
   const folder = path.normalize(String((args && args.folder) || ''));
-  return adoptBrain(folder, {
+  const result = await adoptBrain(folder, {
     memberEmail: (args && args.memberEmail) || '',
     memberName: (args && args.memberName) || '',
     env: enrichedEnv(),
     log: sendWizardLog,
   });
+  // #879: record the brain-adoption — the headline funnel event tracked nowhere
+  // before (brain hardening plan §9). The adopt itself is the signal (this is the
+  // solo path; teamSlug is usually absent, which the endpoint allows). Needs the
+  // member_token JWT. Fire-and-forget — a metric, never a gate, never blocks the
+  // adopt.
+  const memberToken = args && args.memberToken;
+  if (memberToken) {
+    fetch(`${API_BASE}/api/team-brain/record-adoption`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${memberToken}` },
+      body: JSON.stringify({ teamSlug: (args && args.teamSlug) || undefined, fromState: result && result.fromState }),
+    }).then((r) => { if (!r.ok) console.warn('[brain-sync] record-adoption returned', r.status); })
+      .catch((e) => console.warn('[brain-sync] record-adoption failed', e.message));
+  }
+  return result;
 });
 
 ipcMain.handle('configure-identity', async (_evt, args) => {

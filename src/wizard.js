@@ -541,7 +541,7 @@
     const log = document.getElementById('adoptLog');
     if (log) log.textContent = '';
     try {
-      await api.adoptExistingBrain({ folder: adoptFolder, memberEmail: authEmail, memberName: authName });
+      await api.adoptExistingBrain({ folder: adoptFolder, memberEmail: authEmail, memberName: authName, memberToken: authToken, teamSlug: teamInfo && teamInfo.teamSlug });
       // Only NOW persist config — this is the single trigger that starts the
       // watcher (mode 'personal' = the member's own git creds).
       chosenFolder = adoptFolder;
