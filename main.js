@@ -17,6 +17,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { spawn, execFile, execFileSync } = require('child_process');
+const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
 
 const APP_NAME = 'Agency Brain';
 const USER_DATA = app.getPath('userData');
@@ -1028,6 +1029,21 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
     }
   } catch (e) { /* best-effort: the watcher falls back to the role hint */ }
   return { ok: true };
+});
+
+// Read-only inspection of an existing brain folder (adopt flow, Phase 1). Never
+// writes: it reports origin/GitHub status, fetch + ahead/behind, file count,
+// gitignore conventions, and a state classification so the wizard can decide
+// whether the brain is safe to adopt. enrichedEnv() gives git a real PATH when
+// the app is launched from Finder. Errors degrade to a blocked result, never a
+// thrown IPC.
+ipcMain.handle('inspect-brain-folder', async (_evt, folder) => {
+  try {
+    return inspectBrainFolder(path.normalize(String(folder || '')), { env: enrichedEnv() });
+  } catch (e) {
+    return { ok: false, state: 'error', block: true,
+      blockReason: 'I couldn’t inspect that folder: ' + ((e && e.message) || e) };
+  }
 });
 
 ipcMain.handle('configure-identity', async (_evt, args) => {

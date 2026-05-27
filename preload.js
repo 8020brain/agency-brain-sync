@@ -16,6 +16,9 @@ const api = {
   consumePendingInviteToken: () => ipcRenderer.invoke('consume-pending-invite-token'),
   resolveInviteToken: (token) => ipcRenderer.invoke('resolve-invite-token', token),
   cloneAgencyBrain: (args) => ipcRenderer.invoke('clone-agency-brain', args),
+  // Adopt flow (Phase 1): read-only inspection of a brain folder the member
+  // already has, so the wizard can show its state before anything is written.
+  inspectBrainFolder: (folder) => ipcRenderer.invoke('inspect-brain-folder', folder),
   configureIdentity: (args) => ipcRenderer.invoke('configure-identity', args),
   markInstallComplete: (args) => ipcRenderer.invoke('mark-install-complete', args),
 

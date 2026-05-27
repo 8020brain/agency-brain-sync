@@ -281,7 +281,10 @@
     const mt = (member && member.memberType) || '';
     if (/community|ota|script/i.test(mt) || demoMode) {
       mode = 'solo';
-      enterMachine();
+      // Demo always seeds a fresh demo folder, so it skips the fork. A real solo
+      // member is first asked whether to adopt the brain they already have.
+      if (demoMode) enterMachine();
+      else show('scene-have-brain');
     } else {
       errorIn('err-otp',
         "This email isn't linked to a membership or an agency yet. If you just signed up or your owner just added you, give it a minute and try again, or check the exact address.");
@@ -355,6 +358,155 @@
     nextBtn.disabled = false;
   }
   document.getElementById('btn-machine-next').addEventListener('click', enterClone);
+
+  // ====================================================================
+  // 2b/2c — adopt an existing brain (SOLO only). The fork after solo
+  // detection: "I'm new" falls through to the normal clone path
+  // (enterMachine -> cloneSoloBrain); "I already have one" inspects the brain
+  // the member already has. Phase 1 is READ-ONLY: it only shows the folder's
+  // state. The Adopt button's controlled first sync is Phase 2 — until then it
+  // confirms inspection and stops short of any write.
+  // ====================================================================
+  let adoptFolder = '';
+  let adoptReport = null;
+
+  document.getElementById('btn-have-new').addEventListener('click', enterMachine);
+  document.getElementById('btn-have-existing').addEventListener('click', enterAdopt);
+  document.getElementById('btn-adopt-back').addEventListener('click', () => { clearError('err-adopt'); show('scene-have-brain'); });
+
+  function enterAdopt() {
+    adoptFolder = '';
+    adoptReport = null;
+    document.getElementById('adoptFolderPath').textContent = '… nothing picked yet';
+    const readout = document.getElementById('adoptReadout');
+    readout.classList.add('hidden');
+    readout.innerHTML = '';
+    clearError('err-adopt');
+    const go = document.getElementById('btn-adopt-go');
+    go.classList.add('hidden');
+    go.disabled = true;
+    show('scene-adopt');
+  }
+
+  document.getElementById('btn-adopt-pick').addEventListener('click', async () => {
+    // requireGit: pick-folder rejects (with its own dialog) anything without a
+    // .git, so we only ever inspect a real repo.
+    const picked = await api.pickFolder({ requireGit: true });
+    if (!picked) return;
+    adoptFolder = picked;
+    document.getElementById('adoptFolderPath').textContent = displayPath(picked);
+    await runInspect();
+  });
+
+  async function runInspect() {
+    clearError('err-adopt');
+    const readout = document.getElementById('adoptReadout');
+    const go = document.getElementById('btn-adopt-go');
+    go.classList.add('hidden');
+    go.disabled = true;
+    readout.classList.remove('hidden', 'block');
+    readout.innerHTML = '<div class="ar-rows"><div class="ar-row"><span class="ar-k">Checking…</span><span class="ar-v muted">reading your brain folder</span></div></div>';
+    let r;
+    try {
+      r = await api.inspectBrainFolder(adoptFolder);
+    } catch (_) {
+      readout.classList.add('hidden');
+      errorIn('err-adopt', "I couldn't inspect that folder. Pick the folder your brain lives in and try again.");
+      return;
+    }
+    adoptReport = r;
+    renderReadout(r);
+  }
+
+  // Map each inspect state to a badge label + plain-English headline, and
+  // whether it's a green "ready to adopt" or an amber "resolve this first".
+  const ADOPT_STATES = {
+    clean_in_sync: { badge: 'Ready', headline: 'Clean, and in sync with GitHub.' },
+    dirty:         { badge: 'Ready', headline: 'Has changes you haven’t saved to GitHub yet.' },
+    ahead:         { badge: 'Ready', headline: 'Has commits that aren’t on GitHub yet.' },
+    behind:        { badge: 'Ready', headline: 'GitHub has newer commits than this copy.' },
+    diverged:      { badge: 'Resolve first', headline: 'This copy and GitHub have both moved on.' },
+    mid_operation: { badge: 'Resolve first', headline: 'A git operation is in progress here.' },
+    no_origin:     { badge: 'Connect GitHub', headline: 'Not connected to a GitHub repo yet.' },
+    not_github:    { badge: 'Connect GitHub', headline: 'Its origin isn’t a GitHub repo.' },
+    not_git:       { badge: 'Not a brain', headline: 'That folder isn’t a git repository.' },
+    fetch_failed:  { badge: 'Can’t reach GitHub', headline: 'Couldn’t compare it with GitHub.' },
+    error:         { badge: 'Error', headline: 'Something went wrong inspecting it.' },
+    invalid:       { badge: 'Error', headline: 'No folder to inspect.' },
+    unknown:       { badge: 'Unclear', headline: 'I couldn’t read its state cleanly.' },
+  };
+
+  // What the (Phase-2) adopt step will do for each non-blocked state. Shown as a
+  // note so the member knows what "Adopt" means before they press it.
+  function adoptIntentNote(r) {
+    if (r.state === 'clean_in_sync') return 'Nothing to sync — I’ll just start watching this folder.';
+    if (r.state === 'behind') return 'I’ll fast-forward to GitHub’s latest, then start watching.';
+    if (r.state === 'dirty') return 'I’ll save your changes as one commit and push them to your GitHub, then start watching.';
+    if (r.state === 'ahead') return 'I’ll push your local commits to GitHub, then start watching.';
+    return '';
+  }
+
+  function shortRepo(url) {
+    if (!url) return '—';
+    return url.replace(/^git@github\.com:/i, '').replace(/^https?:\/\/[^/]*github\.com\//i, '').replace(/\.git$/i, '');
+  }
+  function yesNo(b) { return b ? 'yes' : 'no'; }
+
+  function renderReadout(r) {
+    const readout = document.getElementById('adoptReadout');
+    const meta = ADOPT_STATES[r.state] || ADOPT_STATES.unknown;
+    const blocked = !!r.block;
+    readout.classList.toggle('block', blocked);
+
+    const rows = [];
+    rows.push(rowHtml('Folder', escapeHtml(displayPath(r.folder || adoptFolder))));
+    if (r.origin && r.origin.present) rows.push(rowHtml('GitHub repo', escapeHtml(shortRepo(r.origin.url)), !r.origin.isGitHub));
+    if (r.branch) rows.push(rowHtml('Branch', escapeHtml(r.branch)));
+    if (typeof r.fileCount === 'number' && r.fileCount > 0) rows.push(rowHtml('Files tracked', String(r.fileCount)));
+    if (r.origin && r.origin.isGitHub) {
+      rows.push(rowHtml('Local changes', r.dirty ? 'unsaved changes present' : 'none'));
+      rows.push(rowHtml('Vs GitHub', versusText(r)));
+      rows.push(rowHtml('Secrets ignored (.env)', yesNo(r.secretsIgnored), !r.secretsIgnored));
+      rows.push(rowHtml('Personal folder ignored', r.gitignoreHasPersonal ? 'yes' : 'no — I’ll add it'));
+    }
+
+    const note = blocked
+      ? `<div class="ar-note">${escapeHtml(r.blockReason || 'Resolve this in your brain first, then come back.')}</div>`
+      : (adoptIntentNote(r) ? `<div class="ar-note">${escapeHtml(adoptIntentNote(r))}</div>` : '');
+
+    readout.innerHTML =
+      `<div class="ar-head"><span class="ar-badge">${escapeHtml(meta.badge)}</span><span class="ar-headline">${escapeHtml(meta.headline)}</span></div>` +
+      `<div class="ar-rows">${rows.join('')}</div>` +
+      note;
+    readout.classList.remove('hidden');
+
+    const go = document.getElementById('btn-adopt-go');
+    if (blocked) {
+      go.classList.add('hidden');
+      go.disabled = true;
+    } else {
+      go.classList.remove('hidden');
+      go.disabled = false;
+    }
+  }
+
+  function rowHtml(k, v, warn) {
+    const style = warn ? ' style="color:var(--warn)"' : '';
+    return `<div class="ar-row"><span class="ar-k">${escapeHtml(k)}</span><span class="ar-v"${style}>${v}</span></div>`;
+  }
+  function versusText(r) {
+    if (r.ahead > 0 && r.behind > 0) return `${r.ahead} ahead, ${r.behind} behind`;
+    if (r.ahead > 0) return `${r.ahead} commit(s) ahead`;
+    if (r.behind > 0) return `${r.behind} commit(s) behind`;
+    return 'in sync';
+  }
+
+  // Phase 1: inspection only. The controlled first sync + saveConfig + watcher
+  // start is Phase 2 — until it lands, confirm the brain looks adoptable and
+  // stop short of any write.
+  document.getElementById('btn-adopt-go').addEventListener('click', () => {
+    errorIn('err-adopt', 'Inspection looks good — this brain is safe to adopt. The adopt step itself is the next piece being built, so nothing has been changed.', true);
+  });
 
   // ====================================================================
   // 4 — files / clone

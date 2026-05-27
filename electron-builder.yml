@@ -19,6 +19,7 @@ directories:
 files:
   - main.js
   - preload.js
+  - lib/**/*
   - src/**/*
   - watcher/**/*
   - assets/**/*

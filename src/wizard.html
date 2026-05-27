@@ -82,6 +82,43 @@
         <div class="error-banner hidden" id="err-team"></div>
       </section>
 
+      <!-- 2b have-brain fork (solo only): adopt an existing brain, or set up new -->
+      <section class="screen" data-step="3" id="scene-have-brain">
+        <div class="eyebrow">Step 2 &middot; Your brain</div>
+        <h1>Do you already have a brain on this machine?</h1>
+        <p class="lede">If you've been running your 8020 brain locally (the one you keep current with <strong>/brain-update</strong>), point the app at it. Nothing moves and nothing gets rebuilt. Otherwise I'll set a fresh one up for you.</p>
+        <div class="choice-list">
+          <button class="choice-option" id="btn-have-existing" type="button">
+            <span class="c-title">I already have one</span>
+            <span class="c-sub">Use the brain that's already on this computer</span>
+          </button>
+          <button class="choice-option" id="btn-have-new" type="button">
+            <span class="c-title">I'm new &mdash; set one up</span>
+            <span class="c-sub">Create a fresh brain from the latest template</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 2c adopt: point at an existing brain (Phase 1 = read-only inspection) -->
+      <section class="screen" data-step="3" id="scene-adopt">
+        <div class="eyebrow">Step 2 &middot; Your existing brain</div>
+        <h1>Point me at your brain folder.</h1>
+        <p class="lede">Pick the folder your brain lives in. I'll look at it read-only and tell you exactly what I find before changing anything.</p>
+        <div class="folder-pick">
+          <div class="path">
+            <span class="label">Brain folder</span>
+            <span class="value" id="adoptFolderPath">&hellip; nothing picked yet</span>
+          </div>
+          <button class="btn small" id="btn-adopt-pick">Choose folder</button>
+        </div>
+        <div class="adopt-readout hidden" id="adoptReadout"></div>
+        <div class="error-banner hidden" id="err-adopt"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary hidden" id="btn-adopt-go" disabled>Adopt this brain</button>
+          <button class="btn ghost" id="btn-adopt-back">Back</button>
+        </div>
+      </section>
+
       <!-- 3 machine check -->
       <section class="screen" data-step="3" id="scene-machine">
         <div class="eyebrow">Step 2 &middot; Your machine</div>
