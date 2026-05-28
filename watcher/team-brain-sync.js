@@ -148,20 +148,13 @@ async function withAuthenticatedRemote(fn) {
 
 // ───── Role-based path filter ─────
 
+// Owners and Scouts have NO path filter — they write anywhere, including .claude/,
+// the root CLAUDE.md, and brand-new top-level folders (which then sync to everyone).
+// Scouts are the builders; they need the run of the brain. Only Team members are
+// restricted, to the content folders below (no .claude/, no root config files).
 const ROLE_RULES = {
   owner: null, // no filter
-  scout: [
-    '.claude/',
-    'context/',
-    'clients/',
-    'data/',
-    'projects/',
-    'todo/',
-    'plans/',
-    'templates/',
-    'README.md',
-    'CLAUDE.md',
-  ],
+  scout: null, // no filter — scouts write anywhere, same as owners
   team: [
     'context/',
     'clients/',
@@ -193,8 +186,8 @@ function currentRole() {
 
 function allowedPathsForRole(role) {
   const norm = (role || '').toLowerCase().replace(/_/g, '-');
-  if (norm === 'owner' || norm === 'head-scout') return null;
-  if (norm === 'scout') return ROLE_RULES.scout;
+  // Owners + scouts (+ legacy head-scout) write anywhere; only Team is filtered.
+  if (norm === 'owner' || norm === 'head-scout' || norm === 'scout') return null;
   return ROLE_RULES.team;
 }
 
