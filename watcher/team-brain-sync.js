@@ -148,22 +148,14 @@ async function withAuthenticatedRemote(fn) {
 
 // ───── Role-based path filter ─────
 
-// Owners and Scouts have NO path filter — they write anywhere, including .claude/,
-// the root CLAUDE.md, and brand-new top-level folders (which then sync to everyone).
-// Scouts are the builders; they need the run of the brain. Only Team members are
-// restricted, to the content folders below (no .claude/, no root config files).
-const ROLE_RULES = {
-  owner: null, // no filter
-  scout: null, // no filter — scouts write anywhere, same as owners
-  team: [
-    'context/',
-    'clients/',
-    'data/',
-    'projects/',
-    'todo/',
-    'plans/',
-  ],
-};
+// Write rules by role (a DENY model, so new folders Just Work):
+//   Owners + Scouts — NO filter. They write anywhere: root CLAUDE.md, .claude/,
+//     and brand-new top-level folders that then sync to the whole team. Scouts
+//     are the builders and need the run of the brain.
+//   Team — may write into ANY content folder, including folders a scout creates
+//     later (an allow-list would lock them out of those), but NOT root-level files
+//     and NOT root dotpaths (.claude/, .team-config/, .github/, .gitignore, …).
+//     That keeps skills, role definitions, CI and root config owner/scout-only.
 
 function loadRolesMap() {
   const p = path.join(REPO, '.team-config', 'roles.json');
@@ -184,16 +176,14 @@ function currentRole() {
   return me?.role || MEMBER_ROLE_HINT;
 }
 
-function allowedPathsForRole(role) {
+// True when this role must NOT push relPath. Owners + scouts: never. Team: blocked
+// from root-level files (no "/") and root dotpaths (".claude/", ".team-config/",
+// ".github/", ".gitignore", …); any other path — every content folder, new ones
+// included — is allowed.
+function pathBlockedForRole(relPath, role) {
   const norm = (role || '').toLowerCase().replace(/_/g, '-');
-  // Owners + scouts (+ legacy head-scout) write anywhere; only Team is filtered.
-  if (norm === 'owner' || norm === 'head-scout' || norm === 'scout') return null;
-  return ROLE_RULES.team;
-}
-
-function pathIsAllowed(relPath, allow) {
-  if (allow === null) return true;
-  return allow.some((prefix) => relPath === prefix || relPath.startsWith(prefix));
+  if (norm === 'owner' || norm === 'head-scout' || norm === 'scout') return false;
+  return relPath.startsWith('.') || !relPath.includes('/');
 }
 
 // ───── Large-file guard ─────
@@ -288,8 +278,7 @@ async function pushChanges(s) {
 
   if (MODE === 'agency') {
     const role = currentRole();
-    const allow = allowedPathsForRole(role);
-    const violations = files.filter((f) => !pathIsAllowed(f, allow));
+    const violations = files.filter((f) => pathBlockedForRole(f, role));
     if (violations.length) {
       console.log(`[${ts()}] STOP: role=${role} cannot push protected path(s):`);
       for (const f of violations.slice(0, 10)) console.log(`    - ${f}`);
