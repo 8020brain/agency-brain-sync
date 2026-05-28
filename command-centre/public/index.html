@@ -1776,9 +1776,20 @@
     var ob=$('upsell-banner');
     if(ob){
       if(show && r==='owner'){
+        // At-cap: nudge to the NEXT tier (5/10). No self-serve page for those yet, so email Mike.
         var next=NEXT_TIER[n]||'next';
         $('ub-h').textContent=word+' are in use.';
         $('ub-p').innerHTML='To add more scouts, email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for a coupon — you only pay the difference up to the '+next+' plan.';
+        $('ub-cta').href='mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20upgrade';
+        $('ub-cta').textContent='Email Mike for a coupon';
+        ob.hidden=false; wireDismiss($('ub-x'), ob);
+      } else if(r==='owner' && !n && !bannerDismissed()){
+        // Solo owner (no scout seats yet) using the Command Centre: self-serve Team-2
+        // upgrade on the page — direct pay, no emailing Mike.
+        $('ub-h').textContent='Add 2 Scouts and share your brain wider.';
+        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, for +€300/yr on your current plan. It also lifts your free Team cap from 5 to 10.';
+        $('ub-cta').href='https://agency.ads2ai.com/upgrade.html';
+        $('ub-cta').textContent='See your upgrade price';
         ob.hidden=false; wireDismiss($('ub-x'), ob);
       } else ob.hidden=true;
     }
