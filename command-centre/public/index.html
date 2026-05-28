@@ -1015,7 +1015,7 @@
     <div id="gads-scout" hidden>
       <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
       <div class="sec">Google Ads proxy <span class="note">recommended — set up once, your team never holds the credentials</span></div>
-      <p class="fs-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. Prefer to run it yourself? The exact commands are in <code>.claude/skills/gads-proxy/cloudflare/README.md</code>.</p>
+      <p class="fs-intro" id="gp-proxy-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. Prefer to run it yourself? The exact commands are in <code>.claude/skills/gads-proxy/cloudflare/README.md</code>.</p>
       <div class="grid flag-grid">
         <div class="card">
           <div class="sec">Set your team's proxy URL</div>
@@ -2118,8 +2118,26 @@
       +'<h3>What it gives you</h3><ul><li><b>CLAUDE.md</b> at the root: explains this is your confidential space and what stays private versus shared. Rewrite it for your agency.</li><li><b>team/</b>: a board.md of who reports to you, a one-on-ones/ folder (one file per direct report for review notes), and room for comp and salary.</li><li><b>business/</b>: formation documents, contracts, partnerships, strategy.</li><li><b>finances/</b>: revenue, costs, rates, margins, forecasts.</li></ul>'
       +'<h3>How you use it</h3><p>Point a Claude Code or Cowork session at that folder when you\'re working on owner-only things. It never syncs to the team, so nothing in it can leak into the shared brain, and you never copy private numbers back into the shared brain.</p>'}
   };
-  GUIDES['g-start-o']=GUIDES['g-start'];
-  GUIDES['g-onboard-o']=GUIDES['g-onboard'];
+  // Owner-voiced orientation + onboarding. (These used to alias the SCOUT guides,
+  // so an owner's "Orient" opened "Scout (you) builds the skills…" — wrong reader.)
+  GUIDES['g-start-o']={html:'<h2>Start here (orientation)</h2><p class="gp-path">onboarding-owner.md</p>'
+    +'<p>Agency Brain is one shared folder your whole agency runs with Claude. Everyone\'s copy stays in sync automatically, so the skills your team builds and the client context you write are instantly available to the whole agency.</p>'
+    +'<h3>The three roles</h3><ul><li><b>Owner</b> (you) sets direction, owns billing, and keeps a separate private space for owner-only docs. You decide what\'s shared and what stays private.</li><li><b>Scout</b> builds the skills the team uses and onboards people. Be your own scout, or add one at step 4.</li><li><b>Team</b> uses the skills. They read everywhere and write only inside their own personal folder.</li></ul>'
+    +'<h3>Your job in one line</h3><p>Set direction, decide what\'s private, and watch the brain mature. You never have to touch a terminal: do the hands-on setup yourself with the guides here, or add a scout at step 4 and hand them steps 1 to 3.</p>'};
+  GUIDES['g-onboard-o']={html:'<h2>Bringing your people on</h2><p class="gp-path">onboarding-owner.md</p>'
+    +'<p>You add people from your <b>Dashboard</b> (Add member): name, email, role. That registers their email and sends them an invite. Add your scout first (they build the skills), then your team.</p>'
+    +'<h3>How they get in</h3><ul><li>They download Agency Brain from <code>ads2ai.com/downloads</code> and install it.</li><li>They open it and <b>sign in with their own email</b> (a 6-digit code), and it finds the agency you added them to. No invite code, no GitHub account.</li></ul><p>The agency owns the GitHub side; your people borrow access transparently, so there\'s no GitHub step for them.</p>'
+    +'<h3>Scouts vs Team</h3><p>Scouts are full A2AI members who build and edit skills (a paid seat). Team members use the brain in the app and are free up to your plan\'s cap. Add a scout when you want someone building; add team when you want people using what\'s built.</p>'};
+  // Pre-June-release bridge (remove after the June release ships). The gads-proxy
+  // skill isn't in members' brains until June, so until 2026-06-04 the Google Ads
+  // tab points owners/scouts at the members portal to grab the skill zip first.
+  // On/after June 4 it leaves the normal "just say it" instruction in place.
+  (function(){
+    if(new Date() >= new Date('2026-06-04')) return;
+    var el=document.getElementById('gp-proxy-intro');
+    if(!el) return;
+    el.innerHTML='<b>First, get the skill.</b> The <code>gads-proxy</code> skill ships to every brain in the June release; until then, grab it: go to <a href="https://m.ads2ai.com/skills" target="_blank" rel="noopener">m.ads2ai.com/skills</a>, scroll to the bottom, and download <b>gads-proxy.zip</b>. Unzip the <code>gads-proxy</code> folder into your brain\'s <code>.claude/skills/</code> folder. <b>Then</b> open your brain and say <b>"set up the Google Ads proxy"</b> &mdash; it deploys a small Cloudflare Worker that holds the agency\'s Google Ads credentials and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials.';
+  })();
   function closeGuides(except){ document.querySelectorAll('.guide-panel.open').forEach(function(p){ if(p.id!==except) p.classList.remove('open'); }); }
   document.addEventListener('click',function(ev){
     var t=ev.target;
