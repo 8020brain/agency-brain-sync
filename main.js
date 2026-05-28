@@ -583,13 +583,17 @@ async function openCommandCentre() {
     if (choice === 0) shell.openPath(LOG_FILE);
     return { ok: false };
   }
-  // Restore the last position the user left the window in; only fall back to a
-  // centered default size the first time (no saved state yet).
+  // The wizard and the Command Centre share one window. The wizard is small
+  // (680 wide), so restoring its saved bounds would open the Command Centre
+  // cramped. Restore saved bounds only when they're already Command-Centre-sized
+  // (>= 1000 wide); otherwise open at a roomy default and center. Once the user
+  // resizes the CC, that larger state is what gets remembered.
   const saved = loadWindowState();
-  if (saved && boundsAreVisible(saved)) {
+  setupWindow.setMinimumSize(1000, 700);
+  if (saved && boundsAreVisible(saved) && saved.width >= 1000) {
     setupWindow.setBounds(saved);
   } else {
-    setupWindow.setSize(1280, 860);
+    setupWindow.setSize(1400, 1000);
     setupWindow.center();
   }
   await setupWindow.loadURL(`http://127.0.0.1:${CC_PORT}/`);
