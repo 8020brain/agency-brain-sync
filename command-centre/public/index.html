@@ -1301,7 +1301,7 @@
       var d=await api('/api/team-roster');
       if(d.unavailable || !d.members){
         th.innerHTML=head4;
-        tb.innerHTML='<tr><td class="empty" colspan="4">Roster unavailable'+(d.reason?(' ('+esc(d.reason)+')'):'')+'. It syncs from the server once you’re signed in to a team.</td></tr>';
+        tb.innerHTML='<tr><td class="empty" colspan="4">It’s just you on this brain so far.</td></tr>';
         ROSTER=null; renderAll();
         return;
       }

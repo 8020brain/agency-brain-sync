@@ -276,6 +276,12 @@ const server = http.createServer(async (req, res) => {
           }
         } catch (e) { /* offline / slow / signed out — keep the snapshot */ }
       }
+      // A solo / personal-mode brain has no team, so no server-assigned role.
+      // The person who set up their own brain is its owner — present the Owner
+      // view rather than a bare "No role" state. Agency members always carry a
+      // real role (owner/scout/team) from the roster refresh above, so this only
+      // affects the no-team case. View-only: real permissions stay enforced.
+      if (!memberRole && !TEAM_SLUG) memberRole = 'owner';
       return send(res, 200, {
         ok: true, brainRoot: BRAIN_ROOT,
         memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
