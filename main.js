@@ -996,7 +996,14 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   // Make sure the target's parent exists
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
   if (fs.existsSync(targetFolder)) {
-    throw new Error(`${targetFolder} already exists. Pick another location.`);
+    // An existing EMPTY folder is normal: the native picker creates the folder
+    // when you select/make one. git clones cleanly into an empty dir. Only block
+    // on real content (dotfiles don't count); clear an empty target first.
+    const realContent = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
+    if (realContent.length) {
+      throw new Error(`${targetFolder} already exists and isn't empty. Pick an empty folder or a new location.`);
+    }
+    fs.rmSync(targetFolder, { recursive: true, force: true });
   }
   await runGit(['clone', cloneUrl, targetFolder]);
   // Rewrite the remote URL back to the token-less form so we don't keep a
@@ -1221,16 +1228,18 @@ ipcMain.handle('get-brain-home', () => {
 // carry credentials (x-access-token@) for private repos.
 ipcMain.handle('clone-into', async (_evt, args) => {
   const dir = assertSafeTarget(path.normalize(args.targetFolder));
-  if (fs.existsSync(dir)) {
-    const base = path.basename(dir);
-    if (!app.isPackaged && base.includes('sandbox')) {
-      sendWizardLog('Sandbox exists — removing for a clean clone.');
-      fs.rmSync(dir, { recursive: true, force: true });
-    } else {
-      throw new Error(`${dir} already exists. Pick another location.`);
-    }
-  }
   fs.mkdirSync(path.dirname(dir), { recursive: true });
+  if (fs.existsSync(dir)) {
+    // Empty target is normal (the picker creates the folder); only block real
+    // content. Dev sandboxes are always cleared.
+    const realContent = fs.readdirSync(dir).filter((f) => !f.startsWith('.'));
+    const isDevSandbox = !app.isPackaged && path.basename(dir).includes('sandbox');
+    if (realContent.length && !isDevSandbox) {
+      throw new Error(`${dir} already exists and isn't empty. Pick an empty folder or a new location.`);
+    }
+    if (isDevSandbox) sendWizardLog('Sandbox exists — removing for a clean clone.');
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
   sendWizardLog('Cloning your brain…');
   await runGit(['clone', '--depth', '1', args.repoUrl, dir]);
   sendWizardLog('Clone complete.');
@@ -1258,13 +1267,18 @@ ipcMain.handle('clone-solo-brain', async (_evt, args) => {
   const cloneUrl = `https://x-access-token:${token}@github.com/${slug}.git`;
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
   if (fs.existsSync(targetFolder)) {
-    const base = path.basename(targetFolder);
-    if (!app.isPackaged && base.includes('sandbox')) {
-      sendWizardLog('Sandbox exists — removing for a clean clone.');
-      fs.rmSync(targetFolder, { recursive: true, force: true });
-    } else {
-      throw new Error(`${targetFolder} already exists. Pick another location.`);
+    // The native folder picker CREATES the folder when you select or make one,
+    // so an empty target is the normal case, not an error. git clones cleanly
+    // into an empty dir. Only block when the folder holds real content (dotfiles
+    // like .DS_Store don't count). Empty folders (and dev sandboxes) get cleared
+    // so the clone lands on a pristine target.
+    const realContent = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
+    const isDevSandbox = !app.isPackaged && path.basename(targetFolder).includes('sandbox');
+    if (realContent.length && !isDevSandbox) {
+      throw new Error(`${targetFolder} already exists and isn't empty. Pick an empty folder or a new location.`);
     }
+    if (isDevSandbox) sendWizardLog('Sandbox exists — removing for a clean clone.');
+    fs.rmSync(targetFolder, { recursive: true, force: true });
   }
   sendWizardLog('Cloning your brain…');
   await runGit(['clone', cloneUrl, targetFolder]);
