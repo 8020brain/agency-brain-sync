@@ -270,9 +270,18 @@ function parseWatcherOutput(text) {
 // the tray so users see a clear "needs your attention" signal.
 let stateFileWatcher = null;
 let lastStopReason = null;
+// Files the watcher parked locally (oversized, or a role the member can't push)
+// while the rest of the brain keeps syncing. Surfaced as a calm menu line — NOT
+// a red attention state, because syncing is still healthy.
+let lastHeld = [];
 
 function applyWatcherState(payload) {
   if (!payload || typeof payload.state !== 'string') return;
+  const heldNext = Array.isArray(payload.held) ? payload.held : [];
+  const heldChanged =
+    heldNext.length !== lastHeld.length ||
+    heldNext.some((h, i) => !lastHeld[i] || lastHeld[i].file !== h.file);
+  lastHeld = heldNext;
   const isAttention = payload.state === 'stop';
   if (isAttention) {
     lastStopReason = payload.reason || 'needs your attention';
@@ -284,6 +293,10 @@ function applyWatcherState(payload) {
     // Watcher reports it cleared the stop; resume normal display.
     lastStopReason = null;
     watcherState = 'running';
+    updateTray();
+  } else if (heldChanged) {
+    // State didn't transition, but the held-file list did — refresh the menu so
+    // the review line appears/disappears without flipping the icon.
     updateTray();
   }
 }
@@ -356,6 +369,14 @@ function buildMenu() {
     { type: 'separator' },
   ];
 
+  if (lastHeld && lastHeld.length) {
+    const first = lastHeld[0];
+    const extra = lastHeld.length > 1 ? ` (+${lastHeld.length - 1} more)` : '';
+    items.push({ label: `${lastHeld.length} file(s) held — kept local, still syncing the rest`, enabled: false });
+    items.push({ label: `   • ${path.basename(first.file)}: ${first.why}${extra}`, enabled: false });
+    items.push({ label: 'Open folder to review held file(s)', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); } });
+    items.push({ type: 'separator' });
+  }
   if (watcherState === 'attention') {
     items.push({ label: 'Open log to see what needs attention', click: () => shell.openPath(LOG_FILE) });
     items.push({ type: 'separator' });

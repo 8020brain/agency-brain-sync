@@ -3,15 +3,35 @@
 // Watches a git folder and keeps it in sync with origin.
 // Pulls every 60s. Commits and pushes 90s after the last local change.
 //
-// Conflict handling: classify-don't-coerce. The watcher classifies repo
-// state on every tick and STOPs on any ambiguity. Never stashes, never
-// rebases the working tree, never resets. The 2026-04-24 data-loss
-// incident is the reason; see projects/agencybrain/8020sync-build-log.md.
+// Conflict handling: recover-don't-stop, but NEVER lose data.
+//   The 2026-04-24 data-loss incident taught us the rule: never rebase, never
+//   reset --hard, never stash the working tree. The old watcher honoured that
+//   by STOPping on every ambiguity — which is safe but leaves a non-technical
+//   user staring at a red icon and a git word they don't understand. So the
+//   watcher now auto-recovers from the two states real users actually hit
+//   (local changes + remote moved, and diverged) using a plain MERGE that
+//   keeps BOTH sides:
+//     - clean merge            -> commit + push, invisible to the user.
+//     - overlapping edit       -> keep OUR file as-is, write THEIR version to a
+//                                 sidecar (foo__from-remote-<ts>.md), commit both.
+//                                 Nothing is ever overwritten or discarded.
+//   Before every merge it writes a backup ref (refs/backups/pre-merge-<ts>) so
+//   the pre-merge HEAD is always recoverable. It still STOPs only on things a
+//   human genuinely must handle (offline/fetch failure, a push the server
+//   rejects, or a stray rebase/cherry-pick the user started by hand).
 //
-// Large-file guard: before staging, any single file at/over MAX_FILE_MB
-// (default 50 MB — GitHub warns at 50, hard-rejects at 100) makes the watcher
-// STOP instead of commit. A dumped video would otherwise either wedge the
-// sync on a push GitHub rejects forever, or bloat every teammate's clone.
+// Isolate-and-continue (not stop-the-world):
+//   A single problem file no longer freezes ALL syncing. Instead it's HELD —
+//   left in the working tree, excluded from this commit — while everything else
+//   keeps flowing, and the held file is reported (state.held[]) for the tray.
+//     - oversized (>= MAX_FILE_MB) -> added to .git/info/exclude (local-only,
+//       never touches the synced .gitignore) and held.
+//     - role violation (Team member touching a protected path) -> that path is
+//       held; the member's allowed changes still commit and push.
+//
+// Large-file context: GitHub warns at 50 MB and hard-rejects any single file
+// over 100 MB, so an un-held big file would wedge every push forever and bloat
+// every teammate's clone. Holding it locally keeps the sync alive.
 //
 // Two modes, selected by BRAIN_SYNC_MODE env var:
 //
@@ -23,8 +43,8 @@
 //                token in the remote URL temporarily, then restores the
 //                clean URL. Token never persists between operations.
 //                Also reads .team-config/roles.json from the working tree
-//                and STOPs (does not push) when changes touch paths outside
-//                the local member's role allow-list.
+//                and HOLDS (does not push) paths outside the local member's
+//                role allow-list.
 
 const chokidar = require('chokidar');
 const { execSync } = require('child_process');
@@ -36,6 +56,7 @@ const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_MS || '90000', 10);
 const PULL_INTERVAL_MS = parseInt(process.env.PULL_INTERVAL_MS || '60000', 10);
 const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '50', 10);
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+const KEEP_BACKUPS = parseInt(process.env.KEEP_BACKUPS || '30', 10);
 const MODE = process.env.BRAIN_SYNC_MODE || 'personal';
 const API_BASE = process.env.AGENCY_API_BASE || 'https://api.ads2ai.com';
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
@@ -65,6 +86,11 @@ function ts() {
   return new Date().toISOString().slice(0, 19).replace('T', ' ');
 }
 
+// Compact timestamp for ref names and sidecar filenames: 20260529-143052.
+function tsCompact() {
+  return new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14).replace(/(\d{8})(\d{6})/, '$1-$2');
+}
+
 function git(cmd) {
   try {
     return execSync(`git -C "${REPO}" ${cmd}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -85,11 +111,25 @@ function gitProbe(cmd) {
   }
 }
 
+// Run a git command that is EXPECTED to sometimes exit non-zero (a conflicting
+// merge, a missing merge stage). Returns { ok, out } and never logs — the
+// caller decides what a non-zero exit means.
+function gitTry(cmd) {
+  try {
+    const out = execSync(`git -C "${REPO}" ${cmd}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    return { ok: true, out };
+  } catch (err) {
+    return { ok: false, out: (err.stdout || '').toString().trim(), err: (err.stderr || err.message || '').toString().trim() };
+  }
+}
+
 // ───── Observable state for the tray ─────
 
 // Written atomically when state changes so main.js can poll/watch the file
-// and update the tray icon (green/orange/red).
-function writeState(state, reason) {
+// and update the tray icon (green/orange/red). `extra` carries optional
+// fields the tray reads but the icon ignores — notably held: [{file, why}]
+// for files parked locally while the rest of the brain keeps syncing.
+function writeState(state, reason, extra) {
   if (!STATE_FILE) return;
   const payload = {
     state, // 'running' | 'pulling' | 'pushing' | 'stop'
@@ -97,11 +137,22 @@ function writeState(state, reason) {
     updatedAt: new Date().toISOString(),
     mode: MODE,
   };
+  if (extra && typeof extra === 'object') Object.assign(payload, extra);
   try {
     const tmp = `${STATE_FILE}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(payload));
     fs.renameSync(tmp, STATE_FILE);
   } catch (_) { /* best-effort */ }
+}
+
+// Held files keep the tray GREEN (still syncing) but surface a review line.
+// An empty list clears it.
+function reportRunning(held) {
+  if (held && held.length) {
+    writeState('running', `${held.length} file(s) held — review`, { held });
+  } else {
+    writeState('running', null, { held: [] });
+  }
 }
 
 // ───── Agency-mode auth ─────
@@ -121,6 +172,21 @@ async function mintGitToken() {
   }
   const json = await r.json();
   return { token: json.token, expiresAt: new Date(json.expiresAt) };
+}
+
+// Tell the server this member just pushed content they authored. Distinct from
+// the git-token heartbeat (which fires on every pull and only proves the app is
+// running): this is the honest "actually contributing" signal. Best-effort and
+// non-blocking — if it fails the heartbeat still covers connection status.
+async function reportContribution() {
+  if (MODE !== 'agency') return;
+  try {
+    await fetch(`${API_BASE}/api/team-brain/contributed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MEMBER_TOKEN}` },
+      body: JSON.stringify({ teamSlug: TEAM_SLUG }),
+    });
+  } catch (_) { /* best-effort */ }
 }
 
 async function getGitToken() {
@@ -188,12 +254,10 @@ function pathBlockedForRole(relPath, role) {
 
 // ───── Large-file guard ─────
 
-// Nothing else checks size: pushChanges() would otherwise `git add -A` a
-// dumped video and commit it. GitHub hard-rejects any single file over 100 MB,
-// so that push fails every 60s tick forever (the commit is already local), and
-// a sub-100 MB binary pushes fine then bloats every teammate's clone for good.
-// So size each to-be-staged file first and STOP on anything at/over the limit —
-// same classify-don't-coerce contract as a conflict: leave it for a human.
+// GitHub hard-rejects any single file over 100 MB, so an un-held big file would
+// make every push fail forever (the commit is already local), and a sub-100 MB
+// binary pushes fine then bloats every teammate's clone for good. So size each
+// to-be-staged file and HOLD anything at/over the limit (see stageAndCommit).
 function oversizedFiles(files) {
   const hits = [];
   for (const rel of files) {
@@ -205,15 +269,169 @@ function oversizedFiles(files) {
   return hits;
 }
 
+// Park a path in the repo's LOCAL exclude (.git/info/exclude) so it stops
+// showing up as a pending change every tick. This file is per-clone and is
+// never committed or synced, unlike .gitignore — so holding a member's big
+// local file never mutates the shared brain.
+function addToLocalExclude(rel) {
+  const p = path.join(REPO, '.git', 'info', 'exclude');
+  let cur = '';
+  try { cur = fs.readFileSync(p, 'utf8'); } catch (_) { /* file may not exist yet */ }
+  const line = `/${rel}`;
+  if (cur.split('\n').includes(line)) return;
+  const sep = cur.length && !cur.endsWith('\n') ? '\n' : '';
+  try { fs.appendFileSync(p, `${sep}${line}\n`); } catch (_) { /* best-effort */ }
+}
+
+// ───── Backup refs (recoverability) ─────
+
+// Snapshot HEAD before any merge so the pre-merge state is always recoverable
+// (git update-ref is instant and free). Old backups are pruned to KEEP_BACKUPS.
+function backupRef(tag) {
+  const name = `refs/backups/${tag}-${tsCompact()}`;
+  git(`update-ref ${name} HEAD`);
+  const out = gitProbe('for-each-ref --sort=-creatordate --format=%(refname) refs/backups/');
+  const refs = out.split('\n').filter(Boolean);
+  for (const stale of refs.slice(KEEP_BACKUPS)) git(`update-ref -d ${stale}`);
+  return name;
+}
+
 // ───── Mid-operation guard ─────
 
 function midOperation() {
   const gitDir = path.join(REPO, '.git');
+  if (fs.existsSync(path.join(gitDir, 'MERGE_HEAD'))) return 'merge';
   if (fs.existsSync(path.join(gitDir, 'rebase-merge'))) return 'rebase';
   if (fs.existsSync(path.join(gitDir, 'rebase-apply'))) return 'rebase';
-  if (fs.existsSync(path.join(gitDir, 'MERGE_HEAD'))) return 'merge';
   if (fs.existsSync(path.join(gitDir, 'CHERRY_PICK_HEAD'))) return 'cherry-pick';
   return null;
+}
+
+// ───── Conflict resolution: keep both sides ─────
+
+// Build a sidecar name next to the original: report.md -> report__from-remote-<ts>.md
+function sidecarName(rel, stamp) {
+  const dir = path.dirname(rel);
+  const base = path.basename(rel);
+  const dot = base.lastIndexOf('.');
+  const tag = `__from-remote-${stamp}`;
+  const renamed = dot > 0 ? base.slice(0, dot) + tag + base.slice(dot) : base + tag;
+  return dir === '.' ? renamed : path.join(dir, renamed);
+}
+
+// Resolve an in-progress conflicted merge WITHOUT losing data: for each
+// unmerged path, keep OUR version as the live file and write THEIR version to a
+// sidecar, then commit. Returns the list of conflicts (each {file, sidecar}).
+function resolveConflictsAndCommit(stamp) {
+  const unmerged = gitProbe('diff --name-only --diff-filter=U').split('\n').filter(Boolean);
+  const conflicts = [];
+  for (const f of unmerged) {
+    const theirs = gitTry(`show ":3:${f}"`); // stage 3 = remote/their side
+    try {
+      if (theirs.ok) {
+        const sc = sidecarName(f, stamp);
+        const scAbs = path.join(REPO, sc);
+        fs.mkdirSync(path.dirname(scAbs), { recursive: true });
+        fs.writeFileSync(scAbs, theirs.out.endsWith('\n') ? theirs.out : `${theirs.out}\n`);
+        git(`add -- "${sc}"`);
+        conflicts.push({ file: f, sidecar: sc });
+      }
+      // Keep our clean version as the live file. If ours doesn't exist for this
+      // path (e.g. deleted-by-us / modified-by-them), fall back to theirs so the
+      // file isn't lost — the sidecar already preserved the other side either way.
+      const ours = git(`checkout --ours -- "${f}"`);
+      if (ours === null) git(`checkout --theirs -- "${f}"`);
+      git(`add -- "${f}"`);
+    } catch (_) {
+      git(`add -- "${f}"`); // last resort: whatever's on disk, so the merge can finish
+    }
+  }
+  // Stage everything the merge auto-resolved too, then commit the merge.
+  git('add -A');
+  let r = git('commit --no-edit');
+  if (r === null) r = git(`commit -m "auto-sync merge ${ts()} (kept both sides where edits overlapped)"`);
+  return conflicts;
+}
+
+// Pull remote changes via a plain MERGE (never rebase/reset). Snapshots a
+// backup ref first. Returns { merged, conflicts, error }.
+function mergeWithSidecars(branch) {
+  backupRef('pre-merge');
+  const stamp = tsCompact();
+  const m = gitTry(`merge --no-edit origin/${branch}`);
+  if (m.ok && midOperation() !== 'merge') {
+    return { merged: true, conflicts: [] }; // clean merge
+  }
+  if (midOperation() !== 'merge') {
+    // Merge refused without entering a merge (shouldn't happen — we commit
+    // local work first — but never leave a half state). Report for a human.
+    return { merged: false, conflicts: [], error: m.err || 'merge refused' };
+  }
+  const conflicts = resolveConflictsAndCommit(stamp);
+  return { merged: true, conflicts };
+}
+
+// ───── Commit lane (isolate-and-continue) ─────
+
+// Stage and commit local work. Files the member's role can't push, or that are
+// oversized, are HELD (left uncommitted, reported) rather than freezing the
+// whole sync. Returns { committed, held: [{file, why}], error }.
+function stageAndCommit(s) {
+  // s.statusLines come from porcelain output. Parse the files to consider.
+  // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
+  // git() .trim()s the whole status blob, which strips the leading space off the
+  // FIRST line when its index column is blank (" M path" -> "M path"). A fixed
+  // slice(3) then eats the first path char ("context/..." -> "ontext/..."), which
+  // also mis-classifies an allowed personal file as a protected violation. Strip
+  // the status field (1-2 cols, tolerating that trim) plus its single space instead.
+  const files = (s.statusLines || []).map((line) =>
+    line.replace(/^[ MADRCU!?]{1,2} /, '').split(' -> ').pop()
+  );
+  if (!files.length) return { committed: false, held: [] };
+
+  git('add -A');
+  const held = [];
+
+  if (MODE === 'agency') {
+    const role = currentRole();
+    for (const f of files) {
+      if (pathBlockedForRole(f, role)) {
+        git(`reset -q HEAD -- "${f}"`);
+        held.push({ file: f, why: `needs an owner or scout to push (you're ${role})` });
+      }
+    }
+  }
+
+  // Hold oversized files among what's still staged: park in local exclude so
+  // they stop reappearing, and leave them on disk untouched.
+  const stagedNow = gitProbe('diff --cached --name-only').split('\n').filter(Boolean);
+  for (const hit of oversizedFiles(stagedNow)) {
+    git(`reset -q HEAD -- "${hit.rel}"`);
+    addToLocalExclude(hit.rel);
+    held.push({ file: hit.rel, why: `${Math.round(hit.mb)} MB — too big to sync, kept on this machine only` });
+  }
+
+  for (const h of held) console.log(`[${ts()}]   held: ${h.file} — ${h.why}`);
+
+  const staged = gitProbe('diff --cached --name-only').split('\n').filter(Boolean);
+  if (!staged.length) {
+    return { committed: false, held }; // everything was held
+  }
+
+  const commitMsg = `auto-sync: ${ts()}`;
+  let commitResult = git(`commit -m "${commitMsg}"`);
+  if (commitResult === null) {
+    // Most common cause: this clone has no git author identity, so its very
+    // first commit fails. Self-heal the identity and retry once.
+    ensureGitIdentity();
+    commitResult = git(`commit -m "${commitMsg}"`);
+  }
+  if (commitResult === null) {
+    git('reset -q HEAD');
+    return { committed: false, held, error: 'commit failed' };
+  }
+  console.log(`[${ts()}]   committed ${staged.length} file(s)${held.length ? `, held ${held.length}` : ''}`);
+  return { committed: true, held };
 }
 
 // ───── Repo state classifier ─────
@@ -230,6 +448,7 @@ async function classifyState() {
   const status = git('status --porcelain');
   if (status === null) return { state: 'unknown' };
   const dirty = status.length > 0;
+  const statusLines = status.split('\n').filter(Boolean);
 
   const branch = git('rev-parse --abbrev-ref HEAD');
   if (!branch) return { state: 'unknown' };
@@ -240,7 +459,7 @@ async function classifyState() {
 
   if (localSha === remoteSha) {
     return dirty
-      ? { state: 'dirty_in_sync', branch, statusLines: status.split('\n').filter(Boolean) }
+      ? { state: 'dirty_in_sync', branch, statusLines }
       : { state: 'clean_in_sync', branch };
   }
 
@@ -250,91 +469,16 @@ async function classifyState() {
 
   if (ahead === 0 && behind > 0) {
     return dirty
-      ? { state: 'dirty_remote_ahead', branch, behind, statusLines: status.split('\n').filter(Boolean) }
+      ? { state: 'dirty_remote_ahead', branch, behind, statusLines }
       : { state: 'clean_remote_ahead', branch, behind };
   }
   if (ahead > 0 && behind === 0) {
-    return { state: 'local_ahead', branch, ahead, dirty, statusLines: status.split('\n').filter(Boolean) };
+    return { state: 'local_ahead', branch, ahead, dirty, statusLines };
   }
   if (ahead > 0 && behind > 0) {
-    return { state: 'diverged', branch, ahead, behind, dirty };
+    return { state: 'diverged', branch, ahead, behind, dirty, statusLines };
   }
   return { state: 'unknown', branch };
-}
-
-// ───── Push lane ─────
-
-async function pushChanges(s) {
-  // s.statusLines come from porcelain output. Parse files we need to stage.
-  // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
-  // git() .trim()s the whole status blob, which strips the leading space off the
-  // FIRST line when its index column is blank (" M path" -> "M path"). A fixed
-  // slice(3) then eats the first path char ("context/..." -> "ontext/..."), which
-  // also mis-classifies an allowed personal file as a protected violation. Strip
-  // the status field (1-2 cols, tolerating that trim) plus its single space instead.
-  const files = (s.statusLines || []).map((line) =>
-    line.replace(/^[ MADRCU!?]{1,2} /, '').split(' -> ').pop()
-  );
-
-  if (MODE === 'agency') {
-    const role = currentRole();
-    const violations = files.filter((f) => pathBlockedForRole(f, role));
-    if (violations.length) {
-      console.log(`[${ts()}] STOP: role=${role} cannot push protected path(s):`);
-      for (const f of violations.slice(0, 10)) console.log(`    - ${f}`);
-      if (violations.length > 10) console.log(`    (and ${violations.length - 10} more)`);
-      console.log(`[${ts()}]   leaving changes in working tree; resolve the protected file(s) and the sync will resume`);
-      writeState('stop', `role=${role} cannot push: ${violations[0]}${violations.length > 1 ? ` (+${violations.length - 1} more)` : ''}`);
-      // Unstage anything that might already be staged so the user has a clean canvas
-      git('reset HEAD');
-      return;
-    }
-  }
-
-  if (!files.length) {
-    writeState('running', 'nothing to push');
-    return;
-  }
-
-  const tooBig = oversizedFiles(files);
-  if (tooBig.length) {
-    console.log(`[${ts()}] STOP: ${tooBig.length} file(s) at/over ${MAX_FILE_MB} MB — GitHub would reject the push, so not committing:`);
-    for (const f of tooBig.slice(0, 10)) console.log(`    - ${f.rel} (${Math.round(f.mb)} MB)`);
-    if (tooBig.length > 10) console.log(`    (and ${tooBig.length - 10} more)`);
-    console.log(`[${ts()}]   leaving them in the working tree — move them out of the brain or add them to .gitignore and the sync resumes`);
-    const first = tooBig[0];
-    writeState('stop', `${first.rel} is ${Math.round(first.mb)} MB — too big to sync${tooBig.length > 1 ? ` (+${tooBig.length - 1} more)` : ''}; move it out or gitignore it`);
-    git('reset HEAD');
-    return;
-  }
-
-  writeState('pushing');
-  git('add -A');
-  const commitMsg = `auto-sync: ${ts()}`;
-  let commitResult = git(`commit -m "${commitMsg}"`);
-  if (commitResult === null) {
-    // Most common cause: this clone has no git author identity, so its very
-    // first commit fails. Self-heal the identity and retry once, so a watcher
-    // that's already running recovers without waiting for a restart.
-    ensureGitIdentity();
-    commitResult = git(`commit -m "${commitMsg}"`);
-  }
-  if (commitResult === null) {
-    console.log(`[${ts()}]   commit failed; unstaging`);
-    git('reset HEAD');
-    writeState('stop', 'commit failed');
-    return;
-  }
-  console.log(`[${ts()}]   committed ${files.length} file(s)`);
-
-  const pushResult = await withAuthenticatedRemote(() => git('push'));
-  if (pushResult === null) {
-    console.log(`[${ts()}]   push failed; will retry next tick`);
-    writeState('stop', 'push failed');
-  } else {
-    console.log(`[${ts()}]   pushed.`);
-    writeState('running');
-  }
 }
 
 // ───── Main sync function ─────
@@ -343,10 +487,17 @@ async function doSync(trigger) {
   if (syncing) return;
   syncing = true;
   try {
+    // 0. Finish any merge we left mid-flight (e.g. crash during a previous
+    //    auto-merge). Resolving keeps both sides, so it's safe to complete
+    //    rather than STOP. A stray rebase/cherry-pick is the user's own manual
+    //    operation — we never start those, so leave it for them.
     const mid = midOperation();
-    if (mid) {
-      console.log(`[${ts()}] STOP: mid-${mid} in progress; manual resolution needed`);
-      writeState('stop', `mid-${mid}`);
+    if (mid === 'merge') {
+      console.log(`[${ts()}] completing interrupted merge`);
+      resolveConflictsAndCommit(tsCompact());
+    } else if (mid) {
+      console.log(`[${ts()}] STOP: mid-${mid} in progress (started by hand); finish it and sync resumes`);
+      writeState('stop', `a ${mid} is in progress — finish it in a terminal and sync resumes`);
       return;
     }
 
@@ -355,49 +506,97 @@ async function doSync(trigger) {
 
     if (s.state === 'fetch_failed') {
       console.log(`[${ts()}] ${trigger}: fetch failed -- ${s.detail}`);
-      writeState('stop', 'fetch failed');
+      writeState('stop', 'offline or fetch failed — will retry');
       return;
     }
     if (s.state === 'clean_in_sync') {
       if (trigger !== 'interval') console.log(`[${ts()}] ${trigger}: clean, in sync`);
-      writeState('running');
+      reportRunning([]);
       return;
     }
     if (s.state === 'clean_remote_ahead') {
       console.log(`[${ts()}] ${trigger}: remote ahead by ${s.behind}; fast-forwarding`);
       const r = git(`merge --ff-only origin/${s.branch}`);
       if (r === null) {
-        console.log(`[${ts()}]   ff-only failed`);
-        writeState('stop', 'fast-forward failed');
+        // Shouldn't happen (no local commits), but if it does, a real merge
+        // handles it without losing anything.
+        const res = mergeWithSidecars(s.branch);
+        if (!res.merged) { writeState('stop', res.error || 'fast-forward failed'); return; }
+        reportRunning(res.conflicts.map((c) => ({ file: c.file, why: `overlapping edit — kept both, see ${path.basename(c.sidecar)}` })));
       } else {
         console.log(`[${ts()}]   fast-forwarded`);
-        writeState('running');
+        reportRunning([]);
       }
       return;
     }
-    if (s.state === 'dirty_remote_ahead') {
-      console.log(`[${ts()}] STOP: ${trigger}: local changes AND remote moved (${s.behind} ahead); resolve manually`);
-      writeState('stop', `local changes plus ${s.behind} new remote commit(s) — resolve manually`);
+    if (s.state === 'unknown') {
+      console.log(`[${ts()}] ${trigger}: unrecognised git state; skipping this tick`);
+      writeState('stop', 'unrecognised git state');
       return;
     }
-    if (s.state === 'diverged') {
-      console.log(`[${ts()}] STOP: ${trigger}: diverged (ahead ${s.ahead}, behind ${s.behind}); resolve manually`);
-      writeState('stop', `diverged: ahead ${s.ahead}, behind ${s.behind}`);
+
+    const behind = s.state === 'dirty_remote_ahead' || s.state === 'diverged';
+
+    // Debounce owns pushes for purely-local changes. The interval only acts as a
+    // safety net when no debounce is pending — but if we're BEHIND, act now so
+    // remote work lands promptly.
+    if (trigger === 'interval' && pendingTimer !== null && !behind) {
+      syncing = false;
       return;
     }
-    if (s.state === 'dirty_in_sync' || s.state === 'local_ahead') {
-      // Debounce owns push. Interval pushes only as a safety net when
-      // no debounce timer is pending (chokidar miss, daemon just started
-      // against a pre-existing dirty tree).
-      if (trigger === 'interval' && pendingTimer !== null) {
+
+    // 1. Commit local work first (isolate-and-continue). This collapses
+    //    dirty_remote_ahead into a clean "behind" merge and removes the old
+    //    "local changes AND remote moved" dead-end entirely.
+    let held = [];
+    let didContribute = false; // committed content THIS member authored this cycle
+    const hasLocalEdits = s.state === 'dirty_in_sync' || s.state === 'dirty_remote_ahead' || (s.state === 'diverged' && s.dirty);
+    if (hasLocalEdits) {
+      const r = stageAndCommit(s);
+      held = r.held || [];
+      didContribute = r.committed === true;
+      if (r.error) {
+        console.log(`[${ts()}]   ${r.error}`);
+        writeState('stop', r.error);
         return;
       }
-      console.log(`[${ts()}] ${trigger}: pushing changes`);
-      await pushChanges(s);
+    }
+
+    // 2. Merge remote in if we're behind (auto, keeps both sides, backup ref).
+    if (behind) {
+      writeState('pulling');
+      console.log(`[${ts()}] ${trigger}: remote moved (behind ${s.behind}); merging`);
+      const res = mergeWithSidecars(s.branch);
+      if (!res.merged) {
+        writeState('stop', res.error || 'merge failed');
+        return;
+      }
+      if (res.conflicts.length) {
+        console.log(`[${ts()}]   merged with ${res.conflicts.length} overlapping file(s); kept both sides`);
+        held = held.concat(res.conflicts.map((c) => ({ file: c.file, why: `overlapping edit — kept both, see ${path.basename(c.sidecar)}` })));
+      } else {
+        console.log(`[${ts()}]   merged cleanly`);
+      }
+    }
+
+    // 3. Push (skip the network round-trip when there's genuinely nothing new).
+    const ahead = git(`rev-list --count origin/${s.branch}..${s.branch}`);
+    if (ahead === '0' || ahead === null) {
+      reportRunning(held);
       return;
     }
-    console.log(`[${ts()}] ${trigger}: unrecognised state (${s.state}); skipping`);
-    writeState('stop', `unknown state: ${s.state}`);
+    writeState('pushing');
+    const pushResult = await withAuthenticatedRemote(() => git('push'));
+    if (pushResult === null) {
+      // Most often a race: someone pushed between our fetch and our push. Next
+      // tick re-classifies as behind and auto-merges, so this self-heals.
+      console.log(`[${ts()}]   push failed; will retry next tick`);
+      writeState('stop', 'push failed — will retry');
+      return;
+    }
+    console.log(`[${ts()}]   pushed.`);
+    if (didContribute) reportContribution().catch(() => {});
+    reportRunning(held);
   } catch (err) {
     console.error(`[${ts()}] sync error: ${err.message}`);
     writeState('stop', `error: ${err.message}`);

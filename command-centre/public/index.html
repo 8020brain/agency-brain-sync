@@ -277,6 +277,7 @@
   .st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:2px;white-space:nowrap;}
   .st.active{background:var(--ok-soft);color:var(--ok);} .st.quiet{background:var(--draft-bg);color:var(--draft);} .st.dormant{background:var(--warn-soft);color:var(--warn);}
   .st.installed{background:var(--accent-soft);color:var(--accent);}
+  .conn{font-size:11px;vertical-align:middle;} .conn.on{color:var(--ok);} .conn.off{color:var(--muted);}
   .tag-build{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:2px;background:var(--accent-soft);color:var(--accent);margin-left:6px;}
   .bill-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;} .bill-row:last-child{border-bottom:0;}
   .bill-row .k{color:var(--muted);} .bill-row .v{font-weight:600;text-align:right;} .bill-row .v.cap{color:var(--accent);}
@@ -697,7 +698,7 @@
           </div>
           <div class="table-scroll">
             <table class="team-table">
-              <thead id="team-head"><tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th></tr></thead>
+              <thead id="team-head"><tr><th>Name</th><th>Email</th><th>Role</th><th>Activity</th></tr></thead>
               <tbody id="team-tbody"></tbody>
             </table>
           </div>
@@ -779,7 +780,7 @@
           </div>
           <div class="table-scroll">
             <table class="team-table">
-              <thead id="team-head-s"><tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th></tr></thead>
+              <thead id="team-head-s"><tr><th>Name</th><th>Email</th><th>Role</th><th>Activity</th></tr></thead>
               <tbody id="team-tbody-s"></tbody>
             </table>
           </div>
@@ -915,7 +916,7 @@
           </summary>
           <div class="body">
             <p>The key the app uses to reach the brain repo is deliberately short-lived for security, so the watcher quietly fetches a fresh one about once an hour. You never see this.</p>
-            <p>It doubles as a heartbeat: each time it happens, the server notes that this machine is alive and syncing. That's what powers the "last synced" time the Scout sees in the roster.</p>
+            <p>It doubles as a heartbeat: each time it happens, the server notes that this machine is alive and connected. That's the connection dot in the roster. Note that it only means the app is running, not that the person is working. The roster shows that separately as "Activity", which only updates when someone actually pushes work they authored, so a machine left running quietly pulling everyone else's changes never looks active when it isn't.</p>
           </div>
         </details>
 
@@ -1296,7 +1297,7 @@
   }
   async function loadRoster(){
     var tb=$('team-tbody'), th=$('team-head');
-    var head4='<tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th></tr>';
+    var head4='<tr><th>Name</th><th>Email</th><th>Role</th><th>Activity</th></tr>';
     try{
       var d=await api('/api/team-roster');
       if(d.unavailable || !d.members){
@@ -1320,14 +1321,14 @@
         $('who-role').textContent=(rr?cap(rr):'No role')+' view';
       }
       var canEdit=(rr==='owner'||rr==='scout'||rr==='head-scout');
-      th.innerHTML='<tr><th>Name</th><th>Email</th><th>Role</th><th>Synced</th>'+(canEdit?'<th></th>':'')+'</tr>';
+      th.innerHTML='<tr><th>Name</th><th>Email</th><th>Role</th><th>Activity</th>'+(canEdit?'<th></th>':'')+'</tr>';
       SCOUT_COUNT=(d.members||[]).filter(function(m){return /scout/.test(String(m.role||''));}).length;
       // Seats used = owner + scout (the priced portal seats), what the N+1 cap counts.
       SEATS_USED=(d.members||[]).filter(function(m){return /owner|scout|head/.test(String(m.role||''));}).length;
       maybeBanner(); maybePortalNudge();
       tb.innerHTML = d.members.length ? d.members.map(function(m){
         var stt = memberStatus(m);
-        var synced = '<span class="st '+stt.cls+'">'+stt.label+'</span>'
+        var synced = connDot(m) + ' <span class="st '+stt.cls+'">'+stt.label+'</span>'
           + (stt.sa ? ' <span class="ago" style="font-size:11px">'+agoFine(stt.sa)+'</span>'
              : (m.pendingClaim ? ' <span class="notsynced">pending</span>' : ''));
         var nudge = (canEdit && stt.cls!=='active') ? '<button class="mini" data-nudge="'+esc(m.slug)+'" data-email="'+esc(m.email)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role||'')+'" title="Resend their invite">Nudge</button>' : '';
@@ -1820,17 +1821,31 @@
     return (OBS.recentlyImproved||[]).some(function(s){ return String(s.lastImprovedBy||'').toLowerCase()===nm; });
   }
 
-  // status of one roster member. "installed" (NEW) = app synced but zero sessions
-  // logged — the blind spot the sync heartbeat alone hides (app running, person
-  // hasn't actually opened Claude). active (<7d + has runs) / quiet (>=7d) / not started.
+  // status of one roster member. Connection (lastSyncedAt heartbeat = app
+  // running) is kept SEPARATE from contribution (lastContributedAt = actually
+  // pushed authored content). active/quiet keys off CONTRIBUTION, so a machine
+  // left running pulling everyone else's work never masquerades as active.
+  //   not started — never connected
+  //   installed   — connected but no authored contribution yet
+  //   active      — contributed in the last 7 days
+  //   quiet       — connected, but no contribution in 7+ days
+  // sa = the contribution time (what the "ago" label shows).
   function memberStatus(m){
-    var sa=m.lastSyncedAt||m.installCompletedAt;
-    if(!sa) return {cls:'dormant',label:'not started',sa:null};
-    var u=memberUsage(m); var runs=u?u.runs:0;
-    if(runs===0) return {cls:'installed',label:'installed',sa:sa};
-    var days=Math.floor((Date.now()-new Date(sa).getTime())/86400000);
-    if(days>=7) return {cls:'quiet',label:'quiet',sa:sa};
-    return {cls:'active',label:'active',sa:sa};
+    var conn=m.lastSyncedAt||m.installCompletedAt;
+    var contrib=m.lastContributedAt;
+    if(!conn) return {cls:'dormant',label:'not started',sa:null,conn:null};
+    if(!contrib) return {cls:'installed',label:'installed',sa:null,conn:conn};
+    var days=Math.floor((Date.now()-new Date(contrib).getTime())/86400000);
+    if(days>=7) return {cls:'quiet',label:'quiet',sa:contrib,conn:conn};
+    return {cls:'active',label:'active',sa:contrib,conn:conn};
+  }
+  // Connection dot from the heartbeat. The watcher mints a token ~hourly, so
+  // "online" allows 90 min of slack before we call a machine offline.
+  function connDot(m){
+    var c=m.lastSyncedAt; if(!c) return '';
+    var mins=Math.floor((Date.now()-new Date(c).getTime())/60000);
+    var on=mins<90;
+    return '<span class="conn '+(on?'on':'off')+'" title="'+(on?'App online':'App last seen '+agoFine(c))+'">●</span>';
   }
   function rosterBuckets(){
     var notStarted=[], quiet=[];
