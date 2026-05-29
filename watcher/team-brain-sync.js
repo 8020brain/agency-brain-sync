@@ -54,6 +54,11 @@ const fs = require('fs');
 const REPO = process.env.BRAIN_PATH;
 const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_MS || '90000', 10);
 const PULL_INTERVAL_MS = parseInt(process.env.PULL_INTERVAL_MS || '60000', 10);
+// Hard ceiling on how long constant file churn can defer a commit. The 90s
+// debounce resets on every change, so a brain that writes a file more often
+// than that (live session logs, usage logs, caches) would reset it forever and
+// never sync. Past this cap we flush regardless of ongoing churn.
+const MAX_DEFER_MS = parseInt(process.env.MAX_DEFER_MS || '180000', 10);
 const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '50', 10);
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 const KEEP_BACKUPS = parseInt(process.env.KEEP_BACKUPS || '30', 10);
@@ -81,6 +86,7 @@ if (MODE === 'agency' && (!MEMBER_TOKEN || !TEAM_SLUG)) {
 
 let pendingTimer = null;
 let syncing = false;
+let oldestPendingAt = null; // when the current uncommitted batch first changed
 let tokenCache = null; // { token, expiresAt: Date }
 
 function ts() {
@@ -512,6 +518,7 @@ async function doSync(trigger) {
     }
     if (s.state === 'clean_in_sync') {
       if (trigger !== 'interval') console.log(`[${ts()}] ${trigger}: clean, in sync`);
+      oldestPendingAt = null;
       reportRunning([]);
       return;
     }
@@ -540,11 +547,18 @@ async function doSync(trigger) {
 
     // Debounce owns pushes for purely-local changes. The interval only acts as a
     // safety net when no debounce is pending — but if we're BEHIND, act now so
-    // remote work lands promptly.
-    if (trigger === 'interval' && pendingTimer !== null && !behind) {
+    // remote work lands promptly. Crucially, only skip while the pending batch
+    // is still YOUNGER than the defer cap: under constant churn the debounce
+    // never fires, so once the batch is older than the cap the interval must
+    // force the flush rather than skip forever.
+    if (trigger === 'interval' && pendingTimer !== null && !behind
+        && oldestPendingAt !== null && (Date.now() - oldestPendingAt) < MAX_DEFER_MS) {
       syncing = false;
       return;
     }
+    // From here we're flushing whatever's pending; reset the defer clock so
+    // edits during/after this sync start a fresh window.
+    oldestPendingAt = null;
 
     // 1. Commit local work first (isolate-and-continue). This collapses
     //    dirty_remote_ahead into a clean "behind" merge and removes the old
@@ -607,7 +621,17 @@ async function doSync(trigger) {
 }
 
 function scheduleDebouncedSync() {
+  if (oldestPendingAt === null) oldestPendingAt = Date.now();
   if (pendingTimer) clearTimeout(pendingTimer);
+  // If this batch has been deferred past the cap, stop resetting and flush now.
+  // Without this, churn faster than DEBOUNCE_MS resets the timer forever and
+  // nothing ever commits (2026-05-29 dogfood: live brain churned every few
+  // seconds, the 90s debounce never fired, the interval kept skipping).
+  if (Date.now() - oldestPendingAt >= MAX_DEFER_MS) {
+    pendingTimer = null;
+    doSync('debounce').catch(() => {});
+    return;
+  }
   pendingTimer = setTimeout(() => {
     pendingTimer = null;
     doSync('debounce').catch(() => {});
