@@ -208,6 +208,7 @@ function startWatcher() {
     env.AGENCY_MEMBER_ROLE = config.memberRole || 'team';
     env.AGENCY_MEMBER_TOKEN = config.memberToken || '';
     env.AGENCY_API_BASE = API_BASE;
+    env.AGENCY_APP_VERSION = app.getVersion();
   } else {
     env.BRAIN_SYNC_MODE = 'personal';
   }

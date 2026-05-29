@@ -278,6 +278,7 @@
   .st.active{background:var(--ok-soft);color:var(--ok);} .st.quiet{background:var(--draft-bg);color:var(--draft);} .st.dormant{background:var(--warn-soft);color:var(--warn);}
   .st.installed{background:var(--accent-soft);color:var(--accent);}
   .conn{font-size:11px;vertical-align:middle;} .conn.on{color:var(--ok);} .conn.off{color:var(--muted);}
+  .ver{font-size:10px;font-weight:600;color:var(--muted);margin-left:6px;} .ver.behind{color:#b45309;}
   .tag-build{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:2px;background:var(--accent-soft);color:var(--accent);margin-left:6px;}
   .bill-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;} .bill-row:last-child{border-bottom:0;}
   .bill-row .k{color:var(--muted);} .bill-row .v{font-weight:600;text-align:right;} .bill-row .v.cap{color:var(--accent);}
@@ -1326,6 +1327,7 @@
       // Seats used = owner + scout (the priced portal seats), what the N+1 cap counts.
       SEATS_USED=(d.members||[]).filter(function(m){return /owner|scout|head/.test(String(m.role||''));}).length;
       maybeBanner(); maybePortalNudge();
+      var newestVer = newestRosterVersion();
       tb.innerHTML = d.members.length ? d.members.map(function(m){
         var stt = memberStatus(m);
         var synced = connDot(m) + ' <span class="st '+stt.cls+'">'+stt.label+'</span>'
@@ -1335,7 +1337,7 @@
         var actions = canEdit ? '<td class="row-actions">'+nudge+'<button class="mini icon" data-act="edit" data-slug="'+esc(m.slug)+'" title="Edit name / role" aria-label="Edit">'+ICON_EDIT+'</button><button class="mini icon danger" data-act="remove" data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||m.email)+'" title="Remove from team" aria-label="Remove">'+ICON_TRASH+'</button></td>' : '';
         var bld = (/scout|owner|head/.test(String(m.role||'')) && hasShipped(m)) ? '<span class="tag-build" title="Has sharpened a skill">building</span>' : '';
         return '<tr data-slug="'+esc(m.slug)+'" data-name="'+esc(m.name||'')+'" data-role="'+esc(m.role)+'">'
-          +'<td class="name">'+esc(m.name||m.email)+bld+'</td>'
+          +'<td class="name">'+esc(m.name||m.email)+bld+verTag(m,newestVer)+'</td>'
           +'<td class="mut email" title="'+esc(m.email)+'">'+esc(m.email)+'</td>'
           +'<td class="role-cell">'+esc(m.role)+'</td>'
           +'<td>'+synced+'</td>'+actions+'</tr>';
@@ -1846,6 +1848,16 @@
     var mins=Math.floor((Date.now()-new Date(c).getTime())/60000);
     var on=mins<90;
     return '<span class="conn '+(on?'on':'off')+'" title="'+(on?'App online':'App last seen '+agoFine(c))+'">●</span>';
+  }
+  // Per-member Command Centre version. Flagged when behind the newest version
+  // anyone on the roster is running — usually means "quit and reopen to update".
+  function cmpVer(a,b){var pa=String(a).split('.').map(Number),pb=String(b).split('.').map(Number);for(var i=0;i<Math.max(pa.length,pb.length);i++){var x=pa[i]||0,y=pb[i]||0;if(x!==y)return x<y?-1:1;}return 0;}
+  function newestRosterVersion(){var v=null;(ROSTER||[]).forEach(function(m){if(m.appVersion&&(!v||cmpVer(m.appVersion,v)>0))v=m.appVersion;});return v;}
+  function verTag(m,newest){
+    if(!m.appVersion) return '';
+    var behind = newest && cmpVer(m.appVersion,newest)<0;
+    var title = behind ? 'Behind v'+esc(newest)+' — quit and reopen to update' : 'Command Centre version';
+    return ' <span class="ver'+(behind?' behind':'')+'" title="'+title+'">v'+esc(m.appVersion)+'</span>';
   }
   function rosterBuckets(){
     var notStarted=[], quiet=[];

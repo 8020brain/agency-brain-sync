@@ -63,6 +63,7 @@ const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
 const TEAM_SLUG = process.env.AGENCY_TEAM_SLUG || '';
 const MEMBER_EMAIL = (process.env.AGENCY_MEMBER_EMAIL || '').toLowerCase();
 const MEMBER_ROLE_HINT = process.env.AGENCY_MEMBER_ROLE || 'team';
+const APP_VERSION = process.env.AGENCY_APP_VERSION || '';
 const STATE_FILE = process.env.STATE_FILE || '';
 
 if (!REPO) {
@@ -164,7 +165,7 @@ async function mintGitToken() {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${MEMBER_TOKEN}`,
     },
-    body: JSON.stringify({ teamSlug: TEAM_SLUG }),
+    body: JSON.stringify({ teamSlug: TEAM_SLUG, appVersion: APP_VERSION }),
   });
   if (!r.ok) {
     const body = await r.text().catch(() => '');
