@@ -56,6 +56,10 @@ const api = {
   // Sign out: clears the member token + team identity, stops the watcher, and
   // returns to the setup wizard. The tray process keeps running.
   signOut: () => ipcRenderer.invoke('sign-out'),
+  // Phase 4 solo->team: flip an existing personal-mode brain into agency mode in
+  // place (no re-clone) once the member has self-created their team + installed
+  // the GitHub App at agency.ads2ai.com. Args: { memberToken, teamSlug }.
+  flipToAgency: (args) => ipcRenderer.invoke('flip-to-agency', args),
   // Auto-update: ask if a build is already downloaded + waiting, subscribe to
   // the "downloaded" event, and trigger the relaunch-and-install.
   getUpdateState: () => ipcRenderer.invoke('get-update-state'),

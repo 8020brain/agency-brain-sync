@@ -395,6 +395,12 @@ function buildMenu() {
     { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
     { label: 'Check for updates…',       click: () => checkForUpdatesManually() },
     { type: 'separator' },
+    // Phase 4: a solo (personal-mode) owner who's ready to bring teammates in
+    // self-creates their team + installs the App at agency.ads2ai.com, then
+    // connects this app to it (the wizard does OTP -> pick team -> flip-to-agency).
+    ...(config && config.mode === 'personal'
+      ? [{ label: 'Connect to my agency team…', click: () => showSetupWindow() }]
+      : []),
     { label: 'Set up...',                click: () => showSetupWindow() },
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
     { type: 'separator' },
@@ -784,6 +790,119 @@ ipcMain.handle('sign-out', () => {
   } catch (e) {
     return { ok: false, error: e.message };
   }
+});
+
+// Flip an existing PERSONAL-mode brain into AGENCY mode IN PLACE — the Phase 4
+// solo->team upgrade for Path A (the member's own brain repo became the agency
+// repo). No re-clone: the same folder stays; we switch the sync mode, add the
+// team identity, then restart the watcher AND the Command Centre so both pick up
+// agency mode (the CC froze MEMBER_TOKEN/TEAM_SLUG as consts at require time, so
+// it must respawn before its team-management endpoints unlock). We act AS the
+// member with their own token (agent-permissions principle), never an admin key.
+//
+// Args: { memberToken, teamSlug }. The token comes from a fresh OTP sign-in in
+// the wizard, because a personal-mode config holds no token.
+ipcMain.handle('flip-to-agency', async (_evt, args) => {
+  const memberToken = args && args.memberToken;
+  const teamSlug = args && args.teamSlug;
+  if (!memberToken || !teamSlug) return { ok: false, error: 'Missing member token or team.' };
+
+  const config = loadConfig();
+  if (!config || !config.brainPath) {
+    return { ok: false, error: 'No brain folder is set up yet — finish personal setup first.' };
+  }
+  if (config.mode === 'agency') {
+    return { ok: false, error: 'This app is already connected to an agency team.' };
+  }
+
+  // Read the team's live details AS the member: repo, the member's role, seats.
+  let summary;
+  try {
+    const r = await fetch(`${API_BASE}/api/team-brain/team-summary?team=${encodeURIComponent(teamSlug)}`, {
+      headers: { Authorization: `Bearer ${memberToken}` },
+    });
+    if (!r.ok) {
+      const b = await r.json().catch(() => ({}));
+      return { ok: false, error: b.error || `Couldn't read your team (HTTP ${r.status}).` };
+    }
+    summary = await r.json();
+  } catch (e) {
+    return { ok: false, error: `Couldn't read your team: ${e.message}` };
+  }
+  const team = summary.team || {};
+  const requester = summary.requester || {};
+  if (!team.installed) {
+    return { ok: false, error: "Your team's GitHub App isn't installed yet. Finish the install at agency.ads2ai.com, then connect here." };
+  }
+
+  // In-place flip only applies when THIS folder's origin IS the agency repo
+  // (Path A). If origin is a different repo (e.g. Path B made a fresh agency repo
+  // elsewhere), do NOT hijack this folder's remote — tell them to point the app
+  // at the agency brain folder instead.
+  let origin = '';
+  try {
+    origin = String(await runGit(['-C', config.brainPath, 'remote', 'get-url', 'origin'])).trim();
+  } catch (e) { origin = ''; }
+  const normRepo = (u) => String(u || '').trim().toLowerCase()
+    .replace(/^git@github\.com:/, 'https://github.com/')
+    .replace(/^https:\/\/x-access-token:[^@]*@/, 'https://')
+    .replace(/\.git$/, '').replace(/\/$/, '');
+  // Never flip in place without a CONFIRMED agency repo. If the team's repo isn't
+  // linked yet (repoUrl null even though installed), fall through to the safe clone
+  // path rather than converting whatever this folder currently tracks (e.g. a solo
+  // members-template clone) into agency mode against the wrong remote.
+  if (!team.repoUrl) {
+    return { ok: false, mismatch: true, error: "Your agency repo isn't linked yet. Finish connecting it at agency.ads2ai.com, then connect here." };
+  }
+  if (origin && normRepo(origin) !== normRepo(team.repoUrl)) {
+    return {
+      ok: false, mismatch: true, origin, repoUrl: team.repoUrl,
+      error: `This folder syncs to ${origin}, but your agency repo is ${team.repoUrl}. If you started fresh, point Agency Brain at your new agency brain folder instead of flipping this one.`,
+    };
+  }
+
+  // Seed .team-config/roles.json from the live roster if missing (watcher reads
+  // it for role-based push filtering). Best-effort; mirrors clone-agency-brain.
+  try {
+    const rolesPath = path.join(config.brainPath, '.team-config', 'roles.json');
+    if (!fs.existsSync(rolesPath)) {
+      const roles = {
+        team_slug: team.slug || teamSlug,
+        team_name: team.name || teamSlug,
+        members: (summary.members || []).map((m) => ({ email: m.email, name: m.name, role: m.role })),
+      };
+      fs.mkdirSync(path.dirname(rolesPath), { recursive: true });
+      fs.writeFileSync(rolesPath, JSON.stringify(roles, null, 2) + '\n');
+    }
+  } catch (e) { /* best-effort: watcher falls back to the role hint */ }
+
+  // Rewrite config to agency mode, keeping the SAME brainPath. saveConfig is the
+  // single trigger that restarts the watcher, so we write it LAST and preserve
+  // every existing key (whole-object overwrite), adding the agency identity.
+  const next = {
+    ...config,
+    mode: 'agency',
+    teamSlug,
+    memberToken,
+    memberEmail: requester.email || config.memberEmail || '',
+    memberRole: requester.role || 'owner',
+    scoutSeats: team.scoutSeats != null ? team.scoutSeats : (config.scoutSeats != null ? config.scoutSeats : null),
+    packageTier: team.packageTier || config.packageTier || '',
+  };
+  saveConfig(next);
+
+  // Restart the watcher in agency mode (same folder, no re-clone) via the
+  // save-config pattern: one-shot exit -> startWatcher, then SIGINT the current.
+  if (watcherProcess) {
+    watcherProcess.once('exit', () => startWatcher());
+    watcherProcess.kill('SIGINT');
+  } else {
+    startWatcher();
+  }
+  // Respawn the Command Centre so it serves the agency identity (unlocks add-teammate).
+  if (ccProcess) { ccProcess.kill(); ccProcess = null; }
+  updateTray();
+  return { ok: true, teamSlug, role: next.memberRole };
 });
 
 // ---------- auto-update (electron-updater) ----------

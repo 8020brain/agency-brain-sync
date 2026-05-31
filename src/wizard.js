@@ -26,6 +26,7 @@
   let chosenFolder = '';
   let demoMode = false;
   let adopted = false;          // adopt flow saved config itself; enterDone must not re-save
+  let flipped = false;          // flip-to-agency saved+restarted itself; enterDone must not re-save
 
   const DEMO_EMAIL = 'demo';
   const TOTAL = 7;
@@ -285,7 +286,7 @@
   // The branch point: agency (1+ teams) vs solo (0 teams + A2AI member).
   function routeAfterAuth(teams) {
     if (teams.length > 1) { renderTeamPicker(teams); return; }
-    if (teams.length === 1) { mode = 'agency'; selectTeam(teams[0]); return; }
+    if (teams.length === 1) { joinTeam(teams[0]); return; }
     // 0 teams — is this a solo A2AI member?
     const mt = (member && member.memberType) || '';
     if (/community|ota|script/i.test(mt) || demoMode) {
@@ -309,7 +310,7 @@
       btn.className = 'team-option';
       btn.type = 'button';
       btn.innerHTML = `<span class="t-name">${escapeHtml(t.name || t.slug)}</span><span class="t-role">${escapeHtml(t.role || 'member')}</span>`;
-      btn.addEventListener('click', () => { mode = 'agency'; selectTeam(t); });
+      btn.addEventListener('click', () => { joinTeam(t); });
       list.appendChild(btn);
     });
     clearError('err-team');
@@ -327,6 +328,36 @@
       member: { email: authEmail, name: authName, role: team.role || 'team' },
     };
     enterMachine();
+  }
+
+  // Phase 4 solo->team: if this app already runs a PERSONAL-mode brain, a team now
+  // existing means the member self-upgraded (created the team + installed the App
+  // at agency.ads2ai.com). Flip that brain into agency mode IN PLACE instead of
+  // cloning a second copy. The flip validates the repo matches; on a mismatch
+  // (a fresh Path-B repo elsewhere) or any failure it falls through to the normal
+  // agency clone, which is the safe known-good path.
+  async function joinTeam(team) {
+    mode = 'agency';
+    let cfg = null;
+    try { cfg = await api.getConfig(); } catch (e) { cfg = null; }
+    if (cfg && cfg.mode === 'personal' && cfg.brainPath && api.flipToAgency) {
+      try {
+        const res = await api.flipToAgency({ memberToken: authToken, teamSlug: team.slug });
+        if (res && res.ok) {
+          flipped = true; // the flip already saved config + restarted; enterDone must not re-save
+          chosenFolder = cfg.brainPath;
+          teamInfo = {
+            memberToken: authToken, teamSlug: team.slug, teamName: team.name || team.slug,
+            repoUrl: '', scoutSeats: team.scoutSeats == null ? null : Number(team.scoutSeats),
+            packageTier: team.packageTier || null,
+            member: { email: authEmail, name: authName, role: (res.role || team.role || 'owner') },
+          };
+          enterSurfaces();
+          return;
+        }
+      } catch (e) { /* fall through to the normal clone */ }
+    }
+    selectTeam(team);
   }
 
   // ====================================================================
@@ -703,15 +734,20 @@
     if (demoMode) return;
     try {
       if (mode === 'agency') {
-        await api.saveConfig({
-          brainPath: chosenFolder, mode: 'agency', teamSlug: teamInfo.teamSlug,
-          memberEmail: authEmail, memberRole: (teamInfo.member || {}).role, memberToken: authToken, memberName: authName,
-          // Seat cap (+ package label) for the upgrade banner. Server is the
-          // source of truth; this is the at-install snapshot. server.cjs
-          // /api/health refreshes it live so an upgrade reflects without a
-          // re-login.
-          scoutSeats: teamInfo.scoutSeats, packageTier: teamInfo.packageTier,
-        });
+        // The flip path (joinTeam → flipToAgency) already saved the agency config
+        // (preserving every personal-mode key) and restarted the watcher + CC, so
+        // re-saving here would drop those keys and bounce the watcher a second time.
+        if (!flipped) {
+          await api.saveConfig({
+            brainPath: chosenFolder, mode: 'agency', teamSlug: teamInfo.teamSlug,
+            memberEmail: authEmail, memberRole: (teamInfo.member || {}).role, memberToken: authToken, memberName: authName,
+            // Seat cap (+ package label) for the upgrade banner. Server is the
+            // source of truth; this is the at-install snapshot. server.cjs
+            // /api/health refreshes it live so an upgrade reflects without a
+            // re-login.
+            scoutSeats: teamInfo.scoutSeats, packageTier: teamInfo.packageTier,
+          });
+        }
         api.markInstallComplete({ memberToken: authToken, teamSlug: teamInfo.teamSlug }).catch(() => {});
       } else if (!adopted) {
         // SOLO: store the path so the Command Centre + tray know it. mode
