@@ -1806,10 +1806,10 @@
     }
   }
 
-  // Join a roster member to their personal/<self>/usage.jsonl stats. The folder
-  // name follows log-usage.cjs's resolution order: roles.json personal slug →
-  // slugify(name) → slugify(email local-part). Try each so the join survives
-  // whichever the member's machine used.
+  // Join a roster member to their z-logs/team-usage/<self>.jsonl stats. log-usage
+  // now keys usage by the slugified email local-part, one deterministic rule. The
+  // three-key fallback below stays so the join also survives any older machine
+  // that wrote under a name or a roles.json slug.
   function ccSlug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
   function memberUsage(m){
     if(!m) return null;

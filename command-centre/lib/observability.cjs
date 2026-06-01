@@ -271,19 +271,22 @@ function readFeatured(repoPath, skills) {
 }
 
 // Agency usage source: when there's no distilled session index (an agency repo,
-// not Mike's brain), per-skill run counts come from each member's
-// personal/<self>/usage.jsonl — the coarse {ts,skill,client} lines written by
-// tools/log-usage.cjs. Reads ONLY usage.jsonl, never the rest of a personal folder.
-// Shaped like loadSessions output ({date: YYYY-MM-DD, skills:[name]}) so runCounts
-// and activityPerDay work unchanged.
+// not Mike's brain), per-skill run counts come from z-logs/team-usage/<self>.jsonl,
+// the coarse {ts,skill,client} lines written by tools/log-usage.cjs. That folder is
+// the one usage path the gitignore lets sync team-wide, so the owner's clone
+// actually receives every member's file (personal/<self>/ stays local, not read
+// here). member = the filename, the slugified email local-part. Shaped like
+// loadSessions output ({date: YYYY-MM-DD, skills:[name]}) so runCounts and
+// activityPerDay work unchanged.
 function loadUsage(repoPath) {
-  const base = path.join(repoPath, 'personal');
+  const base = path.join(repoPath, 'z-logs', 'team-usage');
   const out = [];
-  let dirs = [];
-  try { dirs = fs.readdirSync(base, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name); } catch { return out; }
-  for (const member of dirs) {
+  let files = [];
+  try { files = fs.readdirSync(base).filter(f => f.endsWith('.jsonl')); } catch { return out; }
+  for (const file of files) {
+    const member = file.replace(/\.jsonl$/, '');
     let raw = '';
-    try { raw = fs.readFileSync(path.join(base, member, 'usage.jsonl'), 'utf8'); } catch { continue; }
+    try { raw = fs.readFileSync(path.join(base, file), 'utf8'); } catch { continue; }
     for (const line of raw.split('\n')) {
       const t = line.trim(); if (!t) continue;
       let rec; try { rec = JSON.parse(t); } catch { continue; }
@@ -320,9 +323,9 @@ function clientCount(repoPath) {
   } catch { return 0; }
 }
 
-// Per-member activity from usage.jsonl (the only personal/<self>/ file that
-// syncs team-wide). Lets the owner see "installed but never opened Claude" —
-// the blind spot the sync heartbeat alone can't show.
+// Per-member activity from z-logs/team-usage/<self>.jsonl (the synced usage
+// path). Lets the owner see "installed but never opened Claude", the blind spot
+// the sync heartbeat alone can't show.
 function memberUsageStats(usageRecords) {
   const acc = {};
   for (const r of usageRecords) {
