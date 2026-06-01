@@ -90,6 +90,27 @@ function slugify(s) {
 
 const PUBLIC = path.join(__dirname, 'public');
 
+// Static assets served from public/ (css/, js/). The send() helper below only
+// emits text/html or application/json, and Chromium refuses a stylesheet served
+// as text/html, so these go out through their own typed handler (see the static
+// route near the end of the request handler).
+const STATIC_MIME = {
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.map': 'application/json; charset=utf-8',
+};
+
 function send(res, code, payload, asHtml) {
   const isStr = typeof payload === 'string';
   res.writeHead(code, {
@@ -522,6 +543,26 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && (m = p.match(/^\/api\/agents\/([a-zA-Z0-9_-]+)\/focus$/))) {
       return send(res, 200, { session: m[1], focused: agentsTracker.focusAgent(m[1]) });
+    }
+    // Static assets (css/, js/, fonts, images) from public/. GET-only, read-only.
+    // Runs after every /api/* route and after the special-cased '/' + '/index.html'
+    // document route, so it never shadows an endpoint or hijacks the document load.
+    // The path.relative check is the real traversal control: it rejects anything
+    // that escapes PUBLIC, including encoded-slash '..%2f' forms (new URL leaves
+    // those in url.pathname). url.pathname is already decoded + dot-collapsed by
+    // new URL, so we never double-decode it.
+    if (req.method === 'GET') {
+      const rel = p.replace(/^\/+/, '');
+      if (rel && !rel.includes('\0')) {
+        const resolved = path.resolve(PUBLIC, rel);
+        const relCheck = path.relative(PUBLIC, resolved);
+        const insidePublic = relCheck && !relCheck.startsWith('..') && !path.isAbsolute(relCheck);
+        if (insidePublic && fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+          const ext = path.extname(resolved).toLowerCase();
+          res.writeHead(200, { 'Content-Type': STATIC_MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+          return res.end(fs.readFileSync(resolved));
+        }
+      }
     }
     return send(res, 404, { error: 'not found' });
   } catch (err) {
