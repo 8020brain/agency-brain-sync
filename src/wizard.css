@@ -223,3 +223,7 @@ h1 { font-family: var(--oxanium); font-size: 27px; font-weight: 700; line-height
 .stat-line:last-child { border: none; }
 .stat-line .k { color: var(--ink-3); font-family: var(--oxanium); }
 .stat-line .v { font-weight: 600; font-family: ui-monospace, Menlo, monospace; }
+.done-note { max-width: 480px; margin: 12px auto 0; text-align: left; font-size: 12.5px; line-height: 1.55;
+  color: var(--warn); background: #f7ecdf; border: 1px solid #e8d9c4; border-left: 3px solid var(--warn);
+  border-radius: 2px; padding: 10px 13px; }
+.done-note[hidden] { display: none; }

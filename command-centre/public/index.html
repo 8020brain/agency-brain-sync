@@ -62,6 +62,12 @@
   .add-form .add-btn{margin-left:0;}
   .cancel-btn{appearance:none;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;background:none;border:1px solid var(--line);border-radius:2px;padding:5px 12px;color:var(--muted);}
   .af-status{font-size:12px;color:var(--muted);width:100%;}
+  /* Solo member nudge: a personal-mode brain has no team yet, so adding a
+     teammate would fail. Instead of erroring, point them at the tray item that
+     turns their brain into a team. */
+  .solo-nudge{font-size:13px;line-height:1.55;color:var(--warn);background:var(--warn-soft);border:1px solid #e8d9c4;border-left:3px solid var(--warn);border-radius:2px;padding:12px 14px;margin-bottom:14px;}
+  .solo-nudge[hidden]{display:none;}
+  .solo-nudge b{color:var(--ink);}
   .row-actions{white-space:nowrap;text-align:right;}
   .mini{appearance:none;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;background:#fff;color:var(--accent);border:1px solid var(--accent);border-radius:2px;padding:3px 9px;margin-left:6px;}
   .mini:hover{background:var(--accent-soft);}
@@ -690,6 +696,7 @@
           <div class="sec sec-row">Who's in <span class="note">your team on the brain</span>
             <button class="add-btn secondary" id="add-member" hidden>+ Add member</button>
           </div>
+          <div class="solo-nudge" id="solo-nudge" hidden>To add teammates, turn your brain into a team first. Open the <b>Agency Brain</b> menu in your menu bar and choose <b>"Connect to my agency team…"</b>. That sets up your team, then everyone you add syncs to the same brain.</div>
           <div class="add-form" id="add-form" hidden>
             <input id="af-name" placeholder="Full name" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
             <input id="af-email" type="email" placeholder="email@agency.com" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
@@ -772,6 +779,7 @@
           <div class="sec sec-row">Who's in <span class="note">your team on the brain</span>
             <button class="add-btn secondary" id="add-member-s" hidden>+ Add member</button>
           </div>
+          <div class="solo-nudge" id="solo-nudge-s" hidden>To add teammates, turn your brain into a team first. Open the <b>Agency Brain</b> menu in your menu bar and choose <b>"Connect to my agency team…"</b>. That sets up your team, then everyone you add syncs to the same brain.</div>
           <div class="add-form" id="add-form-s" hidden>
             <input id="af-name-s" placeholder="Full name" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
             <input id="af-email-s" type="email" placeholder="email@agency.com" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other">
@@ -1182,14 +1190,29 @@
       // member's own token). Team members don't see the control.
       // Owner + scout both get the "Add member" control (owner-view IDs and the
       // scout-view -s copies). Either role can add anyone, including an owner.
-      [['add-member','add-form','af-name'],['add-member-s','add-form-s','af-name-s']].forEach(function(t){
+      // Solo (personal-mode) detection: an owner with no team yet. The server
+      // returns memberRole='owner' + empty teamSlug, so the add control shows, but
+      // /api/team-invite would 400 ('not signed in to a team'). Intercept the click
+      // and show a nudge to the tray's "Connect to my agency team…" item instead.
+      // Read TEAMSLUG live at click time (not captured) — loadHealth can re-run and
+      // the handler is wired once, so a captured flag would go stale after a flip.
+      [['add-member','add-form','af-name','solo-nudge'],['add-member-s','add-form-s','af-name-s','solo-nudge-s']].forEach(function(t){
         var ab=$(t[0]);
         if(ab && (role==='owner'||role==='scout'||role==='head-scout')){
           ab.hidden=false;
-          if(!ab.__wired){ ab.__wired=true; ab.addEventListener('click',function(){ var f=$(t[1]); f.hidden=!f.hidden; if(!f.hidden) $(t[2]).focus(); }); }
+          // Once on a team, clear any solo nudge left visible from before (e.g. a
+          // flip that didn't restart the window). The form stays user-toggled.
+          if(TEAMSLUG){ var ndt=$(t[3]); if(ndt) ndt.hidden=true; }
+          if(!ab.__wired){ ab.__wired=true; ab.addEventListener('click',function(){
+            var nudge=$(t[3]), f=$(t[1]);
+            if(!TEAMSLUG){ if(f) f.hidden=true; if(nudge) nudge.hidden=!nudge.hidden; return; }
+            if(nudge) nudge.hidden=true;
+            f.hidden=!f.hidden; if(!f.hidden) $(t[2]).focus();
+          }); }
         } else {
           if(ab) ab.hidden=true;
           var af=$(t[1]); if(af) af.hidden=true;
+          var nd=$(t[3]); if(nd) nd.hidden=true;
         }
       });
       $('who-email').textContent=h.memberEmail||'';

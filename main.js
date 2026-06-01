@@ -399,7 +399,7 @@ function buildMenu() {
     // self-creates their team + installs the App at agency.ads2ai.com, then
     // connects this app to it (the wizard does OTP -> pick team -> flip-to-agency).
     ...(config && config.mode === 'personal'
-      ? [{ label: 'Connect to my agency team…', click: () => showSetupWindow() }]
+      ? [{ label: 'Connect to my agency team…', click: () => showSetupWizard() }]
       : []),
     { label: 'Set up...',                click: () => showSetupWindow() },
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
@@ -526,6 +526,29 @@ function showSetupWindow() {
     setupWindow = null;
     if (process.platform === 'darwin' && app.dock) app.dock.hide();
   });
+}
+
+// Open the setup WIZARD specifically. showSetupWindow early-returns when a window
+// already exists, and after onboarding that window is showing the Command Centre
+// (openCommandCentre loaded the CC URL into it). So a bare showSetupWindow() from
+// the tray would just re-focus the Command Centre, never the wizard, which is
+// the entry point a personal-mode owner needs for the solo->team flip. Force the
+// wizard file back into the shared window so "Connect to my agency team…" always
+// lands on the sign-in flow.
+function showSetupWizard() {
+  showSetupWindow();
+  if (setupWindow && !setupWindow.isDestroyed()) {
+    // Resize back down to the wizard's footprint (openCommandCentre grows it to
+    // >=1000 and bumps the minimum), then load the wizard. A CC-sized window
+    // makes the wizard look stranded in a huge frame.
+    // (resize before the new minimum so the smaller size is allowed)
+    setupWindow.setMinimumSize(600, 640);
+    const b = setupWindow.getBounds();
+    if (b.width > 760) setupWindow.setSize(680, 800);
+    setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
+    setupWindow.show();
+    setupWindow.focus();
+  }
 }
 
 function showAbout() {
@@ -1509,6 +1532,13 @@ app.whenReady().then(() => {
   const config = loadConfig();
   if (!config || !config.brainPath || pendingInviteToken) {
     showSetupWindow();
+  } else if (process.env.AB_FORCE_WIZARD === '1') {
+    // QA seam (off by default; never set in a real install): an already-onboarded
+    // personal-mode app normally boots into the Command Centre, which buries the
+    // solo->team flip entry point. This opens straight to the wizard so the flip
+    // can be exercised without hunting for the (possibly notch-hidden) tray item.
+    startWatcher();
+    showSetupWizard();
   } else {
     startWatcher();
     if (!app.getLoginItemSettings().openAtLogin) {

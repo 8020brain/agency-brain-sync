@@ -27,6 +27,7 @@
   let demoMode = false;
   let adopted = false;          // adopt flow saved config itself; enterDone must not re-save
   let flipped = false;          // flip-to-agency saved+restarted itself; enterDone must not re-save
+  let priorBrainPath = '';      // a personal brain this app already watched before this run (Path B notice)
 
   const DEMO_EMAIL = 'demo';
   const TOTAL = 7;
@@ -731,6 +732,21 @@
       <div class="stat-line"><span class="k">Mode</span><span class="v">${mode === 'agency' ? escapeHtml(teamInfo.teamName || 'Agency') : 'Solo'}</span></div>
       <div class="stat-line"><span class="k">Status</span><span class="v" style="color: var(--ok);">● Watching</span></div>
     `;
+    // Path B (start fresh): the member had a personal brain, but this app now
+    // watches the NEW agency folder and silently stops syncing the old one. Say so
+    // plainly. NOT shown for the flip (same folder) or adopt (still personal), and
+    // not when the new agency folder IS the old brain.
+    const note = document.getElementById('doneNote');
+    if (note) {
+      const switchedAway = mode === 'agency' && !flipped && priorBrainPath && priorBrainPath !== chosenFolder;
+      if (switchedAway) {
+        note.textContent = 'Agency Brain now watches your new agency brain. Your old personal brain at '
+          + displayPath(priorBrainPath) + ' is left exactly as it was, and is no longer synced by this app.';
+        note.hidden = false;
+      } else {
+        note.hidden = true;
+      }
+    }
     if (demoMode) return;
     try {
       if (mode === 'agency') {
@@ -786,6 +802,13 @@
   // ---- boot ----
   (async function init() {
     homePath = await api.getHomePath();
+    // Remember any personal brain this app already watches. If the member goes
+    // Path B (start fresh) the app ends up watching the NEW agency folder and
+    // silently stops syncing this one, so the done screen warns them about that.
+    try {
+      const prior = await api.getConfig();
+      if (prior && prior.mode === 'personal' && prior.brainPath) priorBrainPath = prior.brainPath;
+    } catch (_) { /* no prior config; brand-new install */ }
     show('scene-welcome');
     // Deep-link join (agencybrain://join?token=…): the long token resolves the
     // same way as a pasted code, so kick it off automatically.
