@@ -139,7 +139,7 @@
     var setHelpNav=function(n,show){ var b=document.querySelector('.help-navi[data-help="'+n+'"]'); if(b) b.hidden=!show; };
     setHelpNav('setup', isOwner||isScout);  // team's onboarding is the Welcome tab
     setHelpNav('how', true);
-    setHelpNav('flag', isOwner||isTeam);     // scouts receive flags on their Dashboard, they don't submit
+    setHelpNav('flag', true);                // everyone gets the flag-a-skill docs + form; the scout also has the live inbox on their Dashboard
     setHelpNav('faq', true);
     setHelpSection(isTeam ? 'faq' : 'setup');
     // "Start here" featured strip is for NEW users only (team). Scouts/owners know the skills.
