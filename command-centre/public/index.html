@@ -18,178 +18,16 @@
       <span class="sub">Command Centre · <span id="brand-ver">…</span></span>
     </div>
     <div class="tabs">
-      <button class="tab" data-view="getset" hidden>Get set up</button>
       <button class="tab" data-view="welcome" hidden>Welcome</button>
       <button class="tab active" data-view="owner">Dashboard</button>
       <button class="tab" data-view="scout" hidden>Dashboard</button>
       <button class="tab" data-view="skills" hidden>Skills</button>
-      <button class="tab" data-view="howitworks" hidden>How it works</button>
-      <button class="tab" data-view="flag">Flag a skill <span style="font-weight:500;color:inherit">(how feedback works)</span></button>
       <button class="tab" data-view="gads" hidden>Google Ads</button>
       <button class="tab" data-view="help" hidden>Help</button>
     </div>
   </div>
 
   <!-- ============ WELCOME (team default) ============ -->
-  <!-- ============ GET SET UP (owner + scout) ============ -->
-  <section class="view" id="view-getset">
-    <div id="getset-owner">
-      <div class="wc-hero" style="margin-bottom:22px">
-        <div class="wc-hero-main">
-          <div class="wc-eyebrow">Get set up</div>
-          <h1 class="wc-h">Get your agency running on the brain.</h1>
-          <p class="wc-sub">You're the owner. You set the direction and own this, but you don't have to be the technical one. The hands-on building is your scout's job. This page is what's yours to do, and how to hand the rest to a scout.</p>
-        </div>
-        <aside class="wc-app">
-          <div class="wc-app-h">You can delegate the setup</div>
-          <p>If you'd rather not install and wire things up yourself, add a scout first and let them do it. Most agencies run this way: the owner sets direction, the scout builds. Either path works.</p>
-        </aside>
-      </div>
-      <div class="card block">
-        <div class="sec">Your path <span class="note">do it yourself, or hand it to a scout</span></div>
-        <p class="gsu-intro">You can set this up yourself, or add a scout at step 4 and hand them the setup and the skill-building. Your job stays the same either way: set direction, decide what's private, and keep an eye on how the brain matures. Nothing here needs a terminal command from you; each step is a guide or a prompt you paste into Claude Code.</p>
-        <div class="stage">
-          <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what's yours as the owner: direction, billing, and deciding what stays private.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Give me the quick orientation as the agency owner: what is Agency Brain, what's my job as owner, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start-o">Read the guide</button></div>
-          <div class="guide-panel" id="g-start-o"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">1</span><div><h4>Set up your computer</h4><p class="sd">A few free tools, once: Node.js, Git, a code editor, and a GitHub account. Rather not? Skip steps 1 to 3, add a scout at step 4, and let them do the hands-on part.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://m.ads2ai.com/mastery">Open the setup guide</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads to AI subscription. No API key needed.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://code.claude.com/docs/en/quickstart">Install Claude Code</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">3</span><div><h4>Install Agency Brain</h4><p class="sd">Download the app, install it, and sign in with your email. It downloads your agency's brain and keeps it synced. No invite code needed.</p></div></div>
-          <div class="act"><button class="btn mut" data-ext="https://ads2ai.com/downloads">Download Agency Brain</button><button class="btn ghost" data-guide="g-owner-setup">Read: owner setup walkthrough</button></div>
-          <div class="guide-panel" id="g-owner-setup"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">4</span><div><h4>Bring your people on</h4><p class="sd">Add your scout first (they build the skills), then your team. Add anyone from your Dashboard; they sign in with their own email, so there's no code to pass around and no GitHub account.</p></div></div>
-          <div class="act"><button class="btn mut" data-go="owner">Add people on your Dashboard</button><button class="btn ghost" data-guide="g-onboard-o">Read: onboarding your team</button></div>
-          <div class="guide-panel" id="g-onboard-o"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">5</span><div><h4>Keep what's private, private</h4><p class="sd">Financials, salaries, sensitive client notes go in your own owner-private repo, separate from the shared brain the team can see. Set it up once.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Set up my owner-private brain: a separate, private GitHub repo, just for me as the agency owner, that the team never sees and that never syncs to the shared agency brain. Please don't invent a structure from scratch. Start from the ready-made public template 8020brain/agency-brain-personal-template by running: gh repo create <my-agency>-private --private --template 8020brain/agency-brain-personal-template --clone, and clone it into a folder NEXT TO this shared brain, not inside it. (If gh isn't set up, walk me through the 'Use this template' button on that repo's GitHub page instead.) It ships with a root CLAUDE.md explaining this is my confidential space and what stays private versus shared, plus three folders: team/ (a board.md of who reports to me, a one-on-ones/ folder with one file per direct report for review notes, and a place for comp and salary), business/ (formation documents, contracts, partnerships, strategy), and finances/ (revenue, costs, rates, margins, forecasts). Once it's cloned, open its CLAUDE.md and rewrite it to describe MY agency, then interview me to seed the first real files: my direct reports into team/, my current numbers into finances/, and my live strategy into business/. Keep the air-gap absolute: this repo is owner-only, never add it to the shared agency brain or its sync, and never copy private numbers into the shared brain.">Copy a prompt: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
-          <div class="guide-panel" id="g-private"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">6</span><div><h4>Watch it mature</h4><p class="sd">Your Dashboard shows how your team's AI workforce is maturing: skills built, improving, earning trust. It never watches what people type or how they work.</p></div></div>
-          <div class="act"><button class="btn mut" data-go="owner">Go to your Dashboard</button></div>
-        </div>
-      </div>
-      <div class="card block">
-        <div class="sec">What help you've got <span class="note">for you or your scout</span></div>
-        <div class="buckets">
-          <div class="bucket">
-            <h3>In your brain</h3><p class="bsub">Run these any time; the written guides back them up.</p>
-            <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Sets you up and seeds your owner-private repo.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
-            <div class="res"><div><div class="rn">onboarding-owner.md</div><div class="rd">The full owner walkthrough.</div></div></div>
-          </div>
-          <div class="bucket">
-            <h3>Courses in the portal</h3><p class="bsub">For you or your scout.</p>
-            <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Best handed to whoever builds your skills.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
-            <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. The foundations, end to end.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
-            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/mastery">Open</span></div>
-          </div>
-          <div class="bucket">
-            <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask.</p>
-            <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
-            <div class="res"><div><div class="rn">"Set up my private space"</div><div class="rd">Creates your owner-only repo.</div></div><span class="lk" data-spawn="Set up my owner-private brain from the public GitHub template 8020brain/agency-brain-personal-template: a separate private repo (team/, business/, finances/ + a CLAUDE.md) that never syncs to the team. Walk me through creating it next to my shared brain with gh repo create --template, then tailor its CLAUDE.md to my agency and help me seed the first files.">Ask</span></div>
-            <div class="res"><div><div class="rn">Add your scout</div><div class="rd">Add your first scout from your Dashboard.</div></div><span class="lk" data-go="owner">Dashboard</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="getset-scout" hidden>
-      <div class="wc-hero" style="margin-bottom:22px">
-        <div class="wc-hero-main">
-          <div class="wc-eyebrow">Get set up</div>
-          <h1 class="wc-h">Your path from zero to a team running on the brain.</h1>
-          <p class="wc-sub">You're the scout: the one who sets the brain up and makes it better at the things your agency does over and over. You never touch a teammate's machine. This page is the order to do it in, and every piece of help you've got along the way.</p>
-        </div>
-        <aside class="wc-app">
-          <div class="wc-app-h">How to use this page</div>
-          <p>Work top to bottom. Each step is either a guide to open or a <b>prompt to copy</b>. Paste a copied prompt into Claude Code and it does the work, walking you through it as it goes. You never type a terminal command yourself.</p>
-        </aside>
-      </div>
-      <div class="card block">
-        <div class="sec">Your path <span class="note">top to bottom, no terminal commands to memorise</span></div>
-        <p class="gsu-intro">Work down the list. Each step is a guide to follow or a prompt you copy and paste into Claude Code. This page assumes your agency's brain is set up and synced (if you can see it in your Dashboard, it is). If it isn't yet, the one-time setup happens at <code>agency.ads2ai.com</code>. Most scouts are running by day one and build their first skill in week one.</p>
-        <div class="stage">
-          <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what your job actually is. Five minutes of reading saves a lot of guessing.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Give me the quick orientation: what is Agency Brain, what's my job as a scout, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start">Read the guide</button></div>
-          <div class="guide-panel" id="g-start"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">1</span><div><h4>Open the brain in Claude Code or your IDE</h4><p class="sd">The app keeps your agency's brain synced as a folder on your machine. You do the real work in it from Claude Code, in a terminal or in Cursor / VS Code, not in this window. Point your editor at the synced folder and you're in.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="What's in this folder? Give me a brief overview of what's here.">Copy a prompt: what's in this brain?</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Teach the brain your agency</h4><p class="sd">Run <code>/agency-brain-context-setup</code>. It interviews you and fills the shared CLAUDE.md with your services, your voice, your departments, and the tools you use, so every teammate's Claude knows how your agency works.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Run /agency-brain-context-setup: interview me and fill the shared CLAUDE.md with our agency's services, voice, departments, and tools.">Copy a prompt: set up our context</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
-          <div class="guide-panel" id="g-claudemd"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">3</span><div><h4>Set up your clients</h4><p class="sd">Run <code>/client-setup</code> for each client. It creates the client's folder and captures its context, so skills and reports have what they need about that account.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Run /client-setup to add a new client: create the client folder and capture its context (business, accounts, goals, contacts).">Copy a prompt: set up a client</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">4</span><div><h4>Connect Google Ads</h4><p class="sd">So the brain can pull Google Ads data, set up the Cloudflare proxy. In your brain, say "set up the Google Ads proxy"; the <code>gads-proxy</code> skill deploys a small Cloudflare Worker that holds the agency's credentials and hands you a Worker URL. Paste that URL into the Google Ads connector here; it syncs to the team, and each member only ever holds a revocable token, never the credentials.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Set up the Google Ads proxy for our agency: use the gads-proxy skill to deploy the Cloudflare Worker, set the secrets, and give me back the Worker URL and gate token.">Copy a prompt: set up the proxy</button><button class="btn mut" data-go="gads">Open the Google Ads connector</button></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">5</span><div><h4>Build skills for the team</h4><p class="sd">Find a repetitive workflow, build it with <code>/skill-creator</code>, start it at draft. This is the heart of the scout job.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Walk me through creating my first skill for the team using /skill-creator. Help me pick a good first workflow to automate.">Copy a prompt: build my first skill</button><button class="btn ghost" data-guide="g-creating">Read: creating skills</button></div>
-          <div class="guide-panel" id="g-creating"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">6</span><div><h4>Bring your team on</h4><p class="sd">Add anyone (team, another scout, even the owner) from your Dashboard. They install Agency Brain and sign in with their own email, so there's no code to pass around and no GitHub account.</p></div></div>
-          <div class="act"><button class="btn mut" data-go="scout">Add people on your Dashboard</button><button class="btn ghost" data-guide="g-onboard">Read: onboarding your team</button></div>
-          <div class="guide-panel" id="g-onboard"></div>
-        </div>
-        <div class="stage">
-          <div class="sh"><span class="snum">7</span><div><h4>Keep it healthy</h4><p class="sd">Share skills as they earn trust (draft to live to trusted), and know the handful of things that go wrong so you can unstick anyone fast.</p></div></div>
-          <div class="act"><button class="btn ghost" data-guide="g-sharing">Read: sharing a skill</button><button class="btn ghost" data-guide="g-trouble">Read: troubleshooting</button></div>
-          <div class="guide-panel" id="g-sharing"></div>
-          <div class="guide-panel" id="g-trouble"></div>
-        </div>
-      </div>
-      <div class="card block">
-        <div class="sec">What help you've got <span class="note">everything available to you</span></div>
-        <div class="buckets">
-          <div class="bucket">
-            <h3>In your brain</h3><p class="bsub">Skills you can run right now, and the written guides.</p>
-            <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Onboards you or a teammate, role-aware.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/skill-creator</code></div><div class="rd">Builds a new skill from a plain description.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
-            <div class="res"><div><div class="rn">docs/scout-guide/</div><div class="rd">The six written guides linked above.</div></div></div>
-          </div>
-          <div class="bucket">
-            <h3>Courses in the portal</h3><p class="bsub">Deeper learning when you want it.</p>
-            <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Building skills, deploying to your team and clients. The most relevant one.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
-            <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. Foundations: environment, context engineering, what skills are.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
-            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/mastery">Open</span></div>
-            <div class="applies"><b>What applies to you:</b> the automation phases and the Cowork for Scouts course map straight onto agency work. The personal-brain nodes (voice input, your own morning briefing) are optional and personal, not required for the agency.</div>
-          </div>
-          <div class="bucket">
-            <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask. These open a fresh session ready to help.</p>
-            <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
-            <div class="res"><div><div class="rn">"Help me build a skill"</div><div class="rd">Picks a workflow and walks you through it.</div></div><span class="lk" data-spawn="Help me build a skill for my team. Ask me about a workflow I do repeatedly, then create it.">Ask</span></div>
-            <div class="res"><div><div class="rn">"My sync looks stuck"</div><div class="rd">Diagnoses and unsticks a sync problem.</div></div><span class="lk" data-spawn="My Agency Brain sync looks stuck. Help me work out what's wrong and fix it.">Ask</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="view" id="view-welcome">
     <div class="welcome">
       <div class="wc-hero">
@@ -365,6 +203,10 @@
           <div class="sec">Promotion candidates <span class="note">drafts that have settled, ready to go live</span></div>
           <div id="promotions"><p class="empty">Loading…</p></div>
         </div>
+        <div class="card">
+          <div class="sec">Feedback <span class="note" id="fb-open-n"></span></div>
+          <div id="fb-open"><p class="empty">Loading…</p></div>
+        </div>
       </div>
       <div class="stack">
         <div class="kpis" id="scout-kpis"></div>
@@ -424,8 +266,270 @@
     </div>
   </section>
 
-  <!-- ============ HOW IT WORKS (sync & update explainer) ============ -->
-  <section class="view" id="view-howitworks">
+  <!-- Google Ads connector setup (local-only; engine in server.cjs) -->
+  <section class="view" id="view-gads">
+    <!-- SCOUT: enter creds once -> shareable block -->
+    <div id="gads-scout" hidden>
+      <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
+      <div class="sec">Google Ads proxy <span class="note">recommended — set up once, your team never holds the credentials</span></div>
+      <p class="fs-intro" id="gp-proxy-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. Prefer to run it yourself? The exact commands are in <code>.claude/skills/gads-proxy/cloudflare/README.md</code>.</p>
+      <div class="grid flag-grid">
+        <div class="card">
+          <div class="sec">Set your team's proxy URL</div>
+          <div class="flag-form">
+            <label for="gp-url">Worker URL</label><input id="gp-url" type="text" placeholder="https://gads-proxy.your-subdomain.workers.dev" autocomplete="off">
+            <div class="flag-actions"><button class="add-btn" id="gp-save">Save proxy URL</button><span class="af-status" id="gp-save-status"></span></div>
+          </div>
+          <div class="assure" id="gp-current" hidden></div>
+        </div>
+        <div class="card">
+          <div class="sec">Hand each team member the gate token</div>
+          <p class="fs-intro" style="margin-top:0">Send each person the gate token privately (a DM or password manager). They paste it on their own Google Ads page and click Connect. The URL you set here syncs to them automatically, so they never touch it.</p>
+          <div class="assure"><strong>Why this is recommended.</strong> The Google Ads credentials live only on the Worker. A team member's machine only ever holds a gate token, which you can revoke any time without touching the credentials.</div>
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px solid #e4e2dc;margin:26px 0">
+      <!-- FALLBACK: share the full credentials file directly. -->
+      <div class="sec">Alternative: share the credentials file <span class="note">simpler, but every team member ends up holding the full Google Ads credentials</span></div>
+      <p class="fs-intro">Enter the agency Google Ads credentials once. The app turns them into a single block of text you send to a team member however you like. Their app turns it back into a working setup. Nothing here is sent to us, stored on GitHub, or seen by any AI.</p>
+      <div class="grid flag-grid">
+        <div class="card">
+          <div class="sec">Agency credentials</div>
+          <div class="flag-form">
+            <label for="ga-dev">Developer token</label><input id="ga-dev" type="password" autocomplete="off">
+            <label for="ga-cid">OAuth client ID</label><input id="ga-cid" type="text" autocomplete="off">
+            <label for="ga-csec">OAuth client secret</label><input id="ga-csec" type="password" autocomplete="off">
+            <label for="ga-rt">Refresh token</label><input id="ga-rt" type="password" autocomplete="off">
+            <label for="ga-mcc">MCC / login customer ID</label><input id="ga-mcc" type="text" placeholder="5xxxxxxxxx" autocomplete="off">
+            <label for="ga-proj">GCP project ID</label><input id="ga-proj" type="text" autocomplete="off">
+            <div class="flag-actions"><button class="add-btn" id="ga-make">Create setup block</button><span class="af-status" id="ga-make-status"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sec">Send this to your team member</div>
+          <p class="fs-intro" style="margin-top:0">Share it however you prefer, shared doc, email, or Slack. It's one block; they paste it into their app's Google Ads page.</p>
+          <div class="copyblock" id="ga-block" hidden>Create the block first.</div>
+          <div class="assure"><strong>Safe to share this way.</strong> Your app built this locally. It never went through our servers, never onto GitHub, and never into an AI's context. The member's app just turns it back into a local file on their machine.</div>
+          <details class="esc"><summary>Not comfortable with members pasting this?</summary><p>That's your call as the Scout. Instead, send the team member the credentials file directly with your own instructions for saving it, and tell them to ignore the Google Ads page in their app.</p></details>
+        </div>
+      </div>
+    </div>
+    <!-- MEMBER (team): paste block -> one click -->
+    <div id="gads-member" hidden>
+      <!-- RECOMMENDED: connect via the agency proxy (shown only when the Scout has set a URL) -->
+      <div id="gads-proxy-member" hidden>
+        <div class="sec">Connect Google Ads <span class="note">paste the gate token your Scout sent you</span></div>
+        <p class="fs-intro">Your Scout set up a secure proxy. Paste the gate token they sent, click Connect, and you're done. Nothing to install.</p>
+        <div class="grid flag-grid">
+          <div class="card">
+            <div class="sec">Paste your gate token</div>
+            <div class="flag-form">
+              <div class="assure" id="gp-url-display" style="margin:0 0 10px;font-size:13px"></div>
+              <input id="gp-token" type="password" placeholder="gate token (a short code, not your credentials)" autocomplete="off">
+              <div class="flag-actions"><button class="add-btn" id="gp-connect">Connect Google Ads</button><span class="af-status" id="gp-connect-status"></span></div>
+            </div>
+          </div>
+          <div class="card" id="gp-done-card" hidden>
+            <div class="sec">Connected</div>
+            <div class="assure" id="gp-saved-where" style="font-size:13px;margin-top:0"></div>
+            <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork or Claude and paste this to confirm it works:</p>
+            <div class="copyblock" id="gp-prompt"></div>
+          </div>
+        </div>
+      </div>
+      <!-- FALLBACK: paste the full credentials block (shown when no proxy URL is set) -->
+      <div id="gads-member-yaml">
+      <div class="sec">Connect Google Ads <span class="note">paste the credentials block your Scout sent you</span></div>
+      <p class="fs-intro">This pastes the agency's full Google Ads credentials (the <code>AGENCY-BRAIN-GADS:…</code> block your Scout generated and sent you). Paste it, click Connect, and the app saves it locally on your machine. Prefer the safer route? Ask your Scout to set up the Google Ads proxy, then you'd paste a short, revocable gate token instead of the full credentials.</p>
+      <div class="grid flag-grid">
+        <div class="card">
+          <div class="sec">Paste the credentials block</div>
+          <div class="flag-form">
+            <textarea id="ga-paste" rows="4" placeholder="AGENCY-BRAIN-GADS:… (the full block your Scout sent you)"></textarea>
+            <div class="flag-actions"><button class="add-btn" id="ga-connect">Connect Google Ads</button><span class="af-status" id="ga-connect-status"></span></div>
+          </div>
+          <div id="ga-tools" class="tools-note"></div>
+          <details class="esc"><summary>Not comfortable pasting secrets here?</summary><p>Ask your Scout to send you a file instead. If they've sent one and told you to ignore this page, follow their instructions to save it, then skip this step.</p></details>
+        </div>
+        <div class="card" id="ga-done-card" hidden>
+          <div class="sec">Saved</div>
+          <div class="assure" id="ga-saved-where" style="font-size:13px;margin-top:0">Saved your credentials.</div>
+          <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork (or the Claude desktop app) and paste the prompt below to confirm it works. If you'd rather use the google-ads connector, fully quit Claude and reopen it first so it loads the new setup.</p>
+          <div class="copyblock" id="ga-prompt"></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-help">
+    <div class="help-layout">
+      <nav class="help-nav">
+        <button class="help-navi active" data-help="setup">Get set up</button>
+        <button class="help-navi" data-help="how">How it works</button>
+        <button class="help-navi" data-help="flag">Flag a skill</button>
+        <button class="help-navi" data-help="faq">FAQ</button>
+        <input id="help-search" class="help-search" type="search" placeholder="Search the FAQ…" autocomplete="off">
+      </nav>
+      <div class="help-pane">
+        <div class="help-sec" id="help-setup">
+    <div id="getset-owner">
+      <div class="wc-hero" style="margin-bottom:22px">
+        <div class="wc-hero-main">
+          <div class="wc-eyebrow">Get set up</div>
+          <h1 class="wc-h">Get your agency running on the brain.</h1>
+          <p class="wc-sub">You're the owner. You set the direction and own this, but you don't have to be the technical one. The hands-on building is your scout's job. This page is what's yours to do, and how to hand the rest to a scout.</p>
+        </div>
+        <aside class="wc-app">
+          <div class="wc-app-h">You can delegate the setup</div>
+          <p>If you'd rather not install and wire things up yourself, add a scout first and let them do it. Most agencies run this way: the owner sets direction, the scout builds. Either path works.</p>
+        </aside>
+      </div>
+      <div class="card block">
+        <div class="sec">Your path <span class="note">do it yourself, or hand it to a scout</span></div>
+        <p class="gsu-intro">You can set this up yourself, or add a scout at step 4 and hand them the setup and the skill-building. Your job stays the same either way: set direction, decide what's private, and keep an eye on how the brain matures. Nothing here needs a terminal command from you; each step is a guide or a prompt you paste into Claude Code.</p>
+        <div class="stage">
+          <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what's yours as the owner: direction, billing, and deciding what stays private.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Give me the quick orientation as the agency owner: what is Agency Brain, what's my job as owner, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start-o">Read the guide</button></div>
+          <div class="guide-panel" id="g-start-o"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">1</span><div><h4>Set up your computer</h4><p class="sd">A few free tools, once: Node.js, Git, a code editor, and a GitHub account. Rather not? Skip steps 1 to 3, add a scout at step 4, and let them do the hands-on part.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://m.ads2ai.com/mastery">Open the setup guide</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads to AI subscription. No API key needed.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://code.claude.com/docs/en/quickstart">Install Claude Code</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Install Agency Brain</h4><p class="sd">Download the app, install it, and sign in with your email. It downloads your agency's brain and keeps it synced. No invite code needed.</p></div></div>
+          <div class="act"><button class="btn mut" data-ext="https://ads2ai.com/downloads">Download Agency Brain</button><button class="btn ghost" data-guide="g-owner-setup">Read: owner setup walkthrough</button></div>
+          <div class="guide-panel" id="g-owner-setup"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">4</span><div><h4>Bring your people on</h4><p class="sd">Add your scout first (they build the skills), then your team. Add anyone from your Dashboard; they sign in with their own email, so there's no code to pass around and no GitHub account.</p></div></div>
+          <div class="act"><button class="btn mut" data-go="owner">Add people on your Dashboard</button><button class="btn ghost" data-guide="g-onboard-o">Read: onboarding your team</button></div>
+          <div class="guide-panel" id="g-onboard-o"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">5</span><div><h4>Keep what's private, private</h4><p class="sd">Financials, salaries, sensitive client notes go in your own owner-private repo, separate from the shared brain the team can see. Set it up once.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Set up my owner-private brain: a separate, private GitHub repo, just for me as the agency owner, that the team never sees and that never syncs to the shared agency brain. Please don't invent a structure from scratch. Start from the ready-made public template 8020brain/agency-brain-personal-template by running: gh repo create <my-agency>-private --private --template 8020brain/agency-brain-personal-template --clone, and clone it into a folder NEXT TO this shared brain, not inside it. (If gh isn't set up, walk me through the 'Use this template' button on that repo's GitHub page instead.) It ships with a root CLAUDE.md explaining this is my confidential space and what stays private versus shared, plus three folders: team/ (a board.md of who reports to me, a one-on-ones/ folder with one file per direct report for review notes, and a place for comp and salary), business/ (formation documents, contracts, partnerships, strategy), and finances/ (revenue, costs, rates, margins, forecasts). Once it's cloned, open its CLAUDE.md and rewrite it to describe MY agency, then interview me to seed the first real files: my direct reports into team/, my current numbers into finances/, and my live strategy into business/. Keep the air-gap absolute: this repo is owner-only, never add it to the shared agency brain or its sync, and never copy private numbers into the shared brain.">Copy a prompt: set up my private space</button><button class="btn ghost" data-guide="g-private">Read: your private brain</button></div>
+          <div class="guide-panel" id="g-private"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">6</span><div><h4>Watch it mature</h4><p class="sd">Your Dashboard shows how your team's AI workforce is maturing: skills built, improving, earning trust. It never watches what people type or how they work.</p></div></div>
+          <div class="act"><button class="btn mut" data-go="owner">Go to your Dashboard</button></div>
+        </div>
+      </div>
+      <div class="card block">
+        <div class="sec">What help you've got <span class="note">for you or your scout</span></div>
+        <div class="buckets">
+          <div class="bucket">
+            <h3>In your brain</h3><p class="bsub">Run these any time; the written guides back them up.</p>
+            <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Sets you up and seeds your owner-private repo.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
+            <div class="res"><div><div class="rn">onboarding-owner.md</div><div class="rd">The full owner walkthrough.</div></div></div>
+          </div>
+          <div class="bucket">
+            <h3>Courses in the portal</h3><p class="bsub">For you or your scout.</p>
+            <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Best handed to whoever builds your skills.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
+            <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. The foundations, end to end.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
+            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/mastery">Open</span></div>
+          </div>
+          <div class="bucket">
+            <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask.</p>
+            <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
+            <div class="res"><div><div class="rn">"Set up my private space"</div><div class="rd">Creates your owner-only repo.</div></div><span class="lk" data-spawn="Set up my owner-private brain from the public GitHub template 8020brain/agency-brain-personal-template: a separate private repo (team/, business/, finances/ + a CLAUDE.md) that never syncs to the team. Walk me through creating it next to my shared brain with gh repo create --template, then tailor its CLAUDE.md to my agency and help me seed the first files.">Ask</span></div>
+            <div class="res"><div><div class="rn">Add your scout</div><div class="rd">Add your first scout from your Dashboard.</div></div><span class="lk" data-go="owner">Dashboard</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="getset-scout" hidden>
+      <div class="wc-hero" style="margin-bottom:22px">
+        <div class="wc-hero-main">
+          <div class="wc-eyebrow">Get set up</div>
+          <h1 class="wc-h">Your path from zero to a team running on the brain.</h1>
+          <p class="wc-sub">You're the scout: the one who sets the brain up and makes it better at the things your agency does over and over. You never touch a teammate's machine. This page is the order to do it in, and every piece of help you've got along the way.</p>
+        </div>
+        <aside class="wc-app">
+          <div class="wc-app-h">How to use this page</div>
+          <p>Work top to bottom. Each step is either a guide to open or a <b>prompt to copy</b>. Paste a copied prompt into Claude Code and it does the work, walking you through it as it goes. You never type a terminal command yourself.</p>
+        </aside>
+      </div>
+      <div class="card block">
+        <div class="sec">Your path <span class="note">top to bottom, no terminal commands to memorise</span></div>
+        <p class="gsu-intro">Work down the list. Each step is a guide to follow or a prompt you copy and paste into Claude Code. This page assumes your agency's brain is set up and synced (if you can see it in your Dashboard, it is). If it isn't yet, the one-time setup happens at <code>agency.ads2ai.com</code>. Most scouts are running by day one and build their first skill in week one.</p>
+        <div class="stage">
+          <div class="sh"><span class="snum">0</span><div><h4>Orient</h4><p class="sd">What Agency Brain is, how the Owner, Scout and Team roles fit, and what your job actually is. Five minutes of reading saves a lot of guessing.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Give me the quick orientation: what is Agency Brain, what's my job as a scout, and how do the Owner, Scout and Team roles differ?">Copy a prompt to orient me</button><button class="btn ghost" data-guide="g-start">Read the guide</button></div>
+          <div class="guide-panel" id="g-start"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">1</span><div><h4>Open the brain in Claude Code or your IDE</h4><p class="sd">The app keeps your agency's brain synced as a folder on your machine. You do the real work in it from Claude Code, in a terminal or in Cursor / VS Code, not in this window. Point your editor at the synced folder and you're in.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="What's in this folder? Give me a brief overview of what's here.">Copy a prompt: what's in this brain?</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">2</span><div><h4>Teach the brain your agency</h4><p class="sd">Run <code>/agency-brain-context-setup</code>. It interviews you and fills the shared CLAUDE.md with your services, your voice, your departments, and the tools you use, so every teammate's Claude knows how your agency works.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Run /agency-brain-context-setup: interview me and fill the shared CLAUDE.md with our agency's services, voice, departments, and tools.">Copy a prompt: set up our context</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
+          <div class="guide-panel" id="g-claudemd"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">3</span><div><h4>Set up your clients</h4><p class="sd">Run <code>/client-setup</code> for each client. It creates the client's folder and captures its context, so skills and reports have what they need about that account.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Run /client-setup to add a new client: create the client folder and capture its context (business, accounts, goals, contacts).">Copy a prompt: set up a client</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">4</span><div><h4>Connect Google Ads</h4><p class="sd">So the brain can pull Google Ads data, set up the Cloudflare proxy. In your brain, say "set up the Google Ads proxy"; the <code>gads-proxy</code> skill deploys a small Cloudflare Worker that holds the agency's credentials and hands you a Worker URL. Paste that URL into the Google Ads connector here; it syncs to the team, and each member only ever holds a revocable token, never the credentials.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Set up the Google Ads proxy for our agency: use the gads-proxy skill to deploy the Cloudflare Worker, set the secrets, and give me back the Worker URL and gate token.">Copy a prompt: set up the proxy</button><button class="btn mut" data-go="gads">Open the Google Ads connector</button></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">5</span><div><h4>Build skills for the team</h4><p class="sd">Find a repetitive workflow, build it with <code>/skill-creator</code>, start it at draft. This is the heart of the scout job.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Walk me through creating my first skill for the team using /skill-creator. Help me pick a good first workflow to automate.">Copy a prompt: build my first skill</button><button class="btn ghost" data-guide="g-creating">Read: creating skills</button></div>
+          <div class="guide-panel" id="g-creating"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">6</span><div><h4>Bring your team on</h4><p class="sd">Add anyone (team, another scout, even the owner) from your Dashboard. They install Agency Brain and sign in with their own email, so there's no code to pass around and no GitHub account.</p></div></div>
+          <div class="act"><button class="btn mut" data-go="scout">Add people on your Dashboard</button><button class="btn ghost" data-guide="g-onboard">Read: onboarding your team</button></div>
+          <div class="guide-panel" id="g-onboard"></div>
+        </div>
+        <div class="stage">
+          <div class="sh"><span class="snum">7</span><div><h4>Keep it healthy</h4><p class="sd">Share skills as they earn trust (draft to live to trusted), and know the handful of things that go wrong so you can unstick anyone fast.</p></div></div>
+          <div class="act"><button class="btn ghost" data-guide="g-sharing">Read: sharing a skill</button><button class="btn ghost" data-guide="g-trouble">Read: troubleshooting</button></div>
+          <div class="guide-panel" id="g-sharing"></div>
+          <div class="guide-panel" id="g-trouble"></div>
+        </div>
+      </div>
+      <div class="card block">
+        <div class="sec">What help you've got <span class="note">everything available to you</span></div>
+        <div class="buckets">
+          <div class="bucket">
+            <h3>In your brain</h3><p class="bsub">Skills you can run right now, and the written guides.</p>
+            <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Onboards you or a teammate, role-aware.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/skill-creator</code></div><div class="rd">Builds a new skill from a plain description.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
+            <div class="res"><div><div class="rn">docs/scout-guide/</div><div class="rd">The six written guides linked above.</div></div></div>
+          </div>
+          <div class="bucket">
+            <h3>Courses in the portal</h3><p class="bsub">Deeper learning when you want it.</p>
+            <div class="res"><div><div class="rn">Claude Cowork for Scouts</div><div class="rd">27 lessons. Building skills, deploying to your team and clients. The most relevant one.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/claude-cowork-scouts">Open</span></div>
+            <div class="res"><div><div class="rn">How to Use Your 8020brain</div><div class="rd">48 lessons. Foundations: environment, context engineering, what skills are.</div></div><span class="lk" data-ext="https://m.ads2ai.com/courses/the-8020brain">Open</span></div>
+            <div class="res"><div><div class="rn">Mastery Path</div><div class="rd">The visual progression of skills and phases.</div></div><span class="lk" data-ext="https://m.ads2ai.com/mastery">Open</span></div>
+            <div class="applies"><b>What applies to you:</b> the automation phases and the Cowork for Scouts course map straight onto agency work. The personal-brain nodes (voice input, your own morning briefing) are optional and personal, not required for the agency.</div>
+          </div>
+          <div class="bucket">
+            <h3>Talk to Claude</h3><p class="bsub">Stuck? Just ask. These open a fresh session ready to help.</p>
+            <div class="res"><div><div class="rn">"What's in this brain?"</div><div class="rd">A grounded overview of your agency's folder.</div></div><span class="lk" data-spawn="What's in this folder? Give me a brief overview of what's here.">Ask</span></div>
+            <div class="res"><div><div class="rn">"Help me build a skill"</div><div class="rd">Picks a workflow and walks you through it.</div></div><span class="lk" data-spawn="Help me build a skill for my team. Ask me about a workflow I do repeatedly, then create it.">Ask</span></div>
+            <div class="res"><div><div class="rn">"My sync looks stuck"</div><div class="rd">Diagnoses and unsticks a sync problem.</div></div><span class="lk" data-spawn="My Agency Brain sync looks stuck. Help me work out what's wrong and fix it.">Ask</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+        </div>
+        <div class="help-sec" id="help-how" hidden>
     <div class="hiw" id="hiw" data-pov="scout">
 
       <div class="eyebrow">Agency Brain · how it works</div>
@@ -570,10 +674,8 @@
         Agency Brain · sync &amp; update explainer. Times shown are the defaults the app ships with. Badges mark what's live today versus what's planned.
       </div>
     </div>
-  </section>
-
-  <!-- ============ FLAG-SKILL (how feedback works) ============ -->
-  <section class="view" id="view-flag">
+        </div>
+        <div class="help-sec" id="help-flag" hidden>
     <div id="flag-submit">
     <div class="sec">Flag a skill <span class="note">tell the Scout when a skill fell short</span></div>
     <p class="fs-intro">Two ways to flag a skill, whichever's easier. <strong>1.</strong> Fill in the quick form. <strong>2.</strong> In any Claude session, run <code>/flag-skill</code> — it reads your conversation, drafts an answer to each question, and you just confirm or tweak.</p>
@@ -605,164 +707,93 @@
       </div>
     </div>
     </div>
-    <div id="flag-scout" hidden>
-      <div class="sec">Feedback <span class="note">every flag your team has raised</span></div>
-      <p class="fs-intro">This is where flags from your team land. Each one is a teammate telling you a skill fell short. Action the urgent ones from your Dashboard fix queue; this is the full log so you can spot patterns, since a skill that keeps getting flagged is telling you something.</p>
-      <div class="card"><div class="sec">Open flags <span class="note" id="fb-open-n"></span></div><div id="fb-open"><p class="empty">Loading…</p></div></div>
-    </div>
-  </section>
-
-  <!-- Google Ads connector setup (local-only; engine in server.cjs) -->
-  <section class="view" id="view-gads">
-    <!-- SCOUT: enter creds once -> shareable block -->
-    <div id="gads-scout" hidden>
-      <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
-      <div class="sec">Google Ads proxy <span class="note">recommended — set up once, your team never holds the credentials</span></div>
-      <p class="fs-intro" id="gp-proxy-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. Prefer to run it yourself? The exact commands are in <code>.claude/skills/gads-proxy/cloudflare/README.md</code>.</p>
-      <div class="grid flag-grid">
-        <div class="card">
-          <div class="sec">Set your team's proxy URL</div>
-          <div class="flag-form">
-            <label for="gp-url">Worker URL</label><input id="gp-url" type="text" placeholder="https://gads-proxy.your-subdomain.workers.dev" autocomplete="off">
-            <div class="flag-actions"><button class="add-btn" id="gp-save">Save proxy URL</button><span class="af-status" id="gp-save-status"></span></div>
-          </div>
-          <div class="assure" id="gp-current" hidden></div>
         </div>
-        <div class="card">
-          <div class="sec">Hand each team member the gate token</div>
-          <p class="fs-intro" style="margin-top:0">Send each person the gate token privately (a DM or password manager). They paste it on their own Google Ads page and click Connect. The URL you set here syncs to them automatically, so they never touch it.</p>
-          <div class="assure"><strong>Why this is recommended.</strong> The Google Ads credentials live only on the Worker. A team member's machine only ever holds a gate token, which you can revoke any time without touching the credentials.</div>
-        </div>
-      </div>
-      <hr style="border:none;border-top:1px solid #e4e2dc;margin:26px 0">
-      <!-- FALLBACK: share the full credentials file directly. -->
-      <div class="sec">Alternative: share the credentials file <span class="note">simpler, but every team member ends up holding the full Google Ads credentials</span></div>
-      <p class="fs-intro">Enter the agency Google Ads credentials once. The app turns them into a single block of text you send to a team member however you like. Their app turns it back into a working setup. Nothing here is sent to us, stored on GitHub, or seen by any AI.</p>
-      <div class="grid flag-grid">
-        <div class="card">
-          <div class="sec">Agency credentials</div>
-          <div class="flag-form">
-            <label for="ga-dev">Developer token</label><input id="ga-dev" type="password" autocomplete="off">
-            <label for="ga-cid">OAuth client ID</label><input id="ga-cid" type="text" autocomplete="off">
-            <label for="ga-csec">OAuth client secret</label><input id="ga-csec" type="password" autocomplete="off">
-            <label for="ga-rt">Refresh token</label><input id="ga-rt" type="password" autocomplete="off">
-            <label for="ga-mcc">MCC / login customer ID</label><input id="ga-mcc" type="text" placeholder="5xxxxxxxxx" autocomplete="off">
-            <label for="ga-proj">GCP project ID</label><input id="ga-proj" type="text" autocomplete="off">
-            <div class="flag-actions"><button class="add-btn" id="ga-make">Create setup block</button><span class="af-status" id="ga-make-status"></span></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="sec">Send this to your team member</div>
-          <p class="fs-intro" style="margin-top:0">Share it however you prefer, shared doc, email, or Slack. It's one block; they paste it into their app's Google Ads page.</p>
-          <div class="copyblock" id="ga-block" hidden>Create the block first.</div>
-          <div class="assure"><strong>Safe to share this way.</strong> Your app built this locally. It never went through our servers, never onto GitHub, and never into an AI's context. The member's app just turns it back into a local file on their machine.</div>
-          <details class="esc"><summary>Not comfortable with members pasting this?</summary><p>That's your call as the Scout. Instead, send the team member the credentials file directly with your own instructions for saving it, and tell them to ignore the Google Ads page in their app.</p></details>
-        </div>
-      </div>
-    </div>
-    <!-- MEMBER (team): paste block -> one click -->
-    <div id="gads-member" hidden>
-      <!-- RECOMMENDED: connect via the agency proxy (shown only when the Scout has set a URL) -->
-      <div id="gads-proxy-member" hidden>
-        <div class="sec">Connect Google Ads <span class="note">paste the gate token your Scout sent you</span></div>
-        <p class="fs-intro">Your Scout set up a secure proxy. Paste the gate token they sent, click Connect, and you're done. Nothing to install.</p>
-        <div class="grid flag-grid">
-          <div class="card">
-            <div class="sec">Paste your gate token</div>
-            <div class="flag-form">
-              <div class="assure" id="gp-url-display" style="margin:0 0 10px;font-size:13px"></div>
-              <input id="gp-token" type="password" placeholder="gate token (a short code, not your credentials)" autocomplete="off">
-              <div class="flag-actions"><button class="add-btn" id="gp-connect">Connect Google Ads</button><span class="af-status" id="gp-connect-status"></span></div>
-            </div>
-          </div>
-          <div class="card" id="gp-done-card" hidden>
-            <div class="sec">Connected</div>
-            <div class="assure" id="gp-saved-where" style="font-size:13px;margin-top:0"></div>
-            <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork or Claude and paste this to confirm it works:</p>
-            <div class="copyblock" id="gp-prompt"></div>
-          </div>
-        </div>
-      </div>
-      <!-- FALLBACK: paste the full credentials block (shown when no proxy URL is set) -->
-      <div id="gads-member-yaml">
-      <div class="sec">Connect Google Ads <span class="note">paste the credentials block your Scout sent you</span></div>
-      <p class="fs-intro">This pastes the agency's full Google Ads credentials (the <code>AGENCY-BRAIN-GADS:…</code> block your Scout generated and sent you). Paste it, click Connect, and the app saves it locally on your machine. Prefer the safer route? Ask your Scout to set up the Google Ads proxy, then you'd paste a short, revocable gate token instead of the full credentials.</p>
-      <div class="grid flag-grid">
-        <div class="card">
-          <div class="sec">Paste the credentials block</div>
-          <div class="flag-form">
-            <textarea id="ga-paste" rows="4" placeholder="AGENCY-BRAIN-GADS:… (the full block your Scout sent you)"></textarea>
-            <div class="flag-actions"><button class="add-btn" id="ga-connect">Connect Google Ads</button><span class="af-status" id="ga-connect-status"></span></div>
-          </div>
-          <div id="ga-tools" class="tools-note"></div>
-          <details class="esc"><summary>Not comfortable pasting secrets here?</summary><p>Ask your Scout to send you a file instead. If they've sent one and told you to ignore this page, follow their instructions to save it, then skip this step.</p></details>
-        </div>
-        <div class="card" id="ga-done-card" hidden>
-          <div class="sec">Saved</div>
-          <div class="assure" id="ga-saved-where" style="font-size:13px;margin-top:0">Saved your credentials.</div>
-          <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork (or the Claude desktop app) and paste the prompt below to confirm it works. If you'd rather use the google-ads connector, fully quit Claude and reopen it first so it loads the new setup.</p>
-          <div class="copyblock" id="ga-prompt"></div>
-        </div>
-      </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="view" id="view-help">
+        <div class="help-sec" id="help-faq" hidden>
     <!-- FAQ-SYNC:START — inner content GENERATED by brain/tools/sync-faq.cjs. Do NOT hand-edit between these markers. -->
 
     <div class="faq-banner">Agency Brain is in soft launch, so it's a bit experimental and there will be teething problems. I've tested every edge case I can think of, many times over, but some things only show up once real people run it on real machines. You're early. If something breaks or confuses you, tell me and I'll get you sorted fast.</div>
     <div id="help-os">
       <h2 class="faq-h">FAQ for Owners and Scouts</h2>
-      <details class="faq-item"><summary>How fast do changes sync between teammates?</summary><div class="faq-a">The app saves and pushes your work about 60 to 90 seconds after you stop editing, and it pulls everyone else's latest about once a minute. So you're rarely more than a minute behind the rest of the team. You don't need to save or commit; the app handles all of it in the background.</div></details>
-      <details class="faq-item"><summary>What happens if two people edit the same file at the same time?</summary><div class="faq-a">Nothing gets lost. The app keeps your version as the live one and drops your teammate's version right next to it with <code>__from-remote</code> added to the filename. You open both, keep the one you want, and delete the other. It's rare in practice, because people usually work on different files. If in doubt ask the brain to help you sort it out &amp; ask you questions to decide what to keep from each file.</div></details>
-      <details class="faq-item"><summary>Cowork (Claude) says it can't see the files. How do I fix it?</summary><div class="faq-a">You've most likely pointed it at the wrong folder. Check which folder the Agency Brain app is watching (the app shows it), then in Cowork browse to and pick that same folder. If Cowork and the app are looking at different folders, your work won't reach the team.</div></details>
-      <details class="faq-item"><summary>Does the Owner, or Ads2AI/Mike see what I type?</summary><div class="faq-a">No. The only thing recorded is a coarse line each time a skill runs: the time, the skill name, and potentially which client it was for. Your prompts, your conversation, and Claude's output are never logged. Per-person token usage is never tracked anywhere.</div></details>
-      <details class="faq-item"><summary>Where does our brain actually live? Is it on Ads2AI/Mike's servers?</summary><div class="faq-a">No. Your agency hosts its own brain on its own GitHub, ideally an account your business controls. I (Mike) never host it for you and I never create a GitHub org for you. Your app just borrows short-lived access tokens that are created fresh for each sync and then expire.</div></details>
-      <details class="faq-item"><summary>Do I have to use Cowork?</summary><div class="faq-a">No but you'll probably want to check it out at least. Cowork, inside the Claude desktop app, is the simplest option and what most Team members use. You can also work in Claude Code in a terminal/IDE, or the Claude Code VS extension, whatever you prefer. As long as the Agency Brain app is running &amp; Cowork/Code are working on the same folder, your work syncs the same way no matter which one you use.</div></details>
-      <details class="faq-item"><summary>Who do I contact when something goes wrong with Agency Brain?</summary><div class="faq-a">Your Scout or Owner first, not Anthropic. They set your agency brain up and can see the GitHub side of things. When you ask, grab a screenshot and the app log (Show log in the app menu) so they can see what happened.</div></details>
-      <details class="faq-item"><summary>I'm already running my brain solo in a terminal. If I move to Agency Brain but don't add anyone, does anything change?</summary><div class="faq-a">No, and that's the point. Moving onto Agency Brain only makes sense if you want to bring team members in. If you're staying solo, just keep using <code>/brain-update</code> as you always have. The whole reason to upgrade is to become a team, and becoming a team means installing the GitHub App.</div></details>
-      <details class="faq-item"><summary>The wizard asked me to choose between "I already have a brain" and "start fresh from the template", with no recommended option. Which do I pick?</summary><div class="faq-a">Both are fine; they suit different situations, so I deliberately don't steer you. "I already have a brain" (Path A) adopts your existing (solo) brain as the shared agency brain. It's the fastest and keeps all your work, but you have to get the sensitive-file step right before anyone joins. "Start fresh" (Path B) keeps your existing brain personal and creates a clean agency brain from the template, then copies across (if needed) only what you choose. It's the safest against leaks because the shared repo starts empty, but it's a bit more setup. Pick Path A if your brain is already tidy, Path B if you'd rather start the shared one clean.</div></details>
-      <details class="faq-item"><summary>I chose Path A. How do I keep client data and private notes out of the shared repo my teammates will see?</summary><div class="faq-a">The upgrade prompt walks you through flagging each sensitive file. The files you flag get put in a private repo in your GitHub, and get removed from the agency repo. The Agency Brain App is not installed on that separate repo, so your teammates simply have no access to it. Do this before the first teammate joins, and be honest with yourself about what's sensitive, because anything that was committed to the agency repo earlier still sits in its history.</div></details>
-      <details class="faq-item"><summary>I told the prompt my brain has nothing private and skipped the sensitive-file step. Was that allowed?</summary><div class="faq-a">Yes. Extracting sensitive files is strongly advised but you can skip it.</div></details>
-      <details class="faq-item"><summary>Isn't gitignoring a "personal" folder enough to keep client data private? Do I really need a separate repo?</summary><div class="faq-a">For truly sensitive data, use the separate private repo. I don't fully trust the CLAUDE instructions to keep all sensitive files out of shared history 100% of the time so the separate repo is the best option. The gitignored <code>personal</code> folder is for routine local scratch files that just doesn't need sharing.</div></details>
-      <details class="faq-item"><summary>I picked Path B (start fresh). What gets copied across, and does my existing brain get touched?</summary><div class="faq-a">Claude copies across only the agency, client, and skill context you choose; you pick the categories. Anything sensitive stays out, so the shared brain starts clean, and your original personal brain is left exactly as it was. One thing to know: once the app switches to watching the new agency folder, it stops syncing your old personal brain. The done screen tells you this so it's not a surprise. Your old brain is safe and untouched, it's just no longer synced by this app.</div></details>
-      <details class="faq-item"><summary>The wizard says I'm not set up on my own GitHub repo yet. What do I do first?</summary><div class="faq-a">Your brain needs to be on a private GitHub repo you own, because that's the repo the App syncs to the team. Run the pre-flight prompt from the Agency Brain page (<a href="https://m.ads2ai.com/agency-brain" target="_blank" rel="noopener">https://m.ads2ai.com/agency-brain</a>). It checks you're in your brain folder, looks at your git remotes, leaves the brain template alone, and if you don't have your own repo yet it creates a private one under your account and pushes your brain to it. Once that's done, go back to the wizard.</div></details>
-      <details class="faq-item"><summary>I installed the GitHub App but my teammate still can't sync, or the app says my repo doesn't match. Why?</summary><div class="faq-a">There are two common causes. The first is ordering: the GitHub App has to be installed and linked to your team before the desktop app flips into team mode, otherwise the first sync can't get a token. The second is more subtle. If you'd installed the Agency Brain App on your GitHub account before your team existed, clicking Save on GitHub's "configure existing installation" screen does not link it to your team. The fix is to run the install link scoped to your team: <code>github.com/apps/agency-brain-sync/installations/new?state=&lt;your-team-slug&gt;</code>. That properly links it, and sync starts working.</div></details>
-      <details class="faq-item"><summary>I want to add a teammate, but the button just shows a message instead of a form. What's wrong?</summary><div class="faq-a">That's expected before you've upgraded. As a solo owner you're not on a team yet, so the add-member form has nothing to add people to. Instead of throwing an error, the Command Centre shows a nudge pointing you at the tray item "Connect to my agency team…". Run that, finish turning your brain into an Agency Brain ready for a team, and the add-member form starts working.</div></details>
-      <details class="faq-item"><summary>Where do I add Scouts and Team members, the website or the app?</summary><div class="faq-a">The website (agency.ads2ai.com) is designed for the one-time setup: creating your team and installing the GitHub App. After that, everything to do with your roster, adding or removing Team members and swapping people between Owner and Scout, happens in the Command Centre (the app), not on the website.</div></details>
-      <details class="faq-item"><summary>I'm on the free Solo tier and couldn't add a 6th Team member. Is that a bug?</summary><div class="faq-a">No, that's the cap working. The free Solo tier includes you plus up to 5 Team members. The team2 plan adds 2 Scouts &amp; lifts the Team cap to 10, the 5-Scout tier to 25, and the 10-Scout tier to unlimited. If you've hit 5 team members and want more, just upgrade to the 'team2' plan.</div></details>
-      <details class="faq-item"><summary>Can I add a new Scout myself, or does that go through Ads2AI/Mike?</summary><div class="faq-a">You can swap your existing people between Owner and Scout freely, because those two roles have identical access and it's really just a label. You also add and remove Team members yourself. But a brand-new Scout is a paid seat and a full Ads to AI membership, so that one comes through me (Mike). Tell me the person's name and email and I'll set them up. There's no self-serve new Scout.</div></details>
-      <details class="faq-item"><summary>Where should I host the agency brain repo, my personal GitHub or a business account?</summary><div class="faq-a">Use a GitHub organisation your business owns, not a personal account. In an org, the brain survives people coming and going: when someone leaves, you revoke their access and the org keeps everything, with nothing to transfer. A personal-account repo means a repo transfer every time the owner changes. I never host it for you and never create the org for you, but I'd strongly point you at setting one up.</div></details>
-      <details class="faq-item"><summary>Can every Scout and Team member see every client's data in the shared brain? Is that a privacy problem?</summary><div class="faq-a">Everyone who syncs reads everything, and that's by design. It mirrors how a Google Ads manager account works: the agency sees across all the accounts it manages. Roles control who can change things, not who can read them. If a specific client contract forbids the team seeing their data, the escape hatch is a separate private repo with its own access list, but that's an edge case rather than the normal setup.</div></details>
-      <details class="faq-item"><summary>How do I store Google Ads credentials so someone who leaves can't walk off with access?</summary><div class="faq-a">Use the proxy model, which is the default. The real credentials live once on a service (eg Cloudflare) the Owner or Scout controls, and each team member holds only a revocable token, never the actual credentials. When someone leaves, you revoke their token in one place and you're done, with no need to re-key anything. The alternative, a credentials file on each machine, works for a small trusted team but puts a copy of the secret on every laptop (with no 2FA!), so the proxy model is the safer default.</div></details>
-      <details class="faq-item"><summary>If my Ads to AI membership lapses, what happens to my team's sync?</summary><div class="faq-a">Syncing stops, because the GitHub App can no longer create the tokens each sync needs. Renew at ads2ai.com and it picks straight back up. Owners and Scouts need to be active Ads to AI members; Agency Brain comes with that membership and can't be bought on its own.</div></details>
-      <details class="faq-item"><summary>A teammate's change didn't sync, or I see a file with "__from-remote" in the name, or the app says it needs attention. How do I sort it out?</summary><div class="faq-a">A few things could be going on. Team members can't write to the <code>.claude/</code> folder, so if one of them edited a skill, the app set that change aside while everything else kept syncing. If two people edited the same file, the app keeps your version and drops theirs alongside with <code>__from-remote</code> in the name, so read both, keep one, delete the other. When the app wants you to look at something, the top of the tray menu says "Needs your attention" with a short reason: use "Discard my changes" in the app menu if you don't need your local edit, or open the file, resolve it, and save. Running the agency-tidy-up skill sweeps up leftover <code>__from-remote</code> and set-aside files. If in doubt just ask Claude to walk you through fixing it.</div></details>
+      <div class="faq-group">
+        <h3 class="faq-section">Getting started</h3>
+        <details class="faq-item"><summary>Do I have to use Cowork? <span class="faq-pill">Team</span></summary><div class="faq-a">No but you'll probably want to check it out at least. Cowork, inside the Claude desktop app, is the simplest option and what most Team members use. You can also work in Claude Code in a terminal/IDE, or the Claude Code VS extension, whatever you prefer. As long as the Agency Brain app is running &amp; Cowork/Code are working on the same folder, your work syncs the same way no matter which one you use.</div></details>
+        <details class="faq-item"><summary>I'm already running my brain solo in a terminal. If I move to Agency Brain but don't add anyone, does anything change?</summary><div class="faq-a">No, and that's the point. Moving onto Agency Brain only makes sense if you want to bring team members in. If you're staying solo, just keep using <code>/brain-update</code> as you always have. The whole reason to upgrade is to become a team, and becoming a team means installing the GitHub App.</div></details>
+        <details class="faq-item"><summary>The wizard asked me to choose between "I already have a brain" and "start fresh from the template", with no recommended option. Which do I pick?</summary><div class="faq-a">Both are fine; they suit different situations, so I deliberately don't steer you. "I already have a brain" (Path A) adopts your existing (solo) brain as the shared agency brain. It's the fastest and keeps all your work, but you have to get the sensitive-file step right before anyone joins. "Start fresh" (Path B) keeps your existing brain personal and creates a clean agency brain from the template, then copies across (if needed) only what you choose. It's the safest against leaks because the shared repo starts empty, but it's a bit more setup. Pick Path A if your brain is already tidy, Path B if you'd rather start the shared one clean.</div></details>
+        <details class="faq-item"><summary>I picked Path B (start fresh). What gets copied across, and does my existing brain get touched?</summary><div class="faq-a">Claude copies across only the agency, client, and skill context you choose; you pick the categories. Anything sensitive stays out, so the shared brain starts clean, and your original personal brain is left exactly as it was. One thing to know: once the app switches to watching the new agency folder, it stops syncing your old personal brain. The done screen tells you this so it's not a surprise. Your old brain is safe and untouched, it's just no longer synced by this app.</div></details>
+        <details class="faq-item"><summary>The wizard says I'm not set up on my own GitHub repo yet. What do I do first?</summary><div class="faq-a">Your brain needs to be on a private GitHub repo you own, because that's the repo the App syncs to the team. Run the pre-flight prompt from the Agency Brain page (<a href="https://m.ads2ai.com/agency-brain" target="_blank" rel="noopener">https://m.ads2ai.com/agency-brain</a>). It checks you're in your brain folder, looks at your git remotes, leaves the brain template alone, and if you don't have your own repo yet it creates a private one under your account and pushes your brain to it. Once that's done, go back to the wizard.</div></details>
+        <details class="faq-item"><summary>Where should I host the agency brain repo, my personal GitHub or a business account?</summary><div class="faq-a">Use a GitHub organisation your business owns, not a personal account. In an org, the brain survives people coming and going: when someone leaves, you revoke their access and the org keeps everything, with nothing to transfer. A personal-account repo means a repo transfer every time the owner changes. I never host it for you and never create the org for you, but I'd strongly point you at setting one up.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Syncing &amp; conflicts</h3>
+        <details class="faq-item"><summary>How fast do changes sync between teammates? <span class="faq-pill">Team</span></summary><div class="faq-a">The app saves and pushes your work about 60 to 90 seconds after you stop editing, and it pulls everyone else's latest about once a minute. So you're rarely more than a minute behind the rest of the team. You don't need to save or commit; the app handles all of it in the background.</div></details>
+        <details class="faq-item"><summary>What happens if two people edit the same file at the same time? <span class="faq-pill">Team</span></summary><div class="faq-a">Nothing gets lost. The app keeps your version as the live one and drops your teammate's version right next to it with <code>__from-remote</code> added to the filename. You open both, keep the one you want, and delete the other. It's rare in practice, because people usually work on different files. If in doubt ask the brain to help you sort it out &amp; ask you questions to decide what to keep from each file.</div></details>
+        <details class="faq-item"><summary>A teammate's change didn't sync, or I see a file with "__from-remote" in the name, or the app says it needs attention. How do I sort it out?</summary><div class="faq-a">A few things could be going on. Team members can't write to the <code>.claude/</code> folder, so if one of them edited a skill, the app set that change aside while everything else kept syncing. If two people edited the same file, the app keeps your version and drops theirs alongside with <code>__from-remote</code> in the name, so read both, keep one, delete the other. When the app wants you to look at something, the top of the tray menu says "Needs your attention" with a short reason: use "Discard my changes" in the app menu if you don't need your local edit, or open the file, resolve it, and save. Running the agency-tidy-up skill sweeps up leftover <code>__from-remote</code> and set-aside files. If in doubt just ask Claude to walk you through fixing it.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Privacy &amp; data</h3>
+        <details class="faq-item"><summary>Does the Owner, or Ads2AI/Mike see what I type? <span class="faq-pill">Team</span></summary><div class="faq-a">No. The only thing recorded is a coarse line each time a skill runs: the time, the skill name, and potentially which client it was for. Your prompts, your conversation, and Claude's output are never logged. Per-person token usage is never tracked anywhere.</div></details>
+        <details class="faq-item"><summary>Where does our brain actually live? Is it on Ads2AI/Mike's servers? <span class="faq-pill">Team</span></summary><div class="faq-a">No. Your agency hosts its own brain on its own GitHub, ideally an account your business controls. I (Mike) never host it for you and I never create a GitHub org for you. Your app just borrows short-lived access tokens that are created fresh for each sync and then expire.</div></details>
+        <details class="faq-item"><summary>I chose Path A. How do I keep client data and private notes out of the shared repo my teammates will see?</summary><div class="faq-a">The upgrade prompt walks you through flagging each sensitive file. The files you flag get put in a private repo in your GitHub, and get removed from the agency repo. The Agency Brain App is not installed on that separate repo, so your teammates simply have no access to it. Do this before the first teammate joins, and be honest with yourself about what's sensitive, because anything that was committed to the agency repo earlier still sits in its history.</div></details>
+        <details class="faq-item"><summary>I told the prompt my brain has nothing private and skipped the sensitive-file step. Was that allowed?</summary><div class="faq-a">Yes. Extracting sensitive files is strongly advised but you can skip it.</div></details>
+        <details class="faq-item"><summary>Isn't gitignoring a "personal" folder enough to keep client data private? Do I really need a separate repo?</summary><div class="faq-a">For truly sensitive data, use the separate private repo. I don't fully trust the CLAUDE instructions to keep all sensitive files out of shared history 100% of the time so the separate repo is the best option. The gitignored <code>personal</code> folder is for routine local scratch files that just doesn't need sharing.</div></details>
+        <details class="faq-item"><summary>Can every Scout and Team member see every client's data in the shared brain? Is that a privacy problem?</summary><div class="faq-a">Everyone who syncs reads everything, and that's by design. It mirrors how a Google Ads manager account works: the agency sees across all the accounts it manages. Roles control who can change things, not who can read them. If a specific client contract forbids the team seeing their data, the escape hatch is a separate private repo with its own access list, but that's an edge case rather than the normal setup.</div></details>
+        <details class="faq-item"><summary>How do I store Google Ads credentials so someone who leaves can't walk off with access?</summary><div class="faq-a">Use the proxy model, which is the default. The real credentials live once on a service (eg Cloudflare) the Owner or Scout controls, and each team member holds only a revocable token, never the actual credentials. When someone leaves, you revoke their token in one place and you're done, with no need to re-key anything. The alternative, a credentials file on each machine, works for a small trusted team but puts a copy of the secret on every laptop (with no 2FA!), so the proxy model is the safer default.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Plans &amp; seats</h3>
+        <details class="faq-item"><summary>Where do I add Scouts and Team members, the website or the app?</summary><div class="faq-a">The website (agency.ads2ai.com) is designed for the one-time setup: creating your team and installing the GitHub App. After that, everything to do with your roster, adding or removing Team members and swapping people between Owner and Scout, happens in the Command Centre (the app), not on the website.</div></details>
+        <details class="faq-item"><summary>I'm on the free Solo tier and couldn't add a 6th Team member. Is that a bug?</summary><div class="faq-a">No, that's the cap working. The free Solo tier includes you plus up to 5 Team members. The team2 plan adds 2 Scouts &amp; lifts the Team cap to 10, the 5-Scout tier to 25, and the 10-Scout tier to unlimited. If you've hit 5 team members and want more, just upgrade to the 'team2' plan.</div></details>
+        <details class="faq-item"><summary>Can I add a new Scout myself, or does that go through Ads2AI/Mike?</summary><div class="faq-a">You can swap your existing people between Owner and Scout freely, because those two roles have identical access and it's really just a label. You also add and remove Team members yourself. But a brand-new Scout is a paid seat and a full Ads to AI membership, so that one comes through me (Mike). Tell me the person's name and email and I'll set them up. There's no self-serve new Scout.</div></details>
+        <details class="faq-item"><summary>If my Ads to AI membership lapses, what happens to my team's sync?</summary><div class="faq-a">Syncing stops, because the GitHub App can no longer create the tokens each sync needs. Renew at ads2ai.com and it picks straight back up. Owners and Scouts need to be active Ads to AI members; Agency Brain comes with that membership and can't be bought on its own.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Troubleshooting</h3>
+        <details class="faq-item"><summary>Cowork (Claude) says it can't see the files. How do I fix it? <span class="faq-pill">Team</span></summary><div class="faq-a">You've most likely pointed it at the wrong folder. Check which folder the Agency Brain app is watching (the app shows it), then in Cowork browse to and pick that same folder. If Cowork and the app are looking at different folders, your work won't reach the team.</div></details>
+        <details class="faq-item"><summary>Who do I contact when something goes wrong with Agency Brain? <span class="faq-pill">Team</span></summary><div class="faq-a">Your Scout or Owner first, not Anthropic. They set your agency brain up and can see the GitHub side of things. When you ask, grab a screenshot and the app log (Show log in the app menu) so they can see what happened.</div></details>
+        <details class="faq-item"><summary>I installed the GitHub App but my teammate still can't sync, or the app says my repo doesn't match. Why?</summary><div class="faq-a">There are two common causes. The first is ordering: the GitHub App has to be installed and linked to your team before the desktop app flips into team mode, otherwise the first sync can't get a token. The second is more subtle. If you'd installed the Agency Brain App on your GitHub account before your team existed, clicking Save on GitHub's "configure existing installation" screen does not link it to your team. The fix is to run the install link scoped to your team: <code>github.com/apps/agency-brain-sync/installations/new?state=&lt;your-team-slug&gt;</code>. That properly links it, and sync starts working.</div></details>
+        <details class="faq-item"><summary>I want to add a teammate, but the button just shows a message instead of a form. What's wrong?</summary><div class="faq-a">That's expected before you've upgraded. As a solo owner you're not on a team yet, so the add-member form has nothing to add people to. Instead of throwing an error, the Command Centre shows a nudge pointing you at the tray item "Connect to my agency team…". Run that, finish turning your brain into an Agency Brain ready for a team, and the add-member form starts working.</div></details>
+      </div>
     </div>
+    <div id="help-team-note" class="faq-teamnote">This is the FAQ your team members see in their own Command Centre. Questions marked <span class="faq-pill">Team</span> appear in both their FAQ and yours above.</div>
     <div id="help-team" hidden>
       <h2 class="faq-h">FAQ for Team members</h2>
-      <details class="faq-item"><summary>How fast do changes sync between teammates?</summary><div class="faq-a">The app saves and pushes your work about 60 to 90 seconds after you stop editing, and it pulls everyone else's latest about once a minute. So you're rarely more than a minute behind the rest of the team. You don't need to save or commit; the app handles all of it in the background.</div></details>
-      <details class="faq-item"><summary>What happens if two people edit the same file at the same time?</summary><div class="faq-a">Nothing gets lost. The app keeps your version as the live one and drops your teammate's version right next to it with <code>__from-remote</code> added to the filename. You open both, keep the one you want, and delete the other. It's rare in practice, because people usually work on different files. If in doubt ask the brain to help you sort it out &amp; ask you questions to decide what to keep from each file.</div></details>
-      <details class="faq-item"><summary>Cowork (Claude) says it can't see the files. How do I fix it?</summary><div class="faq-a">You've most likely pointed it at the wrong folder. Check which folder the Agency Brain app is watching (the app shows it), then in Cowork browse to and pick that same folder. If Cowork and the app are looking at different folders, your work won't reach the team.</div></details>
-      <details class="faq-item"><summary>Does the Owner, or Ads2AI/Mike see what I type?</summary><div class="faq-a">No. The only thing recorded is a coarse line each time a skill runs: the time, the skill name, and potentially which client it was for. Your prompts, your conversation, and Claude's output are never logged. Per-person token usage is never tracked anywhere.</div></details>
-      <details class="faq-item"><summary>Where does our brain actually live? Is it on Ads2AI/Mike's servers?</summary><div class="faq-a">No. Your agency hosts its own brain on its own GitHub, ideally an account your business controls. I (Mike) never host it for you and I never create a GitHub org for you. Your app just borrows short-lived access tokens that are created fresh for each sync and then expire.</div></details>
-      <details class="faq-item"><summary>Do I have to use Cowork?</summary><div class="faq-a">No but you'll probably want to check it out at least. Cowork, inside the Claude desktop app, is the simplest option and what most Team members use. You can also work in Claude Code in a terminal/IDE, or the Claude Code VS extension, whatever you prefer. As long as the Agency Brain app is running &amp; Cowork/Code are working on the same folder, your work syncs the same way no matter which one you use.</div></details>
-      <details class="faq-item"><summary>Who do I contact when something goes wrong with Agency Brain?</summary><div class="faq-a">Your Scout or Owner first, not Anthropic. They set your agency brain up and can see the GitHub side of things. When you ask, grab a screenshot and the app log (Show log in the app menu) so they can see what happened.</div></details>
-      <details class="faq-item"><summary>What is this Agency Brain app, and why did I get it?</summary><div class="faq-a">It's a small app that sits in your menu bar (Mac) or system tray (Windows) and keeps a shared folder of your agency's knowledge and skills in sync automatically. You do your actual work through Claude, usually in Cowork. The app just quietly shares your changes with the team and pulls theirs in. You never need to 'click save' or commit files.</div></details>
-      <details class="faq-item"><summary>I got an invite with a 6-character code (like BR4-7XK). Now what?</summary><div class="faq-a">Install the Agency Brain app from the link in the invite email, open it, and paste the 6-character code into the setup screen. The code stays in your email, so you can come back to it if you need to. The app then creates your brain folder, connects you to the agency's brain, and the icon turns orange when it's syncing.</div></details>
-      <details class="faq-item"><summary>Do I need a GitHub account, or to know what git is?</summary><div class="faq-a">No. Not unless you're a 'scout'. You never log into GitHub, you never see a developer screen, and you never run a git command. The agency owns the GitHub side, and the app borrows access for you behind the scenes. You install one app, paste your code, and start working.</div></details>
-      <details class="faq-item"><summary>Which apps do I install, and which Claude is the right one?</summary><div class="faq-a">Two apps, and they're separate downloads. The Agency Brain app, from the link in your invite. And the Claude desktop app, from claude.com/download. Git is NOT bundled in the Agency Brain app: on Windows you install Git yourself first (from git-scm.com), then fully quit and reopen Claude. On a Mac you usually already have it, and if you don't, the first git command quietly prompts you to add Apple's command line tools. Most Team members do their work in Cowork inside the Claude desktop app.</div></details>
-      <details class="faq-item"><summary>Where do I do my work, and where are the files?</summary><div class="faq-a">You work in Cowork, inside the Claude desktop app. Just point it at the same Agency Brain folder the app is using.</div></details>
-      <details class="faq-item"><summary>A colleague said they made a change, but I don't see it. Why?</summary><div class="faq-a">The app pulls the team's latest about once a minute or two, so give it a moment. If it still hasn't shown up, click the Agency Brain icon and check the top of the menu says it's syncing (and that the icon isn't greyed out), and that Cowork is pointed at the right folder. If it seems stuck, message your Scout or Owner.</div></details>
-      <details class="faq-item"><summary>Do I need to save or commit my work?</summary><div class="faq-a">No. The app watches your folder, and about a minute and a half after you stop editing it quietly saves and shares your work with the team. There's no save or commit button for you to press.</div></details>
-      <details class="faq-item"><summary>What does the Agency Brain icon tell me?</summary><div class="faq-a">The brain icon really just shows on or off. When the app is running and syncing it's the orange brain, and that's what you'll see almost all the time, including while it quietly syncs in the background. If it looks greyed out, the app isn't running or hasn't been pointed at a folder yet, so use Change folder and point it at your agencybrain folder. For the actual detail, click the icon: the top of the menu tells you in plain words what's happening (syncing and when it last pushed, paused, or needs your attention).</div></details>
-      <details class="faq-item"><summary>What's the "personal" folder, and who can see it?</summary><div class="faq-a">It's your own private scratch space for meeting notes, todos, and rough drafts. Only you can see it; it never syncs to the team, and even the Owner can't look inside. One important catch: because it never leaves your machine, it isn't backed up. If your laptop dies, it's gone. So for any work you can't afford to lose move it into a shared folder.</div></details>
-      <details class="faq-item"><summary>I made an edit and it didn't sync, but my other changes did. What happened?</summary><div class="faq-a">You probably edited something that only Owners and Scouts can change, like a skill or a config file. The app sets those changes aside instead of blocking everything else, so the rest of your work still went through. If you needed that change, ask a Scout to make it for you.</div></details>
-      <details class="faq-item"><summary>I already use a personal 8020brain. Should I merge Agency Brain into it?</summary><div class="faq-a">No, keep them separate. When you join an agency someone else set up, let the Agency Brain app create its own fresh folder for the shared brain, and leave any personal 8020brain you run as its own thing. They're separate repos with separate sync, so splicing one into the other causes confusion later. This is the opposite of the Owner case: an Owner moving their OWN solo brain onto Agency Brain deliberately turns that existing brain into the shared one. You're joining a brain that already exists, so you take a clean copy of it. If there's one file from your personal brain you want, copy it across by hand once Agency Brain is running.</div></details>
-      <details class="faq-item"><summary>On Windows the install threw scary warnings (SmartScreen, "isn't commonly downloaded"). Did I do something wrong?</summary><div class="faq-a">No, that's expected. Windows shows warnings that don't mean anything is actually wrong. For the download warning, click the three dots next to it, then Keep, then Keep anyway (click the down arrow on the delete button!). For the SmartScreen screen ("Windows protected your PC"), click the small "More info" text, then "Run anyway". Don't click Delete. You also need Git installed (from git-scm.com, choosing the middle PATH option), and then fully restart Claude.</div></details>
+      <div class="faq-group">
+        <h3 class="faq-section">Getting started</h3>
+        <details class="faq-item"><summary>Do I have to use Cowork? <span class="faq-pill">Team</span></summary><div class="faq-a">No but you'll probably want to check it out at least. Cowork, inside the Claude desktop app, is the simplest option and what most Team members use. You can also work in Claude Code in a terminal/IDE, or the Claude Code VS extension, whatever you prefer. As long as the Agency Brain app is running &amp; Cowork/Code are working on the same folder, your work syncs the same way no matter which one you use.</div></details>
+        <details class="faq-item"><summary>What is this Agency Brain app, and why did I get it?</summary><div class="faq-a">It's a small app that sits in your menu bar (Mac) or system tray (Windows) and keeps a shared folder of your agency's knowledge and skills in sync automatically. You do your actual work through Claude, usually in Cowork. The app just quietly shares your changes with the team and pulls theirs in. You never need to 'click save' or commit files.</div></details>
+        <details class="faq-item"><summary>I got an invite with a 6-character code (like BR4-7XK). Now what?</summary><div class="faq-a">Install the Agency Brain app from the link in the invite email, open it, and paste the 6-character code into the setup screen. The code stays in your email, so you can come back to it if you need to. The app then creates your brain folder, connects you to the agency's brain, and the icon turns orange when it's syncing.</div></details>
+        <details class="faq-item"><summary>Do I need a GitHub account, or to know what git is?</summary><div class="faq-a">No. Not unless you're a 'scout'. You never log into GitHub, you never see a developer screen, and you never run a git command. The agency owns the GitHub side, and the app borrows access for you behind the scenes. You install one app, paste your code, and start working.</div></details>
+        <details class="faq-item"><summary>Which apps do I install, and which Claude is the right one?</summary><div class="faq-a">Two apps, and they're separate downloads. The Agency Brain app, from the link in your invite. And the Claude desktop app, from claude.com/download. Git is NOT bundled in the Agency Brain app: on Windows you install Git yourself first (from git-scm.com), then fully quit and reopen Claude. On a Mac you usually already have it, and if you don't, the first git command quietly prompts you to add Apple's command line tools. Most Team members do their work in Cowork inside the Claude desktop app.</div></details>
+        <details class="faq-item"><summary>Where do I do my work, and where are the files?</summary><div class="faq-a">You work in Cowork, inside the Claude desktop app. Just point it at the same Agency Brain folder the app is using.</div></details>
+        <details class="faq-item"><summary>I already use a personal 8020brain. Should I merge Agency Brain into it?</summary><div class="faq-a">No, keep them separate. When you join an agency someone else set up, let the Agency Brain app create its own fresh folder for the shared brain, and leave any personal 8020brain you run as its own thing. They're separate repos with separate sync, so splicing one into the other causes confusion later. This is the opposite of the Owner case: an Owner moving their OWN solo brain onto Agency Brain deliberately turns that existing brain into the shared one. You're joining a brain that already exists, so you take a clean copy of it. If there's one file from your personal brain you want, copy it across by hand once Agency Brain is running.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Syncing &amp; conflicts</h3>
+        <details class="faq-item"><summary>How fast do changes sync between teammates? <span class="faq-pill">Team</span></summary><div class="faq-a">The app saves and pushes your work about 60 to 90 seconds after you stop editing, and it pulls everyone else's latest about once a minute. So you're rarely more than a minute behind the rest of the team. You don't need to save or commit; the app handles all of it in the background.</div></details>
+        <details class="faq-item"><summary>What happens if two people edit the same file at the same time? <span class="faq-pill">Team</span></summary><div class="faq-a">Nothing gets lost. The app keeps your version as the live one and drops your teammate's version right next to it with <code>__from-remote</code> added to the filename. You open both, keep the one you want, and delete the other. It's rare in practice, because people usually work on different files. If in doubt ask the brain to help you sort it out &amp; ask you questions to decide what to keep from each file.</div></details>
+        <details class="faq-item"><summary>A colleague said they made a change, but I don't see it. Why?</summary><div class="faq-a">The app pulls the team's latest about once a minute or two, so give it a moment. If it still hasn't shown up, click the Agency Brain icon and check the top of the menu says it's syncing (and that the icon isn't greyed out), and that Cowork is pointed at the right folder. If it seems stuck, message your Scout or Owner.</div></details>
+        <details class="faq-item"><summary>Do I need to save or commit my work?</summary><div class="faq-a">No. The app watches your folder, and about a minute and a half after you stop editing it quietly saves and shares your work with the team. There's no save or commit button for you to press.</div></details>
+        <details class="faq-item"><summary>I made an edit and it didn't sync, but my other changes did. What happened?</summary><div class="faq-a">You probably edited something that only Owners and Scouts can change, like a skill or a config file. The app sets those changes aside instead of blocking everything else, so the rest of your work still went through. If you needed that change, ask a Scout to make it for you.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Privacy &amp; data</h3>
+        <details class="faq-item"><summary>Does the Owner, or Ads2AI/Mike see what I type? <span class="faq-pill">Team</span></summary><div class="faq-a">No. The only thing recorded is a coarse line each time a skill runs: the time, the skill name, and potentially which client it was for. Your prompts, your conversation, and Claude's output are never logged. Per-person token usage is never tracked anywhere.</div></details>
+        <details class="faq-item"><summary>Where does our brain actually live? Is it on Ads2AI/Mike's servers? <span class="faq-pill">Team</span></summary><div class="faq-a">No. Your agency hosts its own brain on its own GitHub, ideally an account your business controls. I (Mike) never host it for you and I never create a GitHub org for you. Your app just borrows short-lived access tokens that are created fresh for each sync and then expire.</div></details>
+        <details class="faq-item"><summary>What's the "personal" folder, and who can see it?</summary><div class="faq-a">It's your own private scratch space for meeting notes, todos, and rough drafts. Only you can see it; it never syncs to the team, and even the Owner can't look inside. One important catch: because it never leaves your machine, it isn't backed up. If your laptop dies, it's gone. So for any work you can't afford to lose move it into a shared folder.</div></details>
+      </div>
+      <div class="faq-group">
+        <h3 class="faq-section">Troubleshooting</h3>
+        <details class="faq-item"><summary>Cowork (Claude) says it can't see the files. How do I fix it? <span class="faq-pill">Team</span></summary><div class="faq-a">You've most likely pointed it at the wrong folder. Check which folder the Agency Brain app is watching (the app shows it), then in Cowork browse to and pick that same folder. If Cowork and the app are looking at different folders, your work won't reach the team.</div></details>
+        <details class="faq-item"><summary>Who do I contact when something goes wrong with Agency Brain? <span class="faq-pill">Team</span></summary><div class="faq-a">Your Scout or Owner first, not Anthropic. They set your agency brain up and can see the GitHub side of things. When you ask, grab a screenshot and the app log (Show log in the app menu) so they can see what happened.</div></details>
+        <details class="faq-item"><summary>What does the Agency Brain icon tell me?</summary><div class="faq-a">The brain icon really just shows on or off. When the app is running and syncing it's the orange brain, and that's what you'll see almost all the time, including while it quietly syncs in the background. If it looks greyed out, the app isn't running or hasn't been pointed at a folder yet, so use Change folder and point it at your agencybrain folder. For the actual detail, click the icon: the top of the menu tells you in plain words what's happening (syncing and when it last pushed, paused, or needs your attention).</div></details>
+        <details class="faq-item"><summary>On Windows the install threw scary warnings (SmartScreen, "isn't commonly downloaded"). Did I do something wrong?</summary><div class="faq-a">No, that's expected. Windows shows warnings that don't mean anything is actually wrong. For the download warning, click the three dots next to it, then Keep, then Keep anyway (click the down arrow on the delete button!). For the SmartScreen screen ("Windows protected your PC"), click the small "More info" text, then "Run anyway". Don't click Delete. You also need Git installed (from git-scm.com, choosing the middle PATH option), and then fully restart Claude.</div></details>
+      </div>
     </div>
     
     <!-- FAQ-SYNC:END -->
+        </div>
+      </div>
+    </div>
   </section>
 
 </div>

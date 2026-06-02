@@ -41,3 +41,36 @@ If the brain's `tools/dashboard/{lib,scripts}` get bug-fixed, re-copy them here
 resolve their runtime state relative to themselves and read `BRAIN_ROOT` from
 the env). `server.cjs` and `public/index.html` are the app's own slim versions,
 not copies — maintain them here.
+
+## CSS layout
+
+`public/index.html` is a thin shell. Styles live in `public/css/base.css`
+(tokens + shared components) and `public/css/views.css` (per-view styles);
+renderers live in `public/js/*.js`. Edit those, not a giant inline block.
+
+## Typography — use the type scale, do NOT hand-pick font sizes
+
+`base.css :root` defines a **type scale** (`--fs-2xs` … `--fs-hero`). Reading
+content (the Help tab: Get set up, How it works, Flag a skill, FAQ) must size
+text from this scale, never a hand-picked px value:
+
+| var | px | use |
+|---|---|---|
+| `--fs-2xs` | 12 | eyebrows, tiny uppercase labels, badges |
+| `--fs-xs` | 13 | captions, mono paths, secondary meta |
+| `--fs-sm` | 15 | secondary body, resource/link rows, notes |
+| `--fs-base` | 16 | body copy (default reading size) |
+| `--fs-md` | 18 | lead paragraphs, FAQ answers, step/item titles |
+| `--fs-lg` | 19 | list/item titles (e.g. FAQ questions) |
+| `--fs-xl` | 21 | sub-section headings |
+| `--fs-2xl` | 23 | page-section headings |
+| `--fs-hero` | 34 | hero headings |
+
+Rule of thumb: **never set reading text below `--fs-sm` (15px), and use the
+accent colour (`--accent`) for section sub-headings.** The dashboard, roster
+tables and KPIs are data-dense surfaces and deliberately keep their own tighter
+sizes — the scale is for the content/help pages, where readability beats density.
+
+Repeated failure point (2026-06-02): the content pages kept shipping at 11-14px
+and read too small. The scale exists so that stops happening — reach for a `--fs-*`
+token, don't invent a number.

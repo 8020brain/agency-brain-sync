@@ -59,8 +59,8 @@
       } else if(r==='owner' && !n && !bannerDismissed()){
         // Solo owner (no scout seats yet) using the Command Centre: self-serve Team-2
         // upgrade on the page — direct pay, no emailing Mike.
-        $('ub-h').textContent='Add 2 Scouts and share your brain wider.';
-        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, for +€300/yr on your current plan. It also lifts your free Team cap from 5 to 10.';
+        $('ub-h').textContent='Add 2 Scouts to your plan.';
+        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. Adding them is +€300/yr (pro-rated to your renewal), and it lifts your free Team cap from 5 to 10.';
         $('ub-cta').href='https://agency.ads2ai.com/upgrade.html';
         $('ub-cta').textContent='See your upgrade price';
         ob.hidden=false; wireDismiss($('ub-x'), ob);

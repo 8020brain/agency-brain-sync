@@ -70,6 +70,30 @@
   document.querySelectorAll('.tab').forEach(function(t){
     t.addEventListener('click',function(){ activateView(t.dataset.view); });
   });
+  // Help page sub-nav: Get set up / How it works / Flag a skill / FAQ all live in
+  // the one Help tab now, switched by the left menu. setHelpSection shows one pane.
+  function setHelpSection(name){
+    document.querySelectorAll('.help-sec').forEach(function(s){ s.hidden = (s.id !== 'help-'+name); });
+    document.querySelectorAll('.help-navi').forEach(function(b){ b.classList.toggle('active', b.dataset.help===name); });
+  }
+  document.querySelectorAll('.help-navi').forEach(function(b){
+    b.addEventListener('click',function(){ setHelpSection(b.dataset.help); });
+  });
+  (function(){
+    var s=$('help-search'); if(!s) return;
+    s.addEventListener('input',function(){
+      var q=s.value.trim().toLowerCase();
+      if(q) setHelpSection('faq');
+      document.querySelectorAll('#help-faq .faq-group').forEach(function(g){
+        var any=false;
+        g.querySelectorAll('.faq-item').forEach(function(d){
+          var hit = !q || d.textContent.toLowerCase().indexOf(q)>=0;
+          d.hidden = !hit; if(hit) any=true;
+        });
+        g.hidden = !!q && !any; // hide the whole section when nothing in it matches
+      });
+    });
+  })();
   // How it works: scout/member perspective toggle on the explainer page.
   function setHiwPov(v){
     var hiw=$('hiw'); if(!hiw) return;
@@ -92,32 +116,32 @@
     if(role==='head-scout') role='scout';
     var isTeam=(role==='team'), isOwner=(role==='owner'), isScout=(role==='scout');
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
-    setTab('getset', isOwner||isScout);  // onboarding/help page — owner + scout each get their own
     setTab('welcome', isTeam);
     setTab('owner', isOwner);
     setTab('scout', isScout);
     setTab('skills', true);   // owner+scout+team can all browse the full skill list here
-    setTab('howitworks', true); // the sync & update explainer — useful to every role
-    setTab('flag', true);
     setTab('gads', true);
-    setTab('help', true);   // FAQ — everyone gets it; the block inside swaps per role
-    // Help/FAQ: owners+scouts see the owner/scout block, team sees the team block.
-    var hos=$('help-os'), ht=$('help-team');
+    setTab('help', true);   // consolidated hub: Get set up, How it works, Flag a skill, FAQ
+    // Help/FAQ: owners+scouts see their own FAQ plus the team FAQ appended at the end
+    // (with a note + "Team" pills marking the shared questions); team members see only
+    // their own FAQ, no pills, no note.
+    var hos=$('help-os'), ht=$('help-team'), hf=$('help-faq');
     if(hos) hos.hidden=isTeam;
-    if(ht) ht.hidden=!isTeam;
+    if(ht) ht.hidden=false;
+    if(hf) hf.classList.toggle('faq-owner-view', !isTeam);
     // How it works: default the POV toggle to the viewer's seat (team → member view, owner/scout → scout view).
     setHiwPov(isTeam ? 'member' : 'scout');
-    // Get set up: owner and scout each see their own version of the page.
+    // Get set up: owner and scout each see their own version of the page (inside Help now).
     var go=$('getset-owner'), gsc=$('getset-scout');
     if(go) go.hidden=!isOwner;
     if(gsc) gsc.hidden=!isScout;
-    // Flag tab: team + owner submit a flag; the scout RECEIVES them, so the scout
-    // gets a Feedback inbox instead and the tab is relabelled.
-    var fsub=$('flag-submit'), fsco=$('flag-scout');
-    if(fsub) fsub.hidden=isScout;
-    if(fsco) fsco.hidden=!isScout;
-    var flagTab=document.querySelector('.tab[data-view="flag"]');
-    if(flagTab) flagTab.innerHTML = isScout ? 'Feedback' : 'Flag a skill <span style="font-weight:500;color:inherit">(how feedback works)</span>';
+    // Help sub-nav: which sections each role sees, and the default landing pane.
+    var setHelpNav=function(n,show){ var b=document.querySelector('.help-navi[data-help="'+n+'"]'); if(b) b.hidden=!show; };
+    setHelpNav('setup', isOwner||isScout);  // team's onboarding is the Welcome tab
+    setHelpNav('how', true);
+    setHelpNav('flag', isOwner||isTeam);     // scouts receive flags on their Dashboard, they don't submit
+    setHelpNav('faq', true);
+    setHelpSection(isTeam ? 'faq' : 'setup');
     // "Start here" featured strip is for NEW users only (team). Scouts/owners know the skills.
     renderStartHere(isTeam);
     if(isScout) renderFeedback();
