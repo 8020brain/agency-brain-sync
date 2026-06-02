@@ -55,15 +55,19 @@
         $('ub-p').innerHTML='To add more scouts, email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for a coupon — you only pay the difference up to the '+next+' plan.';
         $('ub-cta').href='mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20upgrade';
         $('ub-cta').textContent='Email Mike for a coupon';
-        ob.hidden=false; wireDismiss($('ub-x'), ob);
-      } else if(r==='owner' && !n && !bannerDismissed()){
-        // Solo owner (no scout seats yet) using the Command Centre: self-serve Team-2
-        // upgrade on the page — direct pay, no emailing Mike.
-        $('ub-h').textContent='Add 2 Scouts to your plan.';
-        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. Adding them is +€300/yr (pro-rated to your renewal), and it lifts your free Team cap from 5 to 10.';
+        var ubxA=$('ub-x'); if(ubxA) ubxA.hidden=false;
+        ob.hidden=false; wireDismiss(ubxA, ob);
+      } else if(r==='owner' && !n){
+        // Solo owner (no scout seats yet): self-serve Team-2 upgrade on the page —
+        // direct pay, no emailing Mike. Persistent + non-dismissible so the upgrade
+        // path is impossible to miss (the old dismissible "See your upgrade price"
+        // banner was being missed — owners couldn't find where to add a Scout).
+        $('ub-h').textContent='Add Scouts to your team — €300/yr.';
+        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. It\'s +€300/yr for 2 Scout seats (pro-rated to your renewal) and lifts your free Team cap from 5 to 10.';
         $('ub-cta').href='https://agency.ads2ai.com/upgrade.html';
-        $('ub-cta').textContent='See your upgrade price';
-        ob.hidden=false; wireDismiss($('ub-x'), ob);
+        $('ub-cta').textContent='Add Scouts';
+        var ubxB=$('ub-x'); if(ubxB) ubxB.hidden=true;
+        ob.hidden=false;
       } else ob.hidden=true;
     }
     var sb=$('upsell-banner-s');
