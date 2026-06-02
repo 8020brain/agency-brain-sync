@@ -1163,17 +1163,43 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   }
   // Make sure the target's parent exists
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
+  // Normalise a git remote to "owner/repo" (lowercased) so we can tell whether an
+  // existing folder is already a clone of THIS agency's repo, regardless of
+  // https/ssh/token form or a trailing .git.
+  const repoKey = (u) => {
+    const m = String(u || '').replace(/\.git$/i, '').match(/github\.com[:/]+([^/]+\/[^/]+?)\/?$/i);
+    return m ? m[1].toLowerCase() : '';
+  };
+  const wantRepo = repoKey(repoUrl || tokenRepoUrl);
+  let adopted = false;
   if (fs.existsSync(targetFolder)) {
     // An existing EMPTY folder is normal: the native picker creates the folder
     // when you select/make one. git clones cleanly into an empty dir. Only block
     // on real content (dotfiles don't count); clear an empty target first.
     const realContent = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
     if (realContent.length) {
-      throw new Error(`${targetFolder} already exists and isn't empty. Pick an empty folder or a new location.`);
+      // The owner often already has their brain cloned locally (e.g.
+      // ~/Projects/brain — the solo brain they turned into the agency brain). If
+      // this folder is already a git clone of THIS agency's repo, adopt it in
+      // place: no re-clone, nothing moved, local work preserved. Any unrelated
+      // content still blocks — we never write into a folder that isn't this brain.
+      let existingRepo = '';
+      try {
+        existingRepo = repoKey(String(await runGit(['-C', targetFolder, 'remote', 'get-url', 'origin'])).trim());
+      } catch (e) { /* not a git repo */ }
+      if (existingRepo && wantRepo && existingRepo === wantRepo) {
+        adopted = true;
+        sendWizardLog('Your brain is already in this folder — using it as-is, no re-clone.');
+      } else {
+        throw new Error(`${targetFolder} already exists and isn't empty. Pick an empty folder or a new location.`);
+      }
+    } else {
+      fs.rmSync(targetFolder, { recursive: true, force: true });
     }
-    fs.rmSync(targetFolder, { recursive: true, force: true });
   }
-  await runGit(['clone', cloneUrl, targetFolder]);
+  if (!adopted) {
+    await runGit(['clone', cloneUrl, targetFolder]);
+  }
   // Rewrite the remote URL back to the token-less form so we don't keep a
   // 1-hour token on disk; the watcher will mint fresh tokens on each sync.
   const cleanRemote = (repoUrl || tokenRepoUrl).startsWith('https://')

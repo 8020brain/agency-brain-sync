@@ -41,6 +41,7 @@
   }
   const dots = rail.querySelectorAll('.dot');
 
+  let machineBackTarget = 'scene-have-brain'; // where Back returns from scene-machine; set by enterMachine
   function show(sceneId) {
     document.querySelectorAll('.screen').forEach((el) => el.classList.remove('active'));
     const scene = document.getElementById(sceneId);
@@ -51,9 +52,18 @@
       d.classList.toggle('active', idx === step - 1);
     });
     document.getElementById('stepCount').textContent = step + ' / ' + TOTAL;
-    // Back button visibility (only the early auth scenes go backward cleanly).
+    // Back button visibility. The early auth scenes AND the brain-setup scenes
+    // step backward cleanly, so a member who picked "set one up" when they
+    // already have a brain is never dead-ended on the folder screen.
     const back = document.getElementById('btn-back');
-    const backMap = { 'scene-email': 'scene-welcome', 'scene-otp': 'scene-email', 'scene-team': 'scene-otp' };
+    const backMap = {
+      'scene-email': 'scene-welcome',
+      'scene-otp': 'scene-email',
+      'scene-team': 'scene-otp',
+      'scene-have-brain': 'scene-otp',
+      'scene-machine': machineBackTarget,
+      'scene-clone': 'scene-machine',
+    };
     if (backMap[sceneId]) {
       back.classList.remove('hidden');
       back.onclick = () => show(backMap[sceneId]);
@@ -365,6 +375,8 @@
   // 3 — machine check
   // ====================================================================
   async function enterMachine() {
+    const curScene = document.querySelector('.screen.active');
+    if (curScene && curScene.id && curScene.id !== 'scene-machine') machineBackTarget = curScene.id;
     show('scene-machine');
     const list = document.getElementById('checklist');
     const nextBtn = document.getElementById('btn-machine-next');
