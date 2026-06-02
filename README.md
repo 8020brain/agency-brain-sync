@@ -2,7 +2,7 @@
 
 Agency Brain is the small background app that keeps an agency's shared brain folder in sync across every team member's machine. It lives in the menu bar (Mac) or system tray (Windows), watches a local folder for changes, and uses a GitHub App to push and pull on the user's behalf. Team members never need a GitHub account.
 
-You install it once, paste a 6-character invite code from your agency, and forget about it. When you (or Claude in Cowork) edit a file, the change lands on GitHub within about a minute. When a teammate edits something, it lands on your machine within another minute.
+You install it once, sign in (a 6-character invite code, or your email plus a 6-digit code if you're an owner or scout), and forget about it. When you (or Claude in Cowork) edit a file, the change lands on GitHub about a minute and a half after you stop editing. When a teammate edits something, it lands on your machine within about a minute.
 
 ## Are you a team member trying to install this?
 
@@ -65,12 +65,12 @@ The warning does NOT mean the app is unsafe; it means macOS or Windows hasn't be
 
 ## Are you a maintainer / developer?
 
-This repo is the Electron app source. The watcher engine is `watcher/team-brain-sync.js` (Node + chokidar + git via child_process). The Electron main process is `main.js`. The first-run wizard renderer is `src/setup.html`. The preload bridge is `preload.js`.
+This repo is the Electron app source. The watcher engine is `watcher/team-brain-sync.js` (Node + chokidar + git via child_process). The Electron main process is `main.js`. The first-run wizard renderer is `src/wizard.html` (with `src/wizard.js` and `src/wizard.css`); `src/setup.html` is now only a fallback. The preload bridge is `preload.js`.
 
 ### Architecture, briefly
 
 - Watcher: classifies repo state on every tick (5 states + STOPs); never stashes, never rebases the working tree. Push lane and pull lane are separated (debounce owns push; interval owns pull and only pushes as a safety net when no debounce is pending). Role-aware: when the repo has a `.team-config/roles.json` and the local member's role is `team`, the watcher STOPs on attempts to push protected paths (`.claude/`, `.team-config/`, `skills/`, `agents/`, `hooks/`).
-- Wizard: five scenes (paste code → connecting → pick folder → Claude desktop check → connected). Demo mode (code `DEMO01`) seeds a placeholder folder so the flow can be walked end-to-end without the backend. State emission via a `STATE_FILE` env var lets the tray icon reflect a third "needs attention" state when the watcher reports STOP.
+- Wizard (`src/wizard.html`): an 11-scene flow (welcome, email, OTP, pick agency, have-a-repo, adopt-existing-brain, machine check, clone, surface selection, business context, done). There are two ways in: a 6-character invite code, or email plus a 6-digit OTP for owners and scouts. It also covers solo/personal mode and the in-place solo→agency flip. Demo mode (code `DEMO01`) seeds a placeholder folder so the flow can be walked end-to-end without the backend. State emission via a `STATE_FILE` env var lets the tray icon reflect a third "needs attention" state when the watcher reports STOP.
 - Auth: agency mode mints fresh GitHub App installation tokens from `api.ads2ai.com/api/team-brain/git-token` on each git operation. Token is embedded in the remote URL for the duration of the op and stripped afterwards. Team members never authenticate to GitHub directly.
 
 ### Build from source
@@ -96,17 +96,25 @@ Output lands in `dist/`. Binaries are unsigned (`identity: null` on Mac, no sign
 
 To cut a release:
 
+The canonical path is tag-triggered CI. Bump the patch in `package.json`, commit, then push a tag. The tag triggers `.github/workflows/build.yml`, which builds Mac + Windows, signs and notarises via repo secrets, creates the GitHub release, and mirrors the installers to `ads2ai.com/downloads`. No local build needed.
+
 ```
-# Bump the patch in package.json first (e.g. 0.8.2 → 0.8.3)
-git add package.json && git commit -m "v0.8.3: ..." && git push
+# Bump the patch in package.json first (e.g. 0.9.9 → 0.9.10)
+git add package.json && git commit -m "v0.9.10: ..."
+git tag v0.9.10 && git push && git push --tags
+```
+
+Manual fallback (local, unsigned), only if CI is unavailable:
+
+```
 npm run build:all
-gh release create v0.8.3 \
+gh release create v0.9.10 \
   -R 8020brain/agency-brain-sync \
-  --title "Agency Brain v0.8.3" \
+  --title "Agency Brain v0.9.10" \
   --notes "..." \
-  "dist/Agency Brain-0.8.3-arm64.dmg" \
-  "dist/Agency Brain-0.8.3.dmg" \
-  "dist/Agency-Brain-Setup-0.8.3.exe"
+  "dist/Agency Brain-0.9.10-arm64.dmg" \
+  "dist/Agency Brain-0.9.10.dmg" \
+  "dist/Agency-Brain-Setup-0.9.10.exe"
 ```
 
 The release assets are downloadable from `https://github.com/8020brain/agency-brain-sync/releases/latest` once the repo is public.
