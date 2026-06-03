@@ -1490,15 +1490,25 @@ ipcMain.handle('run-npm-install', async (_evt, args) => {
     return { ok: true, skipped: true };
   }
   sendWizardLog('Installing dependencies (npm install)…');
-  await new Promise((resolve, reject) => {
-    const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    execFile(npmBin, ['install'], { cwd: dir, env: enrichedEnv(), maxBuffer: 1024 * 1024 * 50 }, (err) => {
-      if (err) reject(new Error(`npm install failed: ${(err.message || '').slice(0, 300)}`));
-      else resolve();
+  try {
+    await new Promise((resolve, reject) => {
+      const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      execFile(npmBin, ['install'], { cwd: dir, env: enrichedEnv(), maxBuffer: 1024 * 1024 * 50 }, (err) => {
+        if (err) reject(new Error(`npm install failed: ${(err.message || '').slice(0, 300)}`));
+        else resolve();
+      });
     });
-  });
-  sendWizardLog('Dependencies installed.');
-  return { ok: true };
+    sendWizardLog('Dependencies installed.');
+    return { ok: true };
+  } catch (err) {
+    // Non-fatal: the brain is fully usable without these. Only two optional
+    // skills need a native dep (better-sqlite3), and they can install build
+    // tools on demand. A non-developer Mac often lacks Xcode command-line
+    // tools (or has a Node version with no prebuilt binary), so a failed
+    // compile here must NOT abort the whole setup the way it used to.
+    sendWizardLog("Some optional dependencies didn't install, and that's fine. Your brain still works. A couple of advanced tools may ask for Apple's command-line tools the first time you use them. Continuing setup.");
+    return { ok: true, warned: true, warning: (err && err.message ? err.message.slice(0, 300) : 'npm install failed') };
+  }
 });
 
 ipcMain.handle('write-business-context', async (_evt, args) => {
