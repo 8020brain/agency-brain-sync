@@ -33,6 +33,25 @@
     return 'Week of '+mon.getDate()+(same?'':' '+mo(mon))+'–'+sun.getDate()+' '+mo(sun)+' '+sun.getFullYear();
   }
 
+  // Per-person identity nudge: show until CLAUDE.local.md exists, one click writes
+  // it (the app already knows who they are from login). No typing, no email.
+  function maybeIdentity(h){
+    var b=$('identity-nudge'); if(!b) return;
+    if(h && h.hasLocalIdentity){ b.hidden=true; return; }
+    b.hidden=false;
+    var cta=$('identity-cta');
+    if(cta && !cta.__wired){ cta.__wired=true; cta.addEventListener('click',function(){
+      cta.disabled=true; cta.textContent='Setting up…';
+      api('/api/write-identity',{method:'POST'}).then(function(r){
+        $('identity-p').textContent='Done. Your Claude now knows you\'re '+(r.name||'you')+', '+(r.role||'')+' at '+(r.agency||'your agency')+'.';
+        cta.remove();
+        setTimeout(function(){ b.hidden=true; loadHealth(); }, 2500);
+      }).catch(function(e){ cta.disabled=false; cta.textContent='Set it up'; $('identity-p').textContent='Couldn\'t set it up: '+(e.message||'try again'); });
+    }); }
+    var x=$('identity-x');
+    if(x && !x.__wired){ x.__wired=true; x.addEventListener('click',function(){ b.hidden=true; }); }
+  }
+
   async function loadHealth(){
     try{
       var h=await api('/api/health');
@@ -78,7 +97,7 @@
       CCROLE=role; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
       if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
       if(h.packageTier) PACKAGE_TIER=h.packageTier;
-      maybeBanner(); maybePortalNudge();
+      maybeBanner(); maybePortalNudge(); maybeIdentity(h);
       var sw=$('dev-switch');
       if(sw){
         // Super-admin backdoor: Mike's two emails get the owner/scout/team view switcher

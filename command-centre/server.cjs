@@ -259,6 +259,49 @@ function ensureGitignored(name) {
   if (txt.split(/\r?\n/).some((l) => l.trim() === name)) return;
   fs.appendFileSync(gi, (txt && !txt.endsWith('\n') ? '\n' : '') + name + '\n');
 }
+
+// ---- Per-person local identity (CLAUDE.local.md) -------------------------
+// Tells THIS person's Claude who it's working with, written by the app from the
+// login identity (no typing). The file is git-ignored so it never syncs; the
+// shared CLAUDE.md just points at it (the one synced part, same line for
+// everyone). Drives the Welcome-view "set up your identity" nudge.
+const IDENTITY_POINTER = 'Read CLAUDE.local.md in this folder if it exists, and treat it as part of your instructions. It is a local file (never synced) that tells you who is using this copy of the brain.';
+function hasLocalIdentity() {
+  return fs.existsSync(path.join(BRAIN_ROOT, 'CLAUDE.local.md'));
+}
+function agencyName() {
+  try {
+    const roles = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, '.team-config', 'roles.json'), 'utf8'));
+    if (roles.team_name) return roles.team_name;
+  } catch { /* no roster on disk */ }
+  if (TEAM_SLUG) return TEAM_SLUG.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return 'your agency';
+}
+// Point the shared CLAUDE.md at the local file, once. Idempotent + safe: it's
+// the same line for everyone and is meant to sync.
+function ensureIdentityPointer() {
+  const cm = path.join(BRAIN_ROOT, 'CLAUDE.md');
+  let txt;
+  try { txt = fs.readFileSync(cm, 'utf8'); } catch { return; } // no CLAUDE.md → nothing to point from
+  if (txt.includes('CLAUDE.local.md')) return; // already points at it
+  const lines = txt.split('\n');
+  let at = 0; // after the first top-level heading, else the very top
+  for (let i = 0; i < lines.length; i++) { if (/^#\s/.test(lines[i])) { at = i + 1; break; } }
+  lines.splice(at, 0, '', IDENTITY_POINTER);
+  fs.writeFileSync(cm, lines.join('\n'));
+}
+function writeLocalIdentity() {
+  const role = (MEMBER_ROLE || 'owner').toLowerCase();
+  const agency = agencyName();
+  const body = '# CLAUDE.local.md — local identity (per-person, never synced)\n\n'
+    + `You are the Agency Brain instance for **${MEMBER_NAME}**, a **${role}** at **${agency}**.\n\n`
+    + 'This file is local to this machine and is never synced to the team.\n';
+  ensureIdentityPointer();
+  ensureGitignored('CLAUDE.local.md');
+  fs.writeFileSync(path.join(BRAIN_ROOT, 'CLAUDE.local.md'), body);
+  return { name: MEMBER_NAME, role, agency };
+}
+
 const GADS_PROXY_VERIFY_PROMPT = "I've just connected our Google Ads proxy. There's a gads-proxy.yaml at the root of this brain with the proxy URL and a gate token. Confirm it works: use the gads-proxy skill to run a small query (list a few campaigns for one of our accounts) and show me the rows. Never print the token.";
 
 const server = http.createServer(async (req, res) => {
@@ -307,6 +350,7 @@ const server = http.createServer(async (req, res) => {
         ok: true, brainRoot: BRAIN_ROOT,
         memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
         scoutSeats, packageTier,
+        hasLocalIdentity: hasLocalIdentity(),
       });
     }
     if (req.method === 'GET' && p === '/api/observability') {
@@ -377,6 +421,18 @@ const server = http.createServer(async (req, res) => {
       const dest = path.join(BRAIN_ROOT, 'gads-proxy.yaml');
       fs.writeFileSync(dest, `url: ${cfg.url}\nsecret: ${secret}\n`, { mode: 0o600 });
       return send(res, 200, { ok: true, yamlPath: dest, url: cfg.url, verifyPrompt: GADS_PROXY_VERIFY_PROMPT });
+    }
+    // Write THIS person's local identity (the Welcome-view "set up your identity"
+    // button). The app already knows who they are from login, so this is one click:
+    // it writes CLAUDE.local.md locally (git-ignored) and points the shared
+    // CLAUDE.md at it. No typing, no email, nothing to commit per-person.
+    if (req.method === 'POST' && p === '/api/write-identity') {
+      if (!MEMBER_NAME) return send(res, 400, { error: "I don't know your name yet. Sign in again, then reopen the Command Centre." });
+      try {
+        return send(res, 200, { ok: true, ...writeLocalIdentity() });
+      } catch (e) {
+        return send(res, 500, { error: 'Could not write the identity file: ' + e.message });
+      }
     }
     // Live team roster from the server (the source of truth), acting as the member.
     if (req.method === 'GET' && p === '/api/team-roster') {
