@@ -256,10 +256,35 @@
   });
   verifyBtn.addEventListener('click', verifyCode);
   document.getElementById('btn-otp-back').addEventListener('click', () => { clearError('err-otp'); show('scene-email'); emailInput.focus(); });
-  document.getElementById('link-resend').addEventListener('click', async () => {
+  const resendLink = document.getElementById('link-resend');
+  let resendCooldown = false;
+  resendLink.addEventListener('click', async () => {
+    if (resendCooldown) return;
     clearError('err-otp');
-    try { if (!demoMode) await api.requestOtpCode(authEmail); errorIn('err-otp', 'A fresh code is on its way.', true); }
-    catch (err) { errorIn('err-otp', friendlyError(err, 'otp')); }
+    try {
+      if (!demoMode) await api.requestOtpCode(authEmail);
+      errorIn('err-otp', 'A fresh code is on its way.', true);
+      // 60s cooldown so impatient re-clicks don't fire more login emails.
+      // The server also dedups within 90s; this is the visible nudge.
+      resendCooldown = true;
+      const orig = resendLink.textContent;
+      resendLink.style.opacity = '0.5';
+      resendLink.style.pointerEvents = 'none';
+      let left = 60;
+      resendLink.textContent = `Resend in ${left}s`;
+      const id = setInterval(() => {
+        left -= 1;
+        if (left <= 0) {
+          clearInterval(id);
+          resendCooldown = false;
+          resendLink.style.opacity = '';
+          resendLink.style.pointerEvents = '';
+          resendLink.textContent = orig;
+        } else {
+          resendLink.textContent = `Resend in ${left}s`;
+        }
+      }, 1000);
+    } catch (err) { errorIn('err-otp', friendlyError(err, 'otp')); }
   });
 
   async function verifyCode() {
