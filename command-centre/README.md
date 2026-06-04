@@ -30,7 +30,7 @@ cross-platform spawn: Mac Terminal+tmux / Windows `wt`+PowerShell).
 | `lib/observability.cjs` | NEW | serves `/api/observability` (skill usage, feedback) |
 | `scripts/spawn-agent.sh` / `.ps1` | same | per-OS dispatch backends |
 | `scripts/focus-agent.sh`, `kill-agent.sh`, `register-agent.cjs` | same | session control |
-| `server.cjs` | NEW (slim, Node http) | HOME + observability + Google Ads + team-management + flag-skill routes; ports `launchAgentSession` |
+| `server.cjs` | NEW (slim, Node http) | HOME + observability + Google Ads + team-management + flag-skill + identity routes; ports `launchAgentSession` |
 | `public/index.html` | NEW | thin member-safe shell |
 | `public/js/*.js` | NEW | renderers: `boot.js`, `core.js`, `nav-charts.js`, `dashboard.js`, `connectors.js` |
 | `public/css/base.css`, `views.css` | NEW | tokens + type scale; per-view styles |
@@ -54,7 +54,7 @@ renderers live in `public/js/*.js`. Edit those, not a giant inline block.
 
 ## Typography: use the type scale, do NOT hand-pick font sizes
 
-`base.css :root` defines a **type scale** (`--fs-2xs` … `--fs-hero`). Reading
+`base.css :root` defines a **type scale** (`--fs-2xs` ... `--fs-hero`). Reading
 content (the Help tab: Get set up, How it works, Flag a skill, FAQ) must size
 text from this scale, never a hand-picked px value:
 
