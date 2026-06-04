@@ -135,10 +135,13 @@
     var status=[]; status.push(s.flags>0?(s.flags+' open flag'+(s.flags===1?'':'s')):'no open flags');
     if(s.lastImproved) status.push('improved '+ago(s.lastImproved));
     if(s.runs7d) status.push(s.runs7d+' run'+(s.runs7d===1?'':'s')+' this week');
+    var desc=s.description||'';
+    var uw=desc.search(/\bUSE WHEN\b/i);
+    if(uw>0) desc=desc.slice(0,uw).replace(/[\s.;,]+$/,'').trim();
     d.innerHTML='<h2>'+esc(s.name)+'</h2>'
-      +'<div class="sp-meta"><span class="pill '+esc(s.maturity)+'">'+esc(s.maturity)+'</span></div>'
+      +'<div class="sp-meta"><span class="pill '+esc(s.maturity)+'">'+esc(s.maturity)+'</span>'+(s.version?'<span class="sp-ver">v'+esc(s.version)+'</span>':'')+'</div>'
       +'<div class="sp-sec">What it is</div>'
-      +'<div class="sp-desc">'+(s.description?esc(s.description):'<span class="mut">This skill has no description in its SKILL.md yet.</span>')+'</div>'
+      +'<div class="sp-desc">'+(desc?esc(desc):'<span class="mut">This skill has no description in its SKILL.md yet.</span>')+'</div>'
       +'<div class="sp-sec">Status</div>'
       +'<div class="sp-status">'+esc(status.join(' · '))+'</div>';
     var items=$('sp-items'); if(items){ var all=items.querySelectorAll('.sp-item'); for(var i=0;i<all.length;i++) all[i].classList.toggle('active',all[i].getAttribute('data-skill')===name); }

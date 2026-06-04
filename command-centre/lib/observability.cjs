@@ -54,7 +54,7 @@ function listSkillDirs(skillsDir) {
 
 function parseFrontmatter(skillDir) {
   const md = path.join(skillDir, 'SKILL.md');
-  const out = { maturity: 'live', description: '' };
+  const out = { maturity: 'live', description: '', version: '' };
   if (!fs.existsSync(md)) return out;
   let text = '';
   try { text = fs.readFileSync(md, 'utf8'); } catch { return out; }
@@ -63,7 +63,9 @@ function parseFrontmatter(skillDir) {
   const mMat = fm[1].match(/^maturity:\s*(draft|live|trusted)\s*$/m);
   if (mMat) out.maturity = mMat[1];
   const mDesc = fm[1].match(/^description:\s*(.+?)\s*$/m);
-  if (mDesc) out.description = mDesc[1].replace(/^["']|["']$/g, '').slice(0, 500);
+  if (mDesc) out.description = mDesc[1].replace(/^["']|["']$/g, '').slice(0, 1200);
+  const mVer = fm[1].match(/^version:\s*(.+?)\s*$/m);
+  if (mVer) out.version = mVer[1].replace(/^["']|["']$/g, '').slice(0, 24);
   return out;
 }
 
@@ -389,7 +391,7 @@ function getObservability(opts = {}) {
 
   const skills = names.map(name => {
     const skillDir = path.join(skillsDir, name);
-    const { maturity, description } = parseFrontmatter(skillDir);
+    const { maturity, description, version } = parseFrontmatter(skillDir);
     const gi = lastImproved[name] || null;
     const daysStale = gi ? daysBetween(gi.date, now) : null;
     let drift = null;
@@ -400,6 +402,7 @@ function getObservability(opts = {}) {
       name,
       maturity: (baseline && baseline.maturity && baseline.maturity[name]) || maturity,
       description,
+      version,
       lastImproved: gi ? gi.date : null,
       lastImprovedBy: gi ? gi.author : null,
       daysStale,
