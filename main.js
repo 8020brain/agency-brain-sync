@@ -714,6 +714,10 @@ ipcMain.handle('pick-folder', async (_evt, opts) => {
 
 ipcMain.handle('get-home-path', () => os.homedir());
 
+// App version for the wizard footer (a support diagnostic: lets a member read
+// back which version they're on off a screenshot).
+ipcMain.handle('get-app-version', () => app.getVersion());
+
 // Default brain folder, OS-correct. path.join uses the right separator (\ on
 // Windows, / on macOS), so this no longer produces the mixed-slash path that
 // broke folder creation on Windows.

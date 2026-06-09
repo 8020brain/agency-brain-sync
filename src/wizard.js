@@ -25,6 +25,8 @@
   let isSandbox = false;
   let chosenFolder = '';
   let demoMode = false;
+  let appVersion = '';          // app version string for the footer (fetched on boot)
+  let soloConfirmed = false;    // true once routeAfterAuth confirms a solo member (footer role)
   let adopted = false;          // adopt flow saved config itself; enterDone must not re-save
   let flipped = false;          // flip-to-agency saved+restarted itself; enterDone must not re-save
   let priorBrainPath = '';      // a personal brain this app already watched before this run (Path B notice)
@@ -96,6 +98,26 @@
   }
   function isValidEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s || '').trim()); }
   function isDemoEmail(s) { return (s || '').trim().toLowerCase() === DEMO_EMAIL; }
+
+  // ---- footer identity (support diagnostic) ----
+  // Persistent footer line: which email the app is signed in as, the role, and
+  // the app version. Each piece appears only once it's known, so before sign-in
+  // it shows just the version. Role comes from the resolved team for agency
+  // members, 'personal' once a solo member is confirmed.
+  const footerIdentity = document.getElementById('footerIdentity');
+  function footerRole() {
+    if (teamInfo && teamInfo.member && teamInfo.member.role) return teamInfo.member.role;
+    if (soloConfirmed) return 'personal';
+    return '';
+  }
+  function renderFooterIdentity() {
+    const parts = [];
+    if (authEmail) parts.push(`<span class="fi-email">${escapeHtml(authEmail)}</span>`);
+    const role = footerRole();
+    if (role) parts.push(`<span class="fi-role">${escapeHtml(role)}</span>`);
+    if (appVersion) parts.push(`<span class="fi-ver">v${escapeHtml(appVersion)}</span>`);
+    footerIdentity.innerHTML = parts.join('<span class="fi-sep">&middot;</span>');
+  }
 
   // Plain-English error copy. Never expose stack traces or status codes.
   function friendlyError(err, context) {
@@ -183,6 +205,7 @@
         packageTier: res.packageTier || null,
         member: { email: authEmail, name: authName, role: m.role || res.memberRole || 'team' },
       };
+      renderFooterIdentity();
       enterMachine();
     } catch (err) {
       errorIn('err-code', friendlyCodeError(err));
@@ -208,6 +231,7 @@
     demoMode = isDemoEmail(raw);
     document.getElementById('demoBanner').classList.toggle('hidden', !demoMode);
     authEmail = demoMode ? 'demo@agencybrain.test' : raw.toLowerCase();
+    renderFooterIdentity();
     clearError('err-email');
     sendCodeBtn.disabled = true;
     const orig = sendCodeBtn.textContent;
@@ -309,6 +333,7 @@
         const lookup = await api.listMyTeams(authToken);
         teams = (lookup && lookup.teams) || [];
       }
+      renderFooterIdentity();
       routeAfterAuth(teams);
     } catch (err) {
       const ctx = /my-teams|look up your agency/i.test((err && err.message) || '') ? 'otp' : 'otp';
@@ -327,6 +352,8 @@
     const mt = (member && member.memberType) || '';
     if (/community|ota|script/i.test(mt) || demoMode) {
       mode = 'solo';
+      soloConfirmed = true;
+      renderFooterIdentity();
       // Demo always seeds a fresh demo folder, so it skips the fork. A real solo
       // member is first asked whether to adopt the brain they already have.
       if (demoMode) enterMachine();
@@ -363,6 +390,7 @@
       packageTier: team.packageTier || null,
       member: { email: authEmail, name: authName, role: team.role || 'team' },
     };
+    renderFooterIdentity();
     enterMachine();
   }
 
@@ -388,6 +416,7 @@
             packageTier: team.packageTier || null,
             member: { email: authEmail, name: authName, role: (res.role || team.role || 'owner') },
           };
+          renderFooterIdentity();
           enterSurfaces();
           return;
         }
@@ -839,6 +868,10 @@
   // ---- boot ----
   (async function init() {
     homePath = await api.getHomePath();
+    // App version for the footer diagnostic line. Best-effort: if the IPC isn't
+    // there (an old main process), the footer just omits the version.
+    try { appVersion = (await api.getAppVersion()) || ''; } catch (_) { appVersion = ''; }
+    renderFooterIdentity();
     // Remember any personal brain this app already watches. If the member goes
     // Path B (start fresh) the app ends up watching the NEW agency folder and
     // silently stops syncing this one, so the done screen warns them about that.
