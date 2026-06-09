@@ -47,7 +47,7 @@
 //                role allow-list.
 
 const chokidar = require('chokidar');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -156,7 +156,7 @@ function writeState(state, reason, extra) {
 // An empty list clears it.
 function reportRunning(held) {
   if (held && held.length) {
-    writeState('running', `${held.length} file(s) held — review`, { held });
+    writeState('running', `${held.length} change${held.length > 1 ? 's' : ''} set aside`, { held });
   } else {
     writeState('running', null, { held: [] });
   }
@@ -256,6 +256,9 @@ function currentRole() {
 function pathBlockedForRole(relPath, role) {
   const norm = (role || '').toLowerCase().replace(/_/g, '-');
   if (norm === 'owner' || norm === 'head-scout' || norm === 'scout') return false;
+  // Team's one allowed upward channel: skill feedback. flag-skill writes here,
+  // and the whole point is that a flag reaches the scout, so let it sync up.
+  if (relPath.startsWith('.team-config/feedback/')) return false;
   return relPath.startsWith('.') || !relPath.includes('/');
 }
 
@@ -365,24 +368,126 @@ function resolveConflictsAndCommit(stamp) {
 function mergeWithSidecars(branch) {
   backupRef('pre-merge');
   const stamp = tsCompact();
-  const m = gitTry(`merge --no-edit origin/${branch}`);
+  let m = gitTry(`merge --no-edit origin/${branch}`);
+
+  // Safety net: a merge can refuse before it even starts when an uncommitted
+  // local change (a held big file, or a race) sits on a path the merge must
+  // update. Left alone that wedges sync forever. Back each blocker up to a
+  // sidecar, restore it, and retry the merge once so the pull always proceeds.
+  if (!m.ok && midOperation() !== 'merge') {
+    const blockers = parseMergeBlockers(m.err);
+    if (blockers.length) {
+      for (const b of blockers) { backupHeldEdit(b); revertProtectedEdit(b); }
+      m = gitTry(`merge --no-edit origin/${branch}`);
+    }
+  }
+
   if (m.ok && midOperation() !== 'merge') {
     return { merged: true, conflicts: [] }; // clean merge
   }
   if (midOperation() !== 'merge') {
-    // Merge refused without entering a merge (shouldn't happen — we commit
-    // local work first — but never leave a half state). Report for a human.
+    // Merge refused without entering a merge and the safety net couldn't clear
+    // it — never leave a half state, so report it for a human.
     return { merged: false, conflicts: [], error: m.err || 'merge refused' };
   }
   const conflicts = resolveConflictsAndCommit(stamp);
   return { merged: true, conflicts };
 }
 
+// ───── Read-only enforcement for team roles ─────
+//
+// A team member's edit to a protected path (a skill, .claude/, root config) can
+// never be pushed. Leaving it uncommitted is what wedges sync: an upstream
+// change to the same file can't fast-forward over the local edit. So instead of
+// holding it, we make protected paths genuinely read-only — back the member's
+// version up to a recoverable sidecar (under .git/, so it never syncs and never
+// reappears as a change), restore the file to its committed state, and, for a
+// skill, file a flag so the change still reaches the scout who owns it.
+
+function heldEditsDir() {
+  return path.join(REPO, '.git', 'agencybrain-held');
+}
+
+// Copy the current working-tree version of relPath to a timestamped sidecar.
+// Returns the absolute sidecar path, or null if there's nothing on disk to save
+// (e.g. the member deleted the file).
+function backupHeldEdit(relPath) {
+  const src = path.join(REPO, relPath);
+  if (!fs.existsSync(src)) return null;
+  const dest = path.join(heldEditsDir(), `${relPath}.${tsCompact()}`);
+  try {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
+    return dest;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Discard a protected-path change: restore the committed version (a modified or
+// deleted file) or drop it entirely (a newly-created file). Touches both the
+// index and the working tree, so nothing is left to block the next pull.
+function revertProtectedEdit(relPath) {
+  const r = gitTry(`checkout HEAD -- "${relPath}"`);
+  if (!r.ok) {
+    // No version in HEAD => the member created this file. Unstage and remove it.
+    git(`reset -q HEAD -- "${relPath}"`);
+    try { fs.unlinkSync(path.join(REPO, relPath)); } catch (_) { /* already gone */ }
+  }
+}
+
+// The skill folder name if relPath is inside .claude/skills/<name>/, else null.
+function skillNameFor(relPath) {
+  const m = relPath.match(/^\.claude\/skills\/([^/]+)\//);
+  return m ? m[1] : null;
+}
+
+// File a flag-skill note so the member's change reaches their scout. Best-effort:
+// if the helper script isn't present (older brain) we skip — the sidecar still
+// holds their work. The note lands in .team-config/feedback/<skill>.md, which a
+// team role is now allowed to push (see pathBlockedForRole).
+function fileSkillFlag(skill, relPath, sidecar, diff) {
+  const script = path.join(REPO, '.claude', 'skills', 'flag-skill', 'scripts', 'log-flag.cjs');
+  if (!fs.existsSync(script)) return false;
+  const wanted = [
+    'A team member edited this skill locally. Skills are managed by scouts, so the edit was set aside, but here is what they wanted to change.',
+    sidecar ? `Their version is saved at: ${path.relative(REPO, sidecar)}` : null,
+    diff ? `\nTheir change:\n${diff.slice(0, 4000)}` : null,
+  ].filter(Boolean).join('\n');
+  try {
+    const r = spawnSync('node', [
+      script,
+      '--skill', skill,
+      '--wrong', `${relPath} was edited on a team member's machine; their role can't apply skill changes`,
+      '--wanted', wanted,
+      '--by', MEMBER_EMAIL || 'team-member',
+      '--repo', REPO,
+    ], { encoding: 'utf8', timeout: 15000 });
+    return r.status === 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Pull the offending paths out of git's "your local changes / untracked working
+// tree files would be overwritten by merge" refusal (git lists each one
+// tab-indented), so the safety net can clear just those and retry the pull.
+function parseMergeBlockers(errText) {
+  if (!errText) return [];
+  const files = [];
+  for (const line of errText.split('\n')) {
+    const m = line.match(/^\t(.+?)\s*$/);
+    if (m) files.push(m[1]);
+  }
+  return files;
+}
+
 // ───── Commit lane (isolate-and-continue) ─────
 
-// Stage and commit local work. Files the member's role can't push, or that are
-// oversized, are HELD (left uncommitted, reported) rather than freezing the
-// whole sync. Returns { committed, held: [{file, why}], error }.
+// Stage and commit local work. Oversized files are HELD (kept locally, reported).
+// Files the member's role can't push are made read-only: backed up, reverted,
+// and (for skills) flagged to the scout, so they can never wedge the next pull.
+// Returns { committed, held: [{file, why}], error }.
 function stageAndCommit(s) {
   // s.statusLines come from porcelain output. Parse the files to consider.
   // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
@@ -402,10 +507,19 @@ function stageAndCommit(s) {
   if (MODE === 'agency') {
     const role = currentRole();
     for (const f of files) {
-      if (pathBlockedForRole(f, role)) {
-        git(`reset -q HEAD -- "${f}"`);
-        held.push({ file: f, why: `needs an owner or scout to push (you're ${role})` });
-      }
+      if (!pathBlockedForRole(f, role)) continue;
+      // Protected path edited by a role that can't push it. Make it genuinely
+      // read-only: save the member's version, file a flag if it's a skill, then
+      // restore the file so it can never wedge the next pull.
+      const diff = gitProbe(`diff HEAD -- "${f}"`);
+      const sidecar = backupHeldEdit(f);
+      const skill = skillNameFor(f);
+      const flagged = skill ? fileSkillFlag(skill, f, sidecar, diff) : false;
+      revertProtectedEdit(f);
+      const why = skill
+        ? `skills are set by your scouts, so this change wasn't kept. I saved your version${flagged ? ' and sent it to your scout.' : '.'}`
+        : `this file is managed by your owners and scouts, so the change wasn't kept. I saved your version.`;
+      held.push({ file: f, why });
     }
   }
 
