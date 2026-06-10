@@ -112,7 +112,15 @@
     function show(info){ if(!info || !info.version) return; var v=$('ut-version'); if(v) v.textContent='v'+info.version; toast.hidden=false; }
     if(window.agencyBrain.getUpdateState) window.agencyBrain.getUpdateState().then(function(s){ if(s) show(s); }).catch(function(){});
     if(window.agencyBrain.onUpdateDownloaded) window.agencyBrain.onUpdateDownloaded(show);
-    toast.addEventListener('click',function(){ if(window.agencyBrain.installUpdate) window.agencyBrain.installUpdate(); });
+    toast.addEventListener('click',function(e){
+      if(e.target && e.target.id==='ut-later'){
+        if(window.agencyBrain.delayUpdate) window.agencyBrain.delayUpdate();
+        var h=toast.querySelector('.ut-h'); if(h) h.textContent='Will install on next restart';
+        var l=$('ut-later'); if(l) l.hidden=true;
+        return;
+      }
+      if(window.agencyBrain.installUpdate) window.agencyBrain.installUpdate();
+    });
   })();
 
   // Skills page (master-detail) — team + scout. Reuses the observability data

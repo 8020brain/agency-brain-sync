@@ -454,6 +454,31 @@ const server = http.createServer(async (req, res) => {
       if (!Object.keys(paths).length) return send(res, 200, { available: false });
       return send(res, 200, { available: true, role: MEMBER_ROLE || '', paths });
     }
+    // ---- Brain updates (docs/migrations/) --------------------------------
+    // Pending = a docs/migrations/NNNN-*.md with no applied/NNNN.done (or
+    // .skipped) marker. Team role always gets an empty list — applying brain
+    // updates is scout/owner work and the banner must never show for team.
+    if (req.method === 'GET' && p === '/api/brain-updates') {
+      const role = (MEMBER_ROLE || '').toLowerCase();
+      if (role === 'team') return send(res, 200, { pending: [] });
+      const migDir = path.join(BRAIN_ROOT, 'docs', 'migrations');
+      const pending = [];
+      try {
+        for (const f of fs.readdirSync(migDir).sort()) {
+          if (!/^\d{4}-.*\.md$/.test(f)) continue;
+          const id = f.slice(0, 4);
+          if (fs.existsSync(path.join(migDir, 'applied', id + '.done'))) continue;
+          if (fs.existsSync(path.join(migDir, 'applied', id + '.skipped'))) continue;
+          let title = f;
+          try {
+            const m = fs.readFileSync(path.join(migDir, f), 'utf8').match(/^title:\s*(.+)$/m);
+            if (m) title = m[1].trim();
+          } catch { /* unreadable — show the filename */ }
+          pending.push({ id, file: 'docs/migrations/' + f, title });
+        }
+      } catch { /* no migrations folder — nothing pending */ }
+      return send(res, 200, { pending });
+    }
     if (req.method === 'POST' && p === '/api/team-path/toggle') {
       const b = await readBody(req);
       const id = String(b.id || '').trim();

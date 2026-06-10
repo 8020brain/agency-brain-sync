@@ -37,6 +37,11 @@
   </div>
 
   <!-- ============ WELCOME (team default) ============ -->
+  <div class="bu-banner" id="bu-banner" hidden>
+    <div class="bu-text"><b>Agency Brain update ready:</b> <span id="bu-title"></span></div>
+    <button class="btn" id="bu-copy">Copy the update prompt</button>
+  </div>
+
   <section class="view" id="view-welcome">
     <div class="welcome">
       <div class="wc-hero">
@@ -813,9 +818,10 @@
 
 </div>
 
-<div class="update-toast" id="update-toast" hidden title="Relaunch to install the update">
+<div class="update-toast" id="update-toast" hidden title="Click to relaunch and install now">
   <div class="ut-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg></div>
-  <div class="ut-text"><div class="ut-h">Relaunch to update</div><div class="ut-v" id="ut-version"></div></div>
+  <div class="ut-text"><div class="ut-h">Update ready — restarting soon</div><div class="ut-v" id="ut-version"></div></div>
+  <div class="ut-later" id="ut-later" title="Install on next restart instead">Later</div>
   <div class="ut-arrow">→</div>
 </div>
 <div class="cw-overlay" id="cw-overlay" hidden>

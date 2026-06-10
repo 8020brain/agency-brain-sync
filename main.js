@@ -932,6 +932,42 @@ ipcMain.handle('flip-to-agency', async (_evt, args) => {
   return { ok: true, teamSlug, role: next.memberRole };
 });
 
+// ---------- agency brain migrations ("brain updates") ----------
+// Published brain updates live in docs/migrations/ of the agency repo; the
+// sync hook announces unapplied ones in scout/owner Claude sessions. This
+// fetcher is the delivery path that doesn't depend on anyone running
+// /agency-update: poll the API with the member token the app already holds,
+// and write any migration file this repo doesn't have yet into the watched
+// folder. The watcher commits + pushes it like any other edit, so ONE
+// current machine per agency keeps the whole team's repo up to date.
+// Only tops up brains that already HAVE the migrations system (the folder
+// exists) — installing the system itself is the template's / bootstrap
+// prompt's job, not the app's.
+async function fetchBrainMigrations() {
+  try {
+    if (!config || config.mode !== 'agency' || !config.brainPath || !config.memberToken) return;
+    const migDir = path.join(config.brainPath, 'docs', 'migrations');
+    if (!fs.existsSync(migDir)) return;
+    const r = await fetch(`${API_BASE}/api/team-brain/migrations`, {
+      headers: { Authorization: `Bearer ${config.memberToken}` },
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    for (const m of (data && data.migrations) || []) {
+      const name = path.basename(String(m.file || ''));
+      // Only ever write files shaped like a migration, inside migDir.
+      if (!/^\d{4}-[a-z0-9-]+\.md$/i.test(name)) continue;
+      const id = name.slice(0, 4);
+      const dest = path.join(migDir, name);
+      const done = path.join(migDir, 'applied', `${id}.done`);
+      const skipped = path.join(migDir, 'applied', `${id}.skipped`);
+      if (fs.existsSync(dest) || fs.existsSync(done) || fs.existsSync(skipped)) continue;
+      fs.writeFileSync(dest, String(m.content || ''));
+      ulog(`brain migration ${id} fetched into docs/migrations/`);
+    }
+  } catch (_) { /* best-effort — next tick retries */ }
+}
+
 // ---------- auto-update (electron-updater) ----------
 // Polls the public agency-brain-sync GitHub releases (the publish target in
 // electron-builder.yml), downloads a newer signed+notarised build in the
@@ -962,8 +998,9 @@ function setupAutoUpdater() {
   autoUpdater.on('before-quit-for-update', () => { isQuitting = true; });
   autoUpdater.on('update-downloaded', (info) => {
     updateInfo = { version: info && info.version };
-    ulog('downloaded v' + (info && info.version) + ' — surfacing banner');
+    ulog('downloaded v' + (info && info.version) + ' — surfacing banner, auto-install in 5 min');
     if (setupWindow && !setupWindow.isDestroyed()) setupWindow.webContents.send('update-downloaded', updateInfo);
+    scheduleAutoInstall();
   });
   // Check shortly after launch, then every 30 minutes (was 6h — too slow).
   // openCommandCentre also fires a check, so opening the app re-checks on the
@@ -1032,6 +1069,29 @@ async function checkForUpdatesManually() {
     dialog.showErrorBox(APP_NAME, 'Could not check for updates:\n\n' + msg);
   }
 }
+
+// The app lives in the menu bar and is almost never quit, so
+// autoInstallOnAppQuit alone means downloaded updates wait forever. Five
+// minutes after a download finishes we relaunch to install it ourselves.
+// The Command Centre toast shows a "Later" link (delay-update) that cancels
+// the timer; the update then installs on the next natural quit/restart.
+// Terminal Claude sessions are separate processes — the relaunch doesn't
+// touch them.
+let autoInstallTimer = null;
+function scheduleAutoInstall() {
+  if (autoInstallTimer) clearTimeout(autoInstallTimer);
+  autoInstallTimer = setTimeout(() => {
+    ulog('auto-installing downloaded update');
+    isQuitting = true;
+    try { require('electron-updater').autoUpdater.quitAndInstall(); }
+    catch (e) { ulog('auto-install failed: ' + e.message); isQuitting = false; }
+  }, 5 * 60 * 1000);
+}
+ipcMain.handle('delay-update', () => {
+  if (autoInstallTimer) { clearTimeout(autoInstallTimer); autoInstallTimer = null; }
+  ulog('auto-install delayed by user — will install on next quit');
+  return { ok: true };
+});
 
 ipcMain.handle('get-update-state', () => updateInfo);
 ipcMain.handle('install-update', () => {
@@ -1568,6 +1628,8 @@ app.whenReady().then(() => {
   // Configure the updater before anything calls openCommandCentre (which kicks
   // off a check), so that check uses the configured singleton and listeners.
   setupAutoUpdater();
+  setTimeout(fetchBrainMigrations, 60 * 1000);
+  setInterval(fetchBrainMigrations, 30 * 60 * 1000);
 
   const config = loadConfig();
   if (!config || !config.brainPath || pendingInviteToken) {

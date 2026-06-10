@@ -70,6 +70,9 @@ const api = {
     return () => ipcRenderer.removeListener('update-downloaded', handler);
   },
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  // Cancel the 5-minute auto-install countdown; the update then installs on
+  // the next natural quit/restart instead.
+  delayUpdate: () => ipcRenderer.invoke('delay-update'),
   // Progress events from clone/npm steps. Returns an unsubscribe fn. This is
   // the Electron equivalent of Brain 3.0's listen("clone-log").
   onWizardLog: (cb) => {

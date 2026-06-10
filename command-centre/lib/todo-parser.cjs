@@ -209,6 +209,7 @@ function getMiscTodos() {
         created: frontmatter.created || null,
         due: frontmatter.due || null,
         source: frontmatter.source || null,
+        assignee: frontmatter.assignee || null,
         project: frontmatter.project || null,
         body: body.trim(),
         file: e.name,

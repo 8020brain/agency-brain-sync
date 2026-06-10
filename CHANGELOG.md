@@ -2,6 +2,13 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.20 — 2026-06-10
+
+- **Getting started tab.** The Command Centre now has a guided map of your first weeks with the brain: the Team path for team members and the new Scout path for scouts and owners, with tick-boxes, per-step detail, and copy buttons that hand each exercise straight to Claude. Scouts and owners get a switcher to preview what their team sees. Progress is private to each person and shared with /start, so a step done in either place shows as done in both.
+- **Updates now install themselves.** The app used to download a new version and then wait for a restart that never came, because it lives in the menu bar. Now an update installs itself five minutes after downloading; a small note appears first with a "Later" link if mid-anything (later = it installs on your next restart). Your Claude sessions are separate programs and aren't touched.
+- **Brain updates arrive on their own.** When we publish an update to how the brain itself works (new conventions, new instructions), the app now fetches it into your brain's `docs/migrations/` folder automatically, your scout's next Claude session offers to apply it, and a banner in the Command Centre shows anything still pending with a copy-ready prompt. Team members never see any of this.
+- **Todos can belong to people.** The Command Centre's todo list now understands the new `assignee:` field, so each person's tasks can be shown as theirs (ships with template 2026.06.13).
+
 ## 0.9.17 — 2026-06-10
 
 - **This page.** The app now has a changelog, linked from the Command Centre footer as "What's new", so you can see what changed in each version without asking.

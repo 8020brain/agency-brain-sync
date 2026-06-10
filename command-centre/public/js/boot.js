@@ -151,3 +151,24 @@
       navigator.clipboard.writeText(p).then(function(){ fb.textContent='Copied, paste into Claude Code'; }).catch(function(){ fb.textContent='Copy failed, select it by hand'; });
       setTimeout(function(){ fb.textContent=fo; },2400); return; }
   });
+
+  // Brain updates banner — pending docs/migrations/ updates for owner/scout
+  // (the server returns an empty list for team role). The button copies the
+  // apply prompt; the member pastes it into Claude Code in their brain.
+  (function(){
+    var b=$('bu-banner'); if(!b) return;
+    fetch('/api/brain-updates').then(function(r){return r.json();}).then(function(d){
+      var pending=(d&&d.pending)||[]; if(!pending.length) return;
+      $('bu-title').textContent = pending.length===1 ? pending[0].title
+        : pending.length+' updates: '+pending.map(function(m){return m.title;}).join(' \u00b7 ');
+      var prompt='Apply the pending Agency Brain update'+(pending.length>1?'s':'')+': read '+
+        pending.map(function(m){return m.file;}).join(', then ')+
+        ' and follow the instructions inside exactly.';
+      $('bu-copy').addEventListener('click',function(){
+        try{ navigator.clipboard.writeText(prompt); }catch(e){}
+        var btn=$('bu-copy'); btn.textContent='Copied \u2014 paste into Claude Code';
+        setTimeout(function(){ btn.textContent='Copy the update prompt'; },2200);
+      });
+      b.hidden=false;
+    }).catch(function(){});
+  })();
