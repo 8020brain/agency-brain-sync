@@ -434,29 +434,32 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/observability') {
       return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));
     }
-    // ---- Team path (the /start guided path; Getting started tab) ----------
-    // Definition is the synced JSON inside the start skill (single source of
-    // truth, shared with Cowork's /start). Progress lives in the member's
-    // personal/ folder, which never syncs — same file the /start skill writes,
-    // so ticking a step in either surface shows up in both.
+    // ---- Guided paths (the /start skill; Getting started tab) -------------
+    // Definitions are the synced JSONs inside the start skill (single source
+    // of truth, shared with Cowork's /start): team-path.json for team members,
+    // scout-path.json for scouts/owners. Progress lives in the member's
+    // personal/ folder, which never syncs — the same files the /start skill
+    // writes, so ticking a step in either surface shows up in both.
     if (req.method === 'GET' && p === '/api/team-path') {
-      let def = null;
-      try {
-        def = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, '.claude', 'skills', 'start', 'team-path.json'), 'utf8'));
-      } catch {
-        return send(res, 200, { available: false });
+      const readJson = (rel) => {
+        try { return JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, rel), 'utf8')); } catch { return null; }
+      };
+      const paths = {};
+      for (const key of ['team', 'scout']) {
+        const def = readJson(`.claude/skills/start/${key}-path.json`);
+        if (!def) continue;
+        const progress = readJson(`personal/${key}-path-progress.json`) || { steps: {} };
+        paths[key] = { def, progress };
       }
-      let progress = { steps: {} };
-      try {
-        progress = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, 'personal', 'team-path-progress.json'), 'utf8'));
-      } catch { /* not started yet */ }
-      return send(res, 200, { available: true, path: def, progress, role: MEMBER_ROLE || '' });
+      if (!Object.keys(paths).length) return send(res, 200, { available: false });
+      return send(res, 200, { available: true, role: MEMBER_ROLE || '', paths });
     }
     if (req.method === 'POST' && p === '/api/team-path/toggle') {
       const b = await readBody(req);
       const id = String(b.id || '').trim();
+      const key = b.path === 'scout' ? 'scout' : 'team';
       if (!id) return send(res, 400, { error: 'Missing step id.' });
-      const file = path.join(BRAIN_ROOT, 'personal', 'team-path-progress.json');
+      const file = path.join(BRAIN_ROOT, 'personal', `${key}-path-progress.json`);
       let progress = { started: new Date().toISOString().slice(0, 10), steps: {} };
       try { progress = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* first write */ }
       if (!progress.steps) progress.steps = {};
@@ -464,7 +467,7 @@ const server = http.createServer(async (req, res) => {
       else progress.steps[id] = new Date().toISOString().slice(0, 10);
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(progress, null, 2) + '\n');
-      return send(res, 200, { ok: true, progress });
+      return send(res, 200, { ok: true, path: key, progress });
     }
     // ---- Google Ads connector setup (all local; see the helpers above) ----
     if (req.method === 'GET' && p === '/api/gads/detect') {

@@ -229,3 +229,7 @@
   .tp-link{color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;}
   .tp-quiz-copy{margin-top:10px;}
   .tp-quiz-copy code{color:var(--muted);}
+  .tp-switch{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--line);width:fit-content;}
+  .tp-switch-btn{appearance:none;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;background:#fff;color:var(--muted);border-right:1px solid var(--line);}
+  .tp-switch-btn:last-child{border-right:0;}
+  .tp-switch-btn.active{background:var(--accent);color:#fff;}
