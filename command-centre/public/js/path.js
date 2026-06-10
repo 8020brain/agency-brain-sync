@@ -19,8 +19,11 @@
     return !!(TP_DATA && TP_DATA.progress && TP_DATA.progress.steps && TP_DATA.progress.steps[stepId]);
   }
 
+  var TP_COPY={};   // step id -> text the copy button puts on the clipboard
+
   function tpRender(){
     var root=$('tp-root'); if(!root||!TP_DATA) return;
+    TP_COPY={};
     if(!TP_DATA.available){
       root.innerHTML='<div class="card"><div class="sec">Getting started</div>'
         +'<p>Your brain doesn\'t have the guided path yet — it ships with newer agency brains. '
@@ -37,7 +40,8 @@
       +'<p class="tp-intro">'+esc(p.intro)+'</p>'
       +'<div class="tp-bar"><div class="tp-bar-fill" style="width:'+pct+'%"></div></div>'
       +'<div class="tp-cowork"><b>The guided way:</b> open Cowork (pointed at your brain folder) and type <code>/start</code>. '
-      +'Claude walks you through these steps and does them with you. This page is the map; tick steps off in either place.</div>'
+      +'Claude walks you through these steps and does them with you. This page is the map; tick steps off in either place. '
+      +'Don\'t have Cowork yet? <span class="tp-link" data-ext="https://claude.ai/download">Download it here</span>.</div>'
       +(role&&role!=='team'?'<p class="tp-note">You\'re viewing as '+esc(role)+': this is the path your team members follow. Ticks here are your own local progress, so feel free to try it.</p>':'')
       +'</div>';
 
@@ -48,6 +52,8 @@
         +'<div class="tp-steps">';
       t.steps.forEach(function(s){
         var isDone=tpDone(s.id);
+        if(s.prompt) TP_COPY[s.id]=s.prompt;
+        else if(s.quiz) TP_COPY[s.id]='Run /start and give me the "'+s.title+'" quiz from the "'+t.title+'" track. Ask me one question at a time, in your own words, and let me answer before telling me how I did.';
         h+='<div class="tp-step'+(isDone?' done':'')+'" data-step="'+esc(s.id)+'">'
           +'<button class="tp-check" data-tp-toggle="'+esc(s.id)+'" title="'+(isDone?'Mark not done':'Mark done')+'">'+(isDone?'✓':'')+'</button>'
           +'<div class="tp-step-main">'
@@ -58,8 +64,10 @@
           +'</div>'
           +'<div class="tp-step-body"'+(TP_OPEN[s.id]?'':' hidden')+'>'
           +'<p>'+esc(s.body)+'</p>'
-          +(s.prompt?'<div class="tp-prompt"><code>'+esc(s.prompt)+'</code><button class="mini" data-tp-copy="'+esc(s.id)+'">Copy for Cowork</button></div>':'')
-          +(s.quiz?'<div class="tp-quiz">'+s.quiz.map(function(q){return '<details><summary>'+esc(q.q)+'</summary><p>'+esc(q.a)+'</p></details>';}).join('')+'</div>':'')
+          +(s.prompt?'<div class="tp-prompt"><code>'+esc(s.prompt)+'</code><button class="mini" data-tp-copy="'+esc(s.id)+'">Copy for Cowork</button></div>'
+            +'<p class="tp-hint">Paste it into Cowork, the Claude desktop app pointed at your brain folder. Or skip the pasting: type <code>/start</code> in Cowork and Claude runs this whole path with you.</p>':'')
+          +(s.quiz?'<div class="tp-quiz">'+s.quiz.map(function(q){return '<details><summary>'+esc(q.q)+'</summary><p>'+esc(q.a)+'</p></details>';}).join('')+'</div>'
+            +'<div class="tp-prompt tp-quiz-copy"><code>Want it as a proper back-and-forth? Claude will quiz you in Cowork.</code><button class="mini" data-tp-copy="'+esc(s.id)+'">Copy for Cowork</button></div>':'')
           +'</div></div></div>';
       });
       h+='</div></div>';
@@ -83,8 +91,7 @@
     });
     root.querySelectorAll('[data-tp-copy]').forEach(function(el){
       el.addEventListener('click',function(){
-        var id=el.getAttribute('data-tp-copy'), txt='';
-        p.tracks.forEach(function(t){ t.steps.forEach(function(s){ if(s.id===id) txt=s.prompt||''; }); });
+        var txt=TP_COPY[el.getAttribute('data-tp-copy')]||'';
         navigator.clipboard.writeText(txt).then(function(){
           el.textContent='Copied — paste into Cowork';
           setTimeout(function(){ el.textContent='Copy for Cowork'; },2000);
