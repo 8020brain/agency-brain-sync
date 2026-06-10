@@ -19,6 +19,7 @@
     </div>
     <div class="tabs">
       <button class="tab" data-view="welcome" hidden>Welcome</button>
+      <button class="tab" data-view="path" hidden>Getting started</button>
       <button class="tab active" data-view="owner">Dashboard</button>
       <button class="tab" data-view="scout" hidden>Dashboard</button>
       <button class="tab" data-view="skills" hidden>Skills</button>
@@ -91,6 +92,11 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- ============ GETTING STARTED (team path) ============ -->
+  <section class="view" id="view-path">
+    <div id="tp-root"><div class="card"><p class="tp-loading">Loading your path…</p></div></div>
   </section>
 
   <!-- ============ DASHBOARD ============ -->
@@ -834,6 +840,7 @@
 </footer>
 
 <script src="js/core.js"></script>
+<script src="js/path.js"></script>
 <script src="js/nav-charts.js"></script>
 <script src="js/connectors.js"></script>
 <script src="js/dashboard.js"></script>

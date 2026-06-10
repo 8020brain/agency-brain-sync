@@ -434,6 +434,38 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/observability') {
       return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));
     }
+    // ---- Team path (the /start guided path; Getting started tab) ----------
+    // Definition is the synced JSON inside the start skill (single source of
+    // truth, shared with Cowork's /start). Progress lives in the member's
+    // personal/ folder, which never syncs — same file the /start skill writes,
+    // so ticking a step in either surface shows up in both.
+    if (req.method === 'GET' && p === '/api/team-path') {
+      let def = null;
+      try {
+        def = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, '.claude', 'skills', 'start', 'team-path.json'), 'utf8'));
+      } catch {
+        return send(res, 200, { available: false });
+      }
+      let progress = { steps: {} };
+      try {
+        progress = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, 'personal', 'team-path-progress.json'), 'utf8'));
+      } catch { /* not started yet */ }
+      return send(res, 200, { available: true, path: def, progress, role: MEMBER_ROLE || '' });
+    }
+    if (req.method === 'POST' && p === '/api/team-path/toggle') {
+      const b = await readBody(req);
+      const id = String(b.id || '').trim();
+      if (!id) return send(res, 400, { error: 'Missing step id.' });
+      const file = path.join(BRAIN_ROOT, 'personal', 'team-path-progress.json');
+      let progress = { started: new Date().toISOString().slice(0, 10), steps: {} };
+      try { progress = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* first write */ }
+      if (!progress.steps) progress.steps = {};
+      if (progress.steps[id]) delete progress.steps[id];
+      else progress.steps[id] = new Date().toISOString().slice(0, 10);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(progress, null, 2) + '\n');
+      return send(res, 200, { ok: true, progress });
+    }
     // ---- Google Ads connector setup (all local; see the helpers above) ----
     if (req.method === 'GET' && p === '/api/gads/detect') {
       return send(res, 200, detectGadsTools());

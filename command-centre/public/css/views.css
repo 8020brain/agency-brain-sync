@@ -195,3 +195,32 @@
     .help-navi{border-left:0;border-bottom:2px solid transparent;}
     .help-navi.active{border-left:0;border-bottom-color:var(--accent);}
   }
+
+  /* ---- Getting started (team path) ---- */
+  .tp-hero .tp-intro{margin:0 0 14px;font-size:14px;color:var(--muted);max-width:760px;}
+  .tp-bar{height:6px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:14px;}
+  .tp-bar-fill{height:100%;background:var(--accent);transition:width .3s;}
+  .tp-cowork{font-size:13.5px;background:var(--accent-soft);border-left:3px solid var(--accent);padding:10px 14px;}
+  .tp-cowork code{font-weight:700;}
+  .tp-note{margin:12px 0 0;font-size:12.5px;color:var(--muted);}
+  .tp-track{margin-top:18px;}
+  .tp-steps{display:flex;flex-direction:column;}
+  .tp-step{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);}
+  .tp-step:last-child{border-bottom:0;}
+  .tp-check{appearance:none;width:22px;height:22px;flex:0 0 22px;margin-top:1px;border:1.5px solid var(--accent);border-radius:2px;background:#fff;color:#fff;font-size:14px;font-weight:700;line-height:1;cursor:pointer;}
+  .tp-step.done .tp-check{background:var(--accent);}
+  .tp-step-main{flex:1;min-width:0;}
+  .tp-step-head{display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .tp-step-title{font-size:14px;font-weight:600;}
+  .tp-step.done .tp-step-title{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px;}
+  .tp-chip{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:2px;padding:1px 6px;}
+  .tp-mins{font-size:12px;color:var(--muted);margin-left:auto;flex:0 0 auto;}
+  .tp-step-body{margin-top:8px;}
+  .tp-step-body p{margin:0 0 10px;font-size:13.5px;color:var(--ink);max-width:760px;}
+  .tp-prompt{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--line);border-radius:2px;padding:10px 12px;}
+  .tp-prompt code{flex:1;font-size:12.5px;white-space:pre-wrap;word-break:break-word;}
+  .tp-prompt .mini{flex:0 0 auto;}
+  .tp-quiz details{margin-bottom:6px;font-size:13.5px;}
+  .tp-quiz summary{cursor:pointer;font-weight:600;}
+  .tp-quiz details p{margin:6px 0 0 16px;color:var(--muted);}
+  .tp-loading{margin:0;font-size:13.5px;color:var(--muted);}

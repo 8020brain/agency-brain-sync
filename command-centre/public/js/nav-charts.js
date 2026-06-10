@@ -117,6 +117,7 @@
     var isTeam=(role==='team'), isOwner=(role==='owner'), isScout=(role==='scout');
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
     setTab('welcome', isTeam);
+    setTab('path', true);   // the team path: team members run it, owners/scouts preview what their team sees
     setTab('owner', isOwner);
     setTab('scout', isScout);
     setTab('skills', true);   // owner+scout+team can all browse the full skill list here
