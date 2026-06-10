@@ -10,12 +10,14 @@
  *                               augments each survivor with status.
  *                               Returns the augmented list.
  *
- *   getAgentStatus(agent)     → looks at the most-recent JSONL under
- *                               ~/.claude/projects/<encoded-cwd>/ that
- *                               was last touched after the agent spawned,
- *                               scans the last assistant message for a
- *                               `?` in the trailing 600 chars (Fleet's
- *                               needs-you heuristic), and reports status.
+ *   getAgentStatus(agent)     → resolves the agent's JSONL under
+ *                               ~/.claude/projects/<encoded-cwd>/, reads the
+ *                               CLI's native busy/waiting/idle status from
+ *                               ~/.claude/sessions/<pid>.json (matched by
+ *                               sessionId), and falls back to the legacy
+ *                               heuristics (`?` in the trailing 600 chars of
+ *                               the last assistant text + jsonl mtime window)
+ *                               when no native status exists.
  *                               { status: 'running' | 'idle' | 'needs-you',
  *                                 lastMsgAt, lastQuestion }
  *
@@ -35,7 +37,9 @@ const BRAIN_ROOT = process.env.BRAIN_ROOT
 
 const AGENTS_FILE = path.join(__dirname, '..', 'data', 'active-agents.json');
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
+const CLAUDE_SESSIONS_DIR = path.join(os.homedir(), '.claude', 'sessions');
 
+// Fallback only — consulted when the CLI writes no native session status.
 // "Running/working" = JSONL last touched within this many ms. Anything older
 // reads as "ready" (waiting for you) unless flagged needs-you. claude can sit
 // 30s+ between JSONL writes while thinking, so a tight window flaps badly;
@@ -171,6 +175,34 @@ function findJsonlForAgent(agent) {
 // ---- Status detection ----------------------------------------------------
 
 /**
+ * Native status from Claude Code's own session registry. The CLI writes a
+ * live { sessionId, status: 'busy' | 'waiting' | 'idle', updatedAt, ... } to
+ * ~/.claude/sessions/<pid>.json (present since at least CLI 2.1.144, on both
+ * macOS and Windows). Files are keyed by pid, which we don't reliably know
+ * (on macOS the agent record holds a tmux session, not the claude pid), so
+ * match on sessionId == the agent's jsonl basename instead. Stale files
+ * outlive their process (and a --resume leaves the old pid's file behind
+ * with the same sessionId), so the newest updatedAt wins.
+ * Returns the status string, or null when nothing matches (older CLI).
+ */
+function nativeSessionStatus(sessionId) {
+  if (!sessionId) return null;
+  let names;
+  try { names = fs.readdirSync(CLAUDE_SESSIONS_DIR); } catch { return null; }
+  let best = null;
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    let entry;
+    try {
+      entry = JSON.parse(fs.readFileSync(path.join(CLAUDE_SESSIONS_DIR, name), 'utf8'));
+    } catch { continue; } // partial write or junk — skip
+    if (!entry || entry.sessionId !== sessionId || typeof entry.status !== 'string') continue;
+    if (!best || (entry.updatedAt || 0) > (best.updatedAt || 0)) best = entry;
+  }
+  return best ? best.status : null;
+}
+
+/**
  * Extract the last assistant text from a JSONL. Streams the tail of the
  * file rather than reading the whole thing. Returns { text, timestamp }
  * or null.
@@ -210,12 +242,19 @@ function lastAssistantText(jsonlPath) {
 }
 
 /**
- * Status logic:
- *   - 'needs-you' if last assistant text has `?` in its trailing N chars
- *                 AND no later user message exists (i.e. claude finished
- *                 asking; user hasn't replied yet).
- *   - 'running'   if jsonl mtime is within RUNNING_WINDOW_MS.
- *   - 'idle'      otherwise.
+ * Status logic. The CLI's native session status leads, observed behaviour
+ * (macOS + Windows, CLI 2.1.170):
+ *   - 'busy'    → the turn is still running → 'running'. Authoritative: it
+ *                 doesn't flap between jsonl writes the way the mtime window
+ *                 does, and a mid-turn `?` can't fake a needs-you.
+ *   - 'waiting' → blocked on a dialog (permission prompt etc) → 'needs-you'.
+ *   - 'idle'    → at the input box. A turn that ENDS with a plain-text
+ *                 question still registers as native 'idle', so idle falls
+ *                 through to the `?` heuristic: needs-you if the last
+ *                 assistant text has `?` in its trailing N chars AND no later
+ *                 user message exists, else 'idle'.
+ * No native status (older CLI) → the original heuristics: `?` check, then
+ * jsonl mtime within RUNNING_WINDOW_MS → 'running', else 'idle'.
  *
  * Returns { status, lastMsgAt, lastQuestion }.
  */
@@ -228,7 +267,8 @@ function getAgentStatus(agent, jsonlOverride) {
     return { status: 'running', lastMsgAt: null, lastQuestion: null, jsonl: null };
   }
 
-  const isRunning = (Date.now() - jsonl.mtimeMs) < RUNNING_WINDOW_MS;
+  const native = nativeSessionStatus(path.basename(jsonl.path, '.jsonl'));
+
   let lastAsst = null;
   try { lastAsst = lastAssistantText(jsonl.path); } catch {}
 
@@ -248,14 +288,17 @@ function getAgentStatus(agent, jsonlOverride) {
   }
 
   let status;
-  if (needsYou) status = 'needs-you';
-  else if (isRunning) status = 'running';
+  if (native === 'busy') status = 'running';
+  else if (native === 'waiting') status = 'needs-you';
+  else if (needsYou) status = 'needs-you';
+  else if (native === 'idle') status = 'idle';
+  else if ((Date.now() - jsonl.mtimeMs) < RUNNING_WINDOW_MS) status = 'running';
   else status = 'idle';
 
   return {
     status,
     lastMsgAt: lastAsst ? lastAsst.timestamp : new Date(jsonl.mtimeMs).toISOString(),
-    lastQuestion: needsYou ? question : null,
+    lastQuestion: status === 'needs-you' ? question : null,
     jsonl: jsonl.path,
   };
 }
