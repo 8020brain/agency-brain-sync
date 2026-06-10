@@ -4,6 +4,8 @@ The live menu-bar app + embedded Command Centre + sync engine. One product: "Age
 
 ## Releasing
 
+**Batch work — releases are expensive for members.** Every release makes every member's app prompt for an update, so a release is a deliberate event, not a side effect of finishing a change. Do NOT bump the version, tag, or treat each edit as shippable. Accumulate related work in main (plain commits, no version bump), and only cut a version when Mike says ship (or a genuine standalone fix warrants it and he agrees). One release then covers the whole batch with one changelog entry. (Added 2026-06-10 after two same-afternoon bumps, v0.9.18 + v0.9.19, while Mike was still mid-editing the very content they shipped. Mike: "keep the releases minimal".)
+
 1. Bump the patch version in `package.json` (`npm version X.Y.Z --no-git-tag-version`).
 2. **Add a CHANGELOG.md entry for that exact version — this is mandatory.** CI fails the build if `## <version>` is missing. Format: `## X.Y.Z — YYYY-MM-DD` then `- **Short bold lead.** Plain sentences.`
 3. Commit as `vX.Y.Z: description`, tag `vX.Y.Z`, push with `--tags`. The tag triggers `.github/workflows/build.yml`: Mac + Windows builds, GitHub release, and installer mirror to the public downloads repo. Watch it go green.
