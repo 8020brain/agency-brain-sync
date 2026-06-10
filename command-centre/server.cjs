@@ -302,6 +302,81 @@ function writeLocalIdentity() {
   return { name: MEMBER_NAME, role, agency };
 }
 
+// ---- Changelog page -------------------------------------------------------
+//
+// GET /changelog renders the repo-root CHANGELOG.md that ships INSIDE the app
+// (electron-builder `files` + `asarUnpack`), so the page always matches the
+// installed version with no network call and no separate publish step. Linked
+// from the Command Centre footer ("What's new"). CI refuses to build a release
+// whose version has no changelog section (see .github/workflows/build.yml),
+// which is what keeps this page honest.
+const CHANGELOG_PATH = path.join(__dirname, '..', 'CHANGELOG.md');
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Minimal markdown for the changelog's actual shape (## version headings,
+// "- " bullets, **bold**, `code`, [text](url)) — not a general renderer.
+// External links open in the default browser via the app's window-open handler.
+function mdInline(s) {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+
+function renderChangelogPage() {
+  let md = '';
+  try { md = fs.readFileSync(CHANGELOG_PATH, 'utf8'); } catch { /* falls through to the empty state */ }
+  const out = [];
+  let inList = false;
+  const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+  for (const raw of md.split('\n')) {
+    const line = raw.trimEnd();
+    if (/^# /.test(line)) continue; // the page supplies its own title
+    const h = line.match(/^## (\S+)(.*)$/);
+    if (h) {
+      closeList();
+      const when = h[2].replace(/^[\s—-]+/, '').trim();
+      const isCurrent = APP_VERSION && h[1] === APP_VERSION;
+      out.push(`<h2>v${escapeHtml(h[1])}<span class="cl-when">${escapeHtml(when)}</span>${isCurrent ? '<span class="cl-badge">your version</span>' : ''}</h2>`);
+      continue;
+    }
+    const b = line.match(/^- (.*)$/);
+    if (b) {
+      if (!inList) { out.push('<ul>'); inList = true; }
+      out.push(`<li>${mdInline(escapeHtml(b[1]))}</li>`);
+      continue;
+    }
+    if (line.trim()) { closeList(); out.push(`<p>${mdInline(escapeHtml(line))}</p>`); }
+  }
+  closeList();
+  if (!out.length) out.push('<p>No changelog available in this build.</p>');
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><title>What's new · Agency Brain</title>
+<link rel="stylesheet" href="/css/base.css">
+<style>
+  .cl-wrap{max-width:880px;margin:0 auto;padding:28px 40px 64px;}
+  .cl-back{display:inline-block;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;margin-bottom:18px;}
+  .cl-back:hover{color:var(--accent);}
+  .cl-wrap h1{font-size:var(--fs-hero);font-weight:800;margin:0 0 6px;}
+  .cl-intro{font-size:var(--fs-sm);color:var(--muted);margin:0 0 30px;}
+  .cl-wrap h2{font-size:var(--fs-xl);font-weight:800;margin:34px 0 10px;padding-left:11px;border-left:3px solid var(--accent);}
+  .cl-when{font-size:var(--fs-xs);font-weight:500;color:var(--muted);margin-left:10px;}
+  .cl-badge{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border-radius:2px;padding:2px 8px;margin-left:10px;vertical-align:2px;}
+  .cl-wrap ul{margin:0;padding-left:22px;}
+  .cl-wrap li{font-size:var(--fs-base);margin:0 0 10px;}
+  .cl-wrap p{font-size:var(--fs-base);}
+  .cl-wrap code{font-family:ui-monospace,Menlo,monospace;font-size:.92em;background:var(--draft-bg);border-radius:2px;padding:1px 5px;}
+</style></head>
+<body><div class="cl-wrap">
+<a class="cl-back" href="/">&larr; Back to the Command Centre</a>
+<h1>What's new</h1>
+${out.join('\n')}
+</div></body></html>`;
+}
+
 const GADS_PROXY_VERIFY_PROMPT = "I've just connected our Google Ads proxy. There's a gads-proxy.yaml at the root of this brain with the proxy URL and a gate token. Confirm it works: use the gads-proxy skill to run a small query (list a few campaigns for one of our accounts) and show me the rows. Never print the token.";
 
 const server = http.createServer(async (req, res) => {
@@ -310,6 +385,9 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
       return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'), true);
+    }
+    if (req.method === 'GET' && p === '/changelog') {
+      return send(res, 200, renderChangelogPage(), true);
     }
     if (req.method === 'GET' && p === '/api/health') {
       // Start from the at-install snapshot (fast, local), then best-effort

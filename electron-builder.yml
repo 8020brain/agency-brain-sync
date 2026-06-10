@@ -26,12 +26,16 @@ files:
   - command-centre/**/*
   - node_modules/**/*
   - package.json
+  - CHANGELOG.md
 
 # The embedded Command Centre server is spawned as a real child node process
 # (main.js -> spawn(execPath, [command-centre/server.cjs])). Files inside
 # app.asar can't be spawned, so unpack the whole folder to disk.
+# CHANGELOG.md is unpacked too: that child node process has no asar support,
+# and the Command Centre's /changelog page reads it from ../CHANGELOG.md.
 asarUnpack:
   - command-centre/**/*
+  - CHANGELOG.md
 
 # Mac
 mac:

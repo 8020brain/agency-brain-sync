@@ -22,6 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # The in-app changelog (Command Centre footer -> /changelog) renders the
+      # bundled CHANGELOG.md, so a release without its entry would ship a page
+      # that silently stops at the previous version. Fail the build loudly
+      # instead: every release MUST add a "## <version> - <date>" section,
+      # written in plain member-facing language.
+      - name: Changelog entry exists for this version
+        shell: bash
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          grep -q "^## ${VER} " CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no section for ${VER}. Add a member-facing entry (it renders in-app at /changelog) and re-tag."
+            exit 1
+          }
+
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
