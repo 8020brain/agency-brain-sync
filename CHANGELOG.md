@@ -2,6 +2,12 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## Unreleased — already on main, ships automatically with the next version
+
+> Releaser note: nothing extra to do. The code below is committed on main (86aa26f), so any normal release (bump + tag) includes it. Just fold this entry into your version's heading. After it ships, FAQ wording changes never need an app release again — the brain's `tools/sync-faq.cjs` publishes straight to the live database.
+
+- **The FAQ keeps itself up to date.** The Help tab now fetches the latest questions and answers when it opens, so new answers appear for everyone the moment they're published, without waiting for an app update. If you're offline, the copy built into the app shows instead.
+
 ## 0.9.20 — 2026-06-10
 
 - **Getting started tab.** The Command Centre now has a guided map of your first weeks with the brain: the Team path for team members and the new Scout path for scouts and owners, with tick-boxes, per-step detail, and copy buttons that hand each exercise straight to Claude. Scouts and owners get a switcher to preview what their team sees. Progress is private to each person and shared with /start, so a step done in either place shows as done in both.
