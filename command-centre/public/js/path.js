@@ -63,7 +63,7 @@
           +'<span class="tp-mins">'+s.minutes+' min</span>'
           +'</div>'
           +'<div class="tp-step-body"'+(TP_OPEN[s.id]?'':' hidden')+'>'
-          +'<p>'+esc(s.body)+'</p>'
+          +s.body.split(/\n+/).filter(Boolean).map(function(par){ return '<p>'+esc(par)+'</p>'; }).join('')
           +(s.prompt?'<div class="tp-prompt"><code>'+esc(s.prompt)+'</code><button class="mini" data-tp-copy="'+esc(s.id)+'">Copy for Cowork</button></div>'
             +'<p class="tp-hint">Paste it into Cowork, the Claude desktop app pointed at your brain folder. Or skip the pasting: type <code>/start</code> in Cowork and Claude runs this whole path with you.</p>':'')
           +(s.quiz?'<div class="tp-quiz">'+s.quiz.map(function(q){return '<details><summary>'+esc(q.q)+'</summary><p>'+esc(q.a)+'</p></details>';}).join('')+'</div>'
