@@ -434,10 +434,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/observability') {
       return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));
     }
-    // ---- Guided paths (the /start skill; Getting started tab) -------------
+    // ---- Guided paths (the /start skill; Getting started + Learn Cowork tabs) ----
     // Definitions are the synced JSONs inside the start skill (single source
     // of truth, shared with Cowork's /start): team-path.json for team members,
-    // scout-path.json for scouts/owners. Progress lives in the member's
+    // scout-path.json for scouts/owners, and cowork-path.json (the standalone
+    // Learn Cowork course, its own tab). Progress lives in the member's
     // personal/ folder, which never syncs — the same files the /start skill
     // writes, so ticking a step in either surface shows up in both.
     if (req.method === 'GET' && p === '/api/team-path') {
@@ -445,7 +446,7 @@ const server = http.createServer(async (req, res) => {
         try { return JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, rel), 'utf8')); } catch { return null; }
       };
       const paths = {};
-      for (const key of ['team', 'scout']) {
+      for (const key of ['team', 'scout', 'cowork']) {
         const def = readJson(`.claude/skills/start/${key}-path.json`);
         if (!def) continue;
         const progress = readJson(`personal/${key}-path-progress.json`) || { steps: {} };
@@ -482,7 +483,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/team-path/toggle') {
       const b = await readBody(req);
       const id = String(b.id || '').trim();
-      const key = b.path === 'scout' ? 'scout' : 'team';
+      const key = ['scout', 'cowork'].includes(b.path) ? b.path : 'team';
       if (!id) return send(res, 400, { error: 'Missing step id.' });
       const file = path.join(BRAIN_ROOT, 'personal', `${key}-path-progress.json`);
       let progress = { started: new Date().toISOString().slice(0, 10), steps: {} };
