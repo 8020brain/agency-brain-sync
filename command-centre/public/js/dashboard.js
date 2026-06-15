@@ -6,6 +6,9 @@
   // are the live server roster. ME / ME_NAME identify the signed-in member.
   var CCROLE='', SCOUT_SEATS=0, SCOUT_COUNT=0, SEATS_USED=0, PACKAGE_TIER=null, RENEWAL=null;
   var ME='', ME_NAME='', ROSTER=null, ROSTER_REQ=null, TEAMSLUG='', CUR_BANNER_SIG='';
+  // Session-only reveal: the "Show dismissed cards" link sets this true so the
+  // dismissed/snoozed banners reappear until the next refresh (or until re-dismissed).
+  var SHOW_DISMISSED=false;
   // Seats = owner + scout, capped at the package's scout count + 1 (the owner's
   // free seat + N scout seats). The banner + plan card display it in scout-seat
   // terms (owner's seat unnamed): scout seats used = max(0, owner+scout - 1).
@@ -19,7 +22,36 @@
   function bannerDismissed(){ try{ return localStorage.getItem('ab-upsell-dismissed')===CUR_BANNER_SIG; }catch(e){ return false; } }
   function wireDismiss(btn, banner){
     if(!btn || btn.__wired) return; btn.__wired=true;
-    btn.addEventListener('click', function(){ try{ localStorage.setItem('ab-upsell-dismissed', CUR_BANNER_SIG); }catch(e){} banner.hidden=true; });
+    btn.addEventListener('click', function(){ try{ localStorage.setItem('ab-upsell-dismissed', CUR_BANNER_SIG); }catch(e){} banner.hidden=true; SHOW_DISMISSED=false; updateDismissedToggle(); });
+  }
+  // The "Add Scouts" solo-owner card is dismissible, but the dismiss only snoozes
+  // it for a week; it then reappears (still dismissible). A middle ground between
+  // non-dismissible (nagged) and dismiss-forever (the old one got missed).
+  var ADDSCOUTS_SNOOZE_MS=7*24*60*60*1000;
+  function addScoutsSnoozed(){
+    try{ var t=parseInt(localStorage.getItem('ab-addscouts-snooze')||'0',10); return !!t && (Date.now()-t)<ADDSCOUTS_SNOOZE_MS; }catch(e){ return false; }
+  }
+  function wireSnooze(btn, banner){
+    if(!btn || btn.__wiredSnooze) return; btn.__wiredSnooze=true;
+    btn.addEventListener('click', function(){ try{ localStorage.setItem('ab-addscouts-snooze', String(Date.now())); }catch(e){} banner.hidden=true; SHOW_DISMISSED=false; updateDismissedToggle(); });
+  }
+  // True when the current owner/scout has a card hidden by a dismiss/snooze that
+  // the "Show dismissed cards" link could bring back.
+  function anyCardDismissed(){
+    var r=ccRole();
+    if(r!=='owner' && r!=='scout') return false;
+    var n=SCOUT_SEATS||0, used=Math.max(0,(SEATS_USED||0)-1), atCap=n>0&&used>=n;
+    var bannerHidden = atCap ? bannerDismissed() : (r==='owner' && !n && addScoutsSnoozed());
+    return !!bannerHidden || portalNudgeDismissed();
+  }
+  // The small "Show dismissed cards" link at the top of the active dashboard. Only
+  // shows when something's hidden; clicking it reveals the cards for this session.
+  function updateDismissedToggle(){
+    var suffix=(ccRole()==='scout'?'-s':'-o');
+    var wrap=$('dismissed-toggle'+suffix), link=$('show-dismissed'+suffix);
+    if(!wrap||!link) return;
+    if(!link.__wired){ link.__wired=true; link.addEventListener('click', function(e){ e.preventDefault(); SHOW_DISMISSED=true; maybeBanner(); maybePortalNudge(); }); }
+    wrap.hidden = SHOW_DISMISSED || !anyCardDismissed();
   }
   function portalNudgeDismissed(){ try{ return localStorage.getItem('ab-portal-dismissed')==='1'; }catch(e){ return false; } }
   function maybePortalNudge(){
@@ -27,14 +59,16 @@
     // shows on those dashboards. Members-portal only for now — agency members aren't
     // auto-added to Circle, so no Circle line yet. Dismissible, remembered.
     var r=ccRole();
-    var show=(r==='owner'||r==='scout') && !portalNudgeDismissed();
+    var show=(r==='owner'||r==='scout') && (SHOW_DISMISSED || !portalNudgeDismissed());
     ['portal-nudge','portal-nudge-s'].forEach(function(id){ var el=$(id); if(el) el.hidden=!show; });
     [['portal-nudge-x','portal-nudge'],['portal-nudge-x-s','portal-nudge-s']].forEach(function(p){
       var btn=$(p[0]); if(btn && !btn.__wired){ btn.__wired=true; btn.addEventListener('click', function(){
         try{ localStorage.setItem('ab-portal-dismissed','1'); }catch(e){}
         ['portal-nudge','portal-nudge-s'].forEach(function(id){ var e2=$(id); if(e2) e2.hidden=true; });
+        SHOW_DISMISSED=false; updateDismissedToggle();
       }); }
     });
+    updateDismissedToggle();
   }
   function maybeBanner(){
     var r=ccRole(), n=SCOUT_SEATS||0;
@@ -44,7 +78,7 @@
     var used=Math.max(0, (SEATS_USED||0)-1);
     var atCap=(r==='owner'||r==='scout') && n>0 && used>=n;
     CUR_BANNER_SIG=(TEAMSLUG||'')+':'+n;
-    var show=atCap && !bannerDismissed();
+    var show=atCap && (SHOW_DISMISSED || !bannerDismissed());
     var word=(n===2 ? 'Both scout seats' : 'All '+n+' scout seats');
     var ob=$('upsell-banner');
     if(ob){
@@ -57,16 +91,16 @@
         $('ub-cta').textContent='Email Mike for a coupon';
         var ubxA=$('ub-x'); if(ubxA) ubxA.hidden=false;
         ob.hidden=false; wireDismiss(ubxA, ob);
-      } else if(r==='owner' && !n){
+      } else if(r==='owner' && !n && (SHOW_DISMISSED || !addScoutsSnoozed())){
         // Solo owner (no scout seats yet): self-serve Team-2 upgrade on the page —
-        // direct pay, no emailing Mike. Persistent + non-dismissible so the upgrade
-        // path is impossible to miss (the old dismissible "See your upgrade price"
-        // banner was being missed — owners couldn't find where to add a Scout).
+        // direct pay, no emailing Mike. Dismissible, but the × only snoozes it for a
+        // week, then it returns. (Non-dismissible nagged; the old dismiss-forever
+        // banner got missed — owners couldn't find where to add a Scout.)
         $('ub-h').textContent='Add Scouts to your team — €300/yr.';
         $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. It\'s +€300/yr for 2 Scout seats (pro-rated to your renewal) and lifts your free Team cap from 5 to 10.';
         $('ub-cta').href='https://agency.ads2ai.com/upgrade.html';
         $('ub-cta').textContent='Add Scouts';
-        var ubxB=$('ub-x'); if(ubxB) ubxB.hidden=true;
+        var ubxB=$('ub-x'); if(ubxB){ ubxB.hidden=false; ubxB.title='Snooze for a week'; wireSnooze(ubxB, ob); }
         ob.hidden=false;
       } else ob.hidden=true;
     }
