@@ -3,7 +3,7 @@
 The post-onboarding home of Agency Brain. A slim, member-safe copy of the
 brain dashboard's Command Centre, bundled into the app and pointed at the
 member's own cloned brain. Ships the projects / todos / active-sessions /
-dispatch home, plus the Getting started path, Help/FAQ, Google Ads connector, and team-roster views.
+dispatch home, plus the Getting started path, Learn Cowork course, Help/FAQ, Google Ads connector, and team-roster views.
 It deliberately ships **none** of the Mike-only dashboard tabs (members, renewals,
 tokens, ads, portal, 8020skill).
 
@@ -32,7 +32,7 @@ cross-platform spawn: Mac Terminal+tmux / Windows `wt`+PowerShell).
 | `scripts/focus-agent.sh`, `kill-agent.sh`, `register-agent.cjs` | same | session control |
 | `server.cjs` | NEW (slim, Node http) | HOME + observability + Google Ads + team-management + flag-skill + identity + team-path + brain-updates routes; ports `launchAgentSession` |
 | `public/index.html` | NEW | thin member-safe shell |
-| `public/js/*.js` | NEW | renderers: `boot.js`, `core.js`, `nav-charts.js`, `path.js`, `dashboard.js`, `connectors.js`, `faq-live.js` |
+| `public/js/*.js` | NEW | renderers: `boot.js`, `core.js`, `nav-charts.js`, `path.js`, `dashboard.js`, `connectors.js`, `faq-live.js`, `cowork.js` |
 | `public/css/base.css`, `views.css` | NEW | tokens + type scale; per-view styles |
 
 ## Keeping it in sync (IMPORTANT)
