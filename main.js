@@ -12,7 +12,7 @@
 //   - Watcher writes its state to a known file; this process polls and drives
 //     the tray icon (running / paused / needs-attention)
 
-const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain } = require('electron');
+const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -271,10 +271,26 @@ function parseWatcherOutput(text) {
 // the tray so users see a clear "needs your attention" signal.
 let stateFileWatcher = null;
 let lastStopReason = null;
+// Fire the "stuck" desktop notification at most once per stuck episode; re-armed
+// when the watcher reports sync has recovered.
+let lastStuckNotified = false;
 // Files the watcher parked locally (oversized, or a role the member can't push)
 // while the rest of the brain keeps syncing. Surfaced as a calm menu line — NOT
 // a red attention state, because syncing is still healthy.
 let lastHeld = [];
+
+// One desktop notification per stuck episode. The watcher has tried and failed
+// to sync several times in a row and needs the user to act (usually: quit and
+// reopen the app, which restarts sync cleanly). Re-armed once sync recovers.
+function notifyStuck(reason) {
+  try {
+    if (!Notification.isSupported()) return;
+    new Notification({
+      title: `${APP_NAME} needs attention`,
+      body: `${reason}. Try quitting and reopening ${APP_NAME}; if it keeps happening, reply to your setup email.`,
+    }).show();
+  } catch (_) { /* notifications are best-effort */ }
+}
 
 function applyWatcherState(payload) {
   if (!payload || typeof payload.state !== 'string') return;
@@ -286,6 +302,12 @@ function applyWatcherState(payload) {
   const isAttention = payload.state === 'stop';
   if (isAttention) {
     lastStopReason = payload.reason || 'needs your attention';
+    // Only the stabilised "stuck" stop (repeated failures) nudges the user; a
+    // one-off transient stop stays a quiet tray colour.
+    if (payload.stuck && !lastStuckNotified) {
+      lastStuckNotified = true;
+      notifyStuck(lastStopReason);
+    }
     if (watcherState !== 'attention') {
       watcherState = 'attention';
       updateTray();
@@ -293,6 +315,7 @@ function applyWatcherState(payload) {
   } else if (watcherState === 'attention') {
     // Watcher reports it cleared the stop; resume normal display.
     lastStopReason = null;
+    lastStuckNotified = false;
     watcherState = 'running';
     updateTray();
   } else if (heldChanged) {

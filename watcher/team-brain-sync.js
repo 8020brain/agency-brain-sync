@@ -62,6 +62,13 @@ const MAX_DEFER_MS = parseInt(process.env.MAX_DEFER_MS || '180000', 10);
 const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '50', 10);
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
 const KEEP_BACKUPS = parseInt(process.env.KEEP_BACKUPS || '30', 10);
+// A .git/index.lock older than this is treated as abandoned and removed (a live
+// git op holds it for well under a second). After this many consecutive wedged
+// cycles we stabilise on a loud, actionable "stuck" state, then back off the
+// retry cadence to STUCK_RETRY_MS instead of hammering every cycle.
+const LOCK_STALE_MS = parseInt(process.env.LOCK_STALE_MS || '45000', 10);
+const ESCALATE_AFTER = parseInt(process.env.ESCALATE_AFTER || '3', 10);
+const STUCK_RETRY_MS = parseInt(process.env.STUCK_RETRY_MS || '300000', 10);
 const MODE = process.env.BRAIN_SYNC_MODE || 'personal';
 const API_BASE = process.env.AGENCY_API_BASE || 'https://api.ads2ai.com';
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
@@ -88,6 +95,9 @@ let pendingTimer = null;
 let syncing = false;
 let oldestPendingAt = null; // when the current uncommitted batch first changed
 let tokenCache = null; // { token, expiresAt: Date }
+let stallStreak = 0;       // consecutive wedged sync cycles (no forward progress)
+let stuckSince = null;     // set once we've stabilised as "stuck" (drives backoff + loud surfacing)
+let lastStuckAttempt = 0;  // last time we re-tried while stuck (backoff clock)
 
 function ts() {
   return new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -130,6 +140,25 @@ function gitTry(cmd) {
   }
 }
 
+// A git process that dies mid-operation (notably a Cowork session, which can't
+// complete its own git step — verified 2026-05-26) leaves `.git/index.lock`
+// behind. While it sits there, EVERY add/commit/merge fails instantly ("Unable
+// to create '.git/index.lock': File exists"), so the watcher retries forever and
+// the clone wedges — the "behind N; merging" loop that never advances. git holds
+// this lock for a fraction of a second, so one older than LOCK_STALE_MS is
+// certainly abandoned and safe to remove. Returns true if it cleared one.
+function clearStaleIndexLock() {
+  const lock = path.join(REPO, '.git', 'index.lock');
+  let st;
+  try { st = fs.statSync(lock); } catch { return false; } // no lock present
+  if (Date.now() - st.mtimeMs < LOCK_STALE_MS) return false; // a live git op may hold it
+  try {
+    fs.unlinkSync(lock);
+    console.log(`[${ts()}] cleared stale .git/index.lock (${Math.round((Date.now() - st.mtimeMs) / 1000)}s old)`);
+    return true;
+  } catch (_) { return false; }
+}
+
 // ───── Observable state for the tray ─────
 
 // Written atomically when state changes so main.js can poll/watch the file
@@ -160,6 +189,26 @@ function reportRunning(held) {
   } else {
     writeState('running', null, { held: [] });
   }
+}
+
+// Forward progress this cycle — drop any stuck/stall bookkeeping.
+function clearStall() { stallStreak = 0; stuckSince = null; }
+
+// A cycle that couldn't complete a retryable git step (merge/commit/push). The
+// first ESCALATE_AFTER are treated as transients (a race, a brief offline) and
+// kept quiet. Past that the clone is genuinely wedged, so we STABILISE on a loud,
+// actionable "stuck" stop (stuck:true → the tray shows "needs attention" and
+// main.js fires a one-time desktop notification) and let doSync back off the
+// retry cadence, instead of flickering pulling↔stop every cycle and burying the
+// problem in a log nobody reads.
+function stopStuck(reason, detail) {
+  stallStreak += 1;
+  const stuck = stallStreak >= ESCALATE_AFTER;
+  if (stuck && !stuckSince) {
+    stuckSince = Date.now();
+    console.log(`[${ts()}] STUCK after ${stallStreak} attempts: ${reason}${detail ? ` — ${detail}` : ''}`);
+  }
+  writeState('stop', reason, { stuck, attempts: stallStreak, detail: detail || null });
 }
 
 // ───── Agency-mode auth ─────
@@ -608,6 +657,19 @@ async function doSync(trigger) {
   if (syncing) return;
   syncing = true;
   try {
+    // A stale index.lock from a session that died mid-git (often Cowork) blocks
+    // every commit/merge; clear it before anything else so it can't wedge sync.
+    clearStaleIndexLock();
+
+    // While stabilised as stuck, don't hammer: let the interval re-attempt only
+    // every STUCK_RETRY_MS. A local edit (debounce) or remote movement still
+    // gets an immediate try via its own trigger.
+    if (stuckSince && trigger === 'interval' && (Date.now() - lastStuckAttempt) < STUCK_RETRY_MS) {
+      syncing = false;
+      return;
+    }
+    if (stuckSince) lastStuckAttempt = Date.now();
+
     // 0. Finish any merge we left mid-flight (e.g. crash during a previous
     //    auto-merge). Resolving keeps both sides, so it's safe to complete
     //    rather than STOP. A stray rebase/cherry-pick is the user's own manual
@@ -633,6 +695,7 @@ async function doSync(trigger) {
     if (s.state === 'clean_in_sync') {
       if (trigger !== 'interval') console.log(`[${ts()}] ${trigger}: clean, in sync`);
       oldestPendingAt = null;
+      clearStall();
       reportRunning([]);
       return;
     }
@@ -643,10 +706,12 @@ async function doSync(trigger) {
         // Shouldn't happen (no local commits), but if it does, a real merge
         // handles it without losing anything.
         const res = mergeWithSidecars(s.branch);
-        if (!res.merged) { writeState('stop', res.error || 'fast-forward failed'); return; }
+        if (!res.merged) { stopStuck('can\'t pull in the latest changes', res.error || 'fast-forward failed'); return; }
+        clearStall();
         reportRunning(res.conflicts.map((c) => ({ file: c.file, why: `overlapping edit — kept both, see ${path.basename(c.sidecar)}` })));
       } else {
         console.log(`[${ts()}]   fast-forwarded`);
+        clearStall();
         reportRunning([]);
       }
       return;
@@ -686,7 +751,7 @@ async function doSync(trigger) {
       didContribute = r.committed === true;
       if (r.error) {
         console.log(`[${ts()}]   ${r.error}`);
-        writeState('stop', r.error);
+        stopStuck('can\'t save your latest changes', r.error);
         return;
       }
     }
@@ -697,7 +762,7 @@ async function doSync(trigger) {
       console.log(`[${ts()}] ${trigger}: remote moved (behind ${s.behind}); merging`);
       const res = mergeWithSidecars(s.branch);
       if (!res.merged) {
-        writeState('stop', res.error || 'merge failed');
+        stopStuck('can\'t pull in the latest changes', res.error || 'merge failed');
         return;
       }
       if (res.conflicts.length) {
@@ -711,6 +776,7 @@ async function doSync(trigger) {
     // 3. Push (skip the network round-trip when there's genuinely nothing new).
     const ahead = git(`rev-list --count origin/${s.branch}..${s.branch}`);
     if (ahead === '0' || ahead === null) {
+      clearStall();
       reportRunning(held);
       return;
     }
@@ -718,12 +784,14 @@ async function doSync(trigger) {
     const pushResult = await withAuthenticatedRemote(() => git('push'));
     if (pushResult === null) {
       // Most often a race: someone pushed between our fetch and our push. Next
-      // tick re-classifies as behind and auto-merges, so this self-heals.
+      // tick re-classifies as behind and auto-merges, so this self-heals. Only a
+      // persistent failure (ESCALATE_AFTER in a row) stabilises as stuck.
       console.log(`[${ts()}]   push failed; will retry next tick`);
-      writeState('stop', 'push failed — will retry');
+      stopStuck('can\'t push your changes up', 'push failed — usually a brief race or offline');
       return;
     }
     console.log(`[${ts()}]   pushed.`);
+    clearStall();
     if (didContribute) reportContribution().catch(() => {});
     reportRunning(held);
   } catch (err) {

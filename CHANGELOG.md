@@ -2,11 +2,13 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## Unreleased — already on main, ships automatically with the next version
+## 0.9.21 — 2026-06-16
 
-> Releaser note: nothing extra to do. The code below is committed on main (86aa26f), so any normal release (bump + tag) includes it. Just fold this entry into your version's heading. After it ships, FAQ wording changes never need an app release again — the brain's `tools/sync-faq.cjs` publishes straight to the live database.
-
+- **Sync recovers itself from a leftover lock.** If a session was interrupted while saving (this can happen in Cowork), it could leave behind a tiny lock file that quietly jammed every sync afterwards, so your brain slipped further and further behind without saying why. The app now clears that leftover lock on its own and catches up. (Thanks again to Peter Tyler for the report.)
+- **When sync really is stuck, it now tells you.** If something blocks syncing for several tries in a row, the app stops trying quietly: the menu-bar icon turns to "needs attention" with a plain reason, and you get a notification suggesting you quit and reopen. No more watching a number climb with no explanation.
 - **The FAQ keeps itself up to date.** The Help tab now fetches the latest questions and answers when it opens, so new answers appear for everyone the moment they're published, without waiting for an app update. If you're offline, the copy built into the app shows instead.
+- **Learn Cowork.** The Command Centre has a new standalone Cowork course tab, so anyone can get up to speed on working with the brain through Cowork.
+- **Tidy up your home view.** The "Add Scouts" prompt can now be dismissed for a week, with a "Show dismissed cards" link to bring hidden cards back.
 
 ## 0.9.20 — 2026-06-10
 
