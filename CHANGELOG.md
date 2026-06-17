@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.22 — 2026-06-18
+
+- **Your team config heals itself.** Every agency brain keeps a small file listing who's on your team, and the setup steps need it. In a few setups it never got created, which could stop Claude part-way through saying it couldn't find it. The app now writes that file for you automatically on startup whenever it's missing, fills it from your live team list, and syncs it to everyone, so setup no longer gets stuck on this. (Thanks to Mathieu at Uptimize for the report.)
+
 ## 0.9.21 — 2026-06-16
 
 - **Sync recovers itself from a leftover lock.** If a session was interrupted while saving (this can happen in Cowork), it could leave behind a tiny lock file that quietly jammed every sync afterwards, so your brain slipped further and further behind without saying why. The app now clears that leftover lock on its own and catches up. (Thanks again to Peter Tyler for the report.)
