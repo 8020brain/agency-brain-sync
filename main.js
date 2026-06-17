@@ -991,6 +991,40 @@ async function fetchBrainMigrations() {
   } catch (_) { /* best-effort — next tick retries */ }
 }
 
+// Ensures .team-config/roles.json exists in the watched agency brain. That file
+// is the team roster the watcher reads for role-based push filtering and that
+// the setup/update prompts (Step 0) check for. It is normally written at
+// clone/flip time, but only best-effort and only into the exact folder the app
+// set up — so an old app version, a manual clone, or a file that got removed
+// could leave it absent, which used to dead-stop the install prompt at Step 0.
+// Re-seed it from the LIVE roster on startup so it can never stay missing; the
+// watcher then commits + pushes it like any other edit (owners/scouts aren't
+// blocked from .team-config/). No-ops the moment the file is present.
+async function ensureAgencyRolesSeeded() {
+  try {
+    const config = loadConfig();
+    if (!config || config.mode !== 'agency' || !config.brainPath || !config.memberToken) return;
+    if (!fs.existsSync(config.brainPath)) return;
+    const rolesPath = path.join(config.brainPath, '.team-config', 'roles.json');
+    if (fs.existsSync(rolesPath)) return;
+    const teamSlug = config.teamSlug || '';
+    if (!teamSlug) return;
+    const r = await fetch(`${API_BASE}/api/team-brain/team-summary?team=${encodeURIComponent(teamSlug)}`, {
+      headers: { Authorization: `Bearer ${config.memberToken}` },
+    });
+    if (!r.ok) return;
+    const sum = await r.json();
+    const roles = {
+      team_slug: (sum.team && sum.team.slug) || teamSlug,
+      team_name: (sum.team && sum.team.name) || teamSlug,
+      members: ((sum.members) || []).map((m) => ({ email: m.email, name: m.name, role: m.role })),
+    };
+    fs.mkdirSync(path.dirname(rolesPath), { recursive: true });
+    fs.writeFileSync(rolesPath, JSON.stringify(roles, null, 2) + '\n');
+    ulog('seeded missing .team-config/roles.json from live roster');
+  } catch (_) { /* best-effort — next startup retries */ }
+}
+
 // ---------- auto-update (electron-updater) ----------
 // Polls the public agency-brain-sync GitHub releases (the publish target in
 // electron-builder.yml), downloads a newer signed+notarised build in the
@@ -1653,6 +1687,8 @@ app.whenReady().then(() => {
   setupAutoUpdater();
   setTimeout(fetchBrainMigrations, 60 * 1000);
   setInterval(fetchBrainMigrations, 30 * 60 * 1000);
+  setTimeout(ensureAgencyRolesSeeded, 15 * 1000);
+  setInterval(ensureAgencyRolesSeeded, 30 * 60 * 1000);
 
   const config = loadConfig();
   if (!config || !config.brainPath || pendingInviteToken) {
