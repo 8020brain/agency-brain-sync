@@ -133,7 +133,13 @@
     if (context === 'clone') {
       if (/already\s+exists/i.test(msg)) return "There's already a folder there. Pick a different folder, or move the existing one aside.";
       if (/permission|EACCES/i.test(msg)) return "I don't have permission to create the folder there. Pick a different location.";
-      if (/not yet installed|github app|finish setup|409/i.test(msg)) return "Your agency isn't fully set up on GitHub yet. Ask your owner to finish the install, then try again.";
+      if (/not yet installed|github app|finish setup|409/i.test(msg)) {
+        // Role-aware: an owner hitting this IS the person who has to act, so never
+        // tell them to "ask your owner" (the dead-end Ionut hit, 2026-06-19).
+        const role = (teamInfo && teamInfo.member && teamInfo.member.role) || '';
+        if (role === 'owner') return "Almost there — you still need to install the Agency Brain GitHub App on your repo. Open github.com/apps/agency-brain-sync, click Install, pick the repo you created, then come back and click Try again.";
+        return "Your agency isn't fully set up yet — your owner still needs to install the Agency Brain GitHub App on the repo. Once they've done that, come back and try again.";
+      }
       if (/dev guard/i.test(msg)) return msg; // surface the dev guard verbatim to Mike
       if (net.test(msg)) return "I can't reach GitHub. Check your internet, then try again.";
       return "Something went wrong setting up your brain. Try again, or pick a different location.";

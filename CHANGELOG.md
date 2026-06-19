@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.23 — 2026-06-19
+
+- **A clearer message when your GitHub install isn't finished.** If you're an owner and you open the app before the Agency Brain GitHub App is installed on your repo, the app used to say "ask your owner to finish the install" — but you ARE the owner, so that was a dead end with nothing you could do. Now it tells you exactly what's left: install the App on your repo (with the link right there), then come back and try again. Team members still get pointed to their owner, now with what the owner actually needs to do. (Thanks to Ionut for the report.)
+
 ## 0.9.22 — 2026-06-18
 
 - **Your team config heals itself.** Every agency brain keeps a small file listing who's on your team, and the setup steps need it. In a few setups it never got created, which could stop Claude part-way through saying it couldn't find it. The app now writes that file for you automatically on startup whenever it's missing, fills it from your live team list, and syncs it to everyone, so setup no longer gets stuck on this. (Thanks to Mathieu at Uptimize for the report.)
