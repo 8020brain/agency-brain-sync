@@ -1,2 +1,0 @@
-{"at": "2026-06-17T17:01:59Z", "range": "7a9fa42cb08f0c0634184d4fc4a8024cdf07628d..7a9fa42cb08f0c0634184d4fc4a8024cdf07628d", "outcome": "no-drift", "summary": "No new commits since last doc-sync PR; no documentation changes needed.", "prUrl": ""}
-{"at":"2026-06-18T17:06:58Z","range":"7a9fa42..37487df","outcome":"pr","summary":"Added architecture note for roles.json startup seeding introduced in v0.9.22.","prUrl":"https://github.com/8020brain/agency-brain-sync/pull/8"}
