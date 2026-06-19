@@ -60,7 +60,13 @@
     if(isTeam && feat.length){
       sh.className='start-here';
       sh.innerHTML='<div class="sh-label">Start here</div><div class="sh-sub">New to the brain? These are great first skills to try.</div><div class="sh-grid">'
-        +feat.map(function(f){ return '<div class="sh-card"><div class="n">'+esc(f.name)+'</div><div class="d">'+esc((f.description||'').replace(/^["']\s*/,'').slice(0,80))+'</div></div>'; }).join('')+'</div>';
+        +feat.map(function(f){ return '<div class="sh-card" data-skill="'+esc(f.name)+'" role="button" tabindex="0"><div class="n">'+esc(f.name)+'</div><div class="d">'+esc((f.description||'').replace(/^["']\s*/,'').slice(0,80))+'</div></div>'; }).join('')+'</div>';
+      // Clicking a card opens that skill's detail below (the cards used to be dead).
+      if(!sh.__wired){ sh.__wired=true; sh.addEventListener('click',function(ev){
+        var c=ev.target.closest&&ev.target.closest('.sh-card[data-skill]'); if(!c) return;
+        var name=c.getAttribute('data-skill');
+        if(window.__skillDetail) window.__skillDetail(name);
+      }); }
     } else { sh.className='start-here hidden'; sh.innerHTML=''; }
   }
   function renderFeedback(){

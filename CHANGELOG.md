@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.26 — 2026-06-19
+
+- **The "Start here" skill cards actually open now.** On the Skills page, the cards across the top looked clickable (they even highlight on hover) but clicking them did nothing. Now clicking a card opens that skill's details below, the same as picking it from the list on the left.
+
 ## 0.9.25 — 2026-06-19
 
 - **Setting up the Google Ads proxy yourself is now one click.** The Google Ads page used to point you at a file path to go read if you wanted to run the setup by hand. Now there's a "Copy the setup commands" button right there: click it, paste the block into a terminal in your brain folder (or hand the whole thing to Claude), and you're done. The easy way (just ask your brain "set up the Google Ads proxy") is unchanged.

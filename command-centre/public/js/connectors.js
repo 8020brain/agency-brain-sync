@@ -182,7 +182,11 @@
       +'<div class="sp-sec">Status</div>'
       +'<div class="sp-status">'+esc(status.join(' · '))+'</div>';
     var items=$('sp-items'); if(items){ var all=items.querySelectorAll('.sp-item'); for(var i=0;i<all.length;i++) all[i].classList.toggle('active',all[i].getAttribute('data-skill')===name); }
+    var det=$('sp-detail'); if(det && det.scrollIntoView) det.scrollIntoView({block:'nearest'});
   }
+  // Exposed so the "Start here" cards (built in boot.js, a separate scope) can open
+  // a skill's detail when clicked, instead of being dead tiles.
+  window.__skillDetail = renderSkillDetail;
   (function(){
     var items=$('sp-items');
     if(items) items.addEventListener('click',function(ev){ var it=ev.target.closest&&ev.target.closest('.sp-item[data-skill]'); if(it) renderSkillDetail(it.getAttribute('data-skill')); });
