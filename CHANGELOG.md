@@ -5,6 +5,8 @@ What changed in each version of the Agency Brain app. You're reading the copy th
 ## 0.9.26 — 2026-06-19
 
 - **The "Start here" skill cards actually open now.** On the Skills page, the cards across the top looked clickable (they even highlight on hover) but clicking them did nothing. Now clicking a card opens that skill's details below, the same as picking it from the list on the left.
+- **Skill descriptions are written for people now.** The "What it is" panel used to show a thin one-liner aimed at the AI. It now shows each skill's plain-English intro, so you get a real sense of what a skill does. (Where a skill has no human intro yet, it falls back to the short description.)
+- **The "Start here" cards no longer push one-time setup skills.** First-run setup steps (like the agency join/onboarding skill) were showing as the most prominent cards for team members, even though that's a once-ever, terminal-only step that just sends people in circles. They're filtered out, so the cards are skills you can actually use day to day.
 
 ## 0.9.25 — 2026-06-19
 

@@ -172,9 +172,17 @@
     var status=[]; status.push(s.flags>0?(s.flags+' open flag'+(s.flags===1?'':'s')):'no open flags');
     if(s.lastImproved) status.push('improved '+ago(s.lastImproved));
     if(s.runs7d) status.push(s.runs7d+' run'+(s.runs7d===1?'':'s')+' this week');
-    var desc=s.description||'';
-    var uw=desc.search(/\bUSE WHEN\b/i);
-    if(uw>0) desc=desc.slice(0,uw).replace(/[\s.;,]+$/,'').trim();
+    // Prefer the skill's human intro paragraph (the prose under its "# Title");
+    // it reads for a person. Fall back to the Claude-facing frontmatter
+    // description (trimmed at "USE WHEN") only when there's no intro.
+    var desc='';
+    if(s.intro && s.intro.trim()){
+      desc=s.intro.trim();
+    } else {
+      desc=s.description||'';
+      var uw=desc.search(/\bUSE WHEN\b/i);
+      if(uw>0) desc=desc.slice(0,uw).replace(/[\s.;,]+$/,'').trim();
+    }
     d.innerHTML='<h2>'+esc(s.name)+'</h2>'
       +'<div class="sp-meta"><span class="pill '+esc(s.maturity)+'">'+esc(s.maturity)+'</span>'+(s.version?'<span class="sp-ver">v'+esc(s.version)+'</span>':'')+'</div>'
       +'<div class="sp-sec">What it is</div>'

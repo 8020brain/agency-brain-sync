@@ -66,6 +66,31 @@ function parseFrontmatter(skillDir) {
   if (mDesc) out.description = mDesc[1].replace(/^["']|["']$/g, '').slice(0, 1200);
   const mVer = fm[1].match(/^version:\s*(.+?)\s*$/m);
   if (mVer) out.version = mVer[1].replace(/^["']|["']$/g, '').slice(0, 24);
+  // Pull the first prose paragraph of the BODY (the human-readable bit under the
+  // "# Title" heading). The frontmatter `description:` is written for Claude's
+  // skill-routing; the intro paragraph reads for a person, so the Skills page
+  // shows it instead when present. Skip the H1, sub-headings, HTML comments and
+  // blank lines, then take the first real paragraph.
+  const body = text.slice(fm[0].length);
+  const lines = body.split('\n');
+  const para = [];
+  let started = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (!started) {
+      if (t === '' || /^#{1,6}\s/.test(t) || /^<!--/.test(t) || /^```/.test(t)) continue;
+      started = true;
+    }
+    if (t === '' || /^#{1,6}\s/.test(t)) break;
+    para.push(t);
+  }
+  const intro = para.join(' ').replace(/\*\*/g, '').replace(/[`_]/g, '').trim();
+  // Some skills open with assistant-facing plumbing rather than a human intro
+  // (e.g. gmail: "Use the first of these that exists in the session:"). Keep the
+  // intro only when it reads as a description; otherwise leave it blank so the
+  // client falls back to the frontmatter description.
+  const instructional = /\b(use the first|in (?:the|this) session|use when|when the user|tell the user|run these|paste (?:this|it))\b/i.test(intro) || /:\s*$/.test(intro);
+  if (intro && !instructional) out.intro = intro.slice(0, 600);
   return out;
 }
 
@@ -257,6 +282,17 @@ function improvementsSince(repoPath) {
 // .claude/featured-skills.json. Returns the ones that actually exist, in order,
 // with their description for display. Absent/invalid file → empty (the view
 // just shows the full alphabetical list).
+// One-time setup / onboarding skills must NEVER be in the "Start here" strip. That
+// strip shows only to TEAM members and only when they're new — but you've already
+// been onboarded by the time you're browsing skills, and these are terminal-only
+// and break in Cowork, so featuring them is a trap (e.g. agency-team-join was the
+// #1 card, which sent team members straight into a dead end). We filter here, in
+// the app, so it applies to EVERY agency on the next app update regardless of what
+// their own featured-skills.json (in their own repo, which we can't edit) lists.
+const FEATURED_EXCLUDE = new Set([
+  'agency-team-join', 'team-join', 'agency-setup', 'team-setup',
+  'agency-brain-context-setup', 'brain-context-setup',
+]);
 function readFeatured(repoPath, skills) {
   try {
     const f = path.join(repoPath, '.claude', 'featured-skills.json');
@@ -266,9 +302,10 @@ function readFeatured(repoPath, skills) {
     const byName = {};
     for (const s of skills) byName[s.name] = s;
     return names
+      .filter(n => !FEATURED_EXCLUDE.has(n))
       .map(n => byName[n])
       .filter(Boolean)
-      .map(s => ({ name: s.name, description: s.description || '', maturity: s.maturity }));
+      .map(s => ({ name: s.name, description: s.description || '', intro: s.intro || '', maturity: s.maturity }));
   } catch { return []; }
 }
 
@@ -391,7 +428,7 @@ function getObservability(opts = {}) {
 
   const skills = names.map(name => {
     const skillDir = path.join(skillsDir, name);
-    const { maturity, description, version } = parseFrontmatter(skillDir);
+    const { maturity, description, version, intro } = parseFrontmatter(skillDir);
     const gi = lastImproved[name] || null;
     const daysStale = gi ? daysBetween(gi.date, now) : null;
     let drift = null;
@@ -402,6 +439,7 @@ function getObservability(opts = {}) {
       name,
       maturity: (baseline && baseline.maturity && baseline.maturity[name]) || maturity,
       description,
+      intro: intro || '',
       version,
       lastImproved: gi ? gi.date : null,
       lastImprovedBy: gi ? gi.author : null,
