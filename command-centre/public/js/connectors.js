@@ -82,7 +82,36 @@
       }
     }catch(e){ /* transient; role switch or reload will retry */ }
   }
+  // The DIY commands for the Google Ads proxy, behind a "Copy the setup commands"
+  // button so we never make anyone go hunting in a README file path. One paste:
+  // run in a terminal in the brain folder, or hand the whole block to Claude.
+  var GADS_PROXY_CMDS = [
+    '# Google Ads proxy setup. Run these from your agency brain folder.',
+    '# You can also paste this whole block to Claude in your brain and it will do it for you.',
+    '',
+    '# Prereq: a Cloudflare API token in your .env as CLOUDFLARE_WORKERS_TOKEN.',
+    '# Get one at dash.cloudflare.com (My Profile, API Tokens, Create Token, "Edit Cloudflare Workers", Create).',
+    '',
+    '# 1) Deploy the Worker (prints your Worker URL):',
+    'node -r dotenv/config .claude/skills/gads-proxy/cloudflare/deploy.cjs',
+    '',
+    '# 2) Set the Google Ads secrets and generate a gate token:',
+    'node -r dotenv/config .claude/skills/gads-proxy/cloudflare/set-secrets.cjs',
+    '',
+    '# 3) Test it (use the URL printed in step 1):',
+    'curl https://gads-proxy.YOUR-SUBDOMAIN.workers.dev/ping',
+    '',
+    '# Then paste the Worker URL into the box above. Each teammate only needs a gate token.'
+  ].join('\n');
+
   (function(){
+    var cc=$('gp-copy-cmds');
+    if(cc) cc.addEventListener('click',function(){
+      navigator.clipboard.writeText(GADS_PROXY_CMDS).then(function(){
+        cc.textContent='Copied';
+        setTimeout(function(){ cc.textContent='Copy the setup commands'; },1800);
+      }).catch(function(){ cc.textContent='Copy failed, the commands are in .claude/skills/gads-proxy/cloudflare/'; });
+    });
     var save=$('gp-save');
     if(save) save.addEventListener('click',async function(){
       var st=$('gp-save-status'); st.textContent='Saving…';

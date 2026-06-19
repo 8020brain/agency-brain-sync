@@ -301,7 +301,8 @@
     <div id="gads-scout" hidden>
       <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
       <div class="sec">Google Ads proxy <span class="note">recommended — set up once, your team never holds the credentials</span></div>
-      <p class="fs-intro" id="gp-proxy-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. Prefer to run it yourself? The exact commands are in <code>.claude/skills/gads-proxy/cloudflare/README.md</code>.</p>
+      <p class="fs-intro" id="gp-proxy-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials.</p>
+      <p class="fs-intro" style="margin-top:6px">Prefer to run it yourself? <button class="add-btn secondary" id="gp-copy-cmds" style="margin-left:2px">Copy the setup commands</button> <span class="ago" style="margin-left:6px">paste them into a terminal in your brain folder, or hand the whole block to Claude.</span></p>
       <div class="grid flag-grid">
         <div class="card">
           <div class="sec">Set your team's proxy URL</div>

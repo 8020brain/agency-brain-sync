@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.25 — 2026-06-19
+
+- **Setting up the Google Ads proxy yourself is now one click.** The Google Ads page used to point you at a file path to go read if you wanted to run the setup by hand. Now there's a "Copy the setup commands" button right there: click it, paste the block into a terminal in your brain folder (or hand the whole thing to Claude), and you're done. The easy way (just ask your brain "set up the Google Ads proxy") is unchanged.
+
 ## 0.9.24 — 2026-06-19
 
 - **A "Reconnect" button when you get signed out.** If your saved sign-in ever gets cleared (it can happen while troubleshooting), syncing used to stop quietly and the app couldn't see your team, with no obvious way back. Now the app spots this straight away, tells you what happened, and puts a clear "Reconnect / sign in again" option at the top of the menu (and opens it for you on launch). Signing back in with your email code brings your team and syncing right back, using your existing brain folder, with nothing re-downloaded. (Thanks to Jonti at WHO Digital for the report.)
