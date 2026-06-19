@@ -176,6 +176,16 @@ function saveConfig(c) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(c, null, 2));
 }
 
+// Agency mode but the saved sign-in token is gone — e.g. config.json was cleared
+// while troubleshooting (Jonti at WHO Digital, 2026-06-19). The watcher and the
+// Command Centre both need that token, so syncing is paused until the member signs
+// in again. Re-signing in (the wizard) re-mints the token, adopts the existing
+// brain folder in place (no re-clone), and restarts the watcher. There is NO
+// portal page that hands out this token — it only comes from signing in here.
+function needsReconnect(config) {
+  return !!(config && config.mode === 'agency' && config.brainPath && !config.memberToken);
+}
+
 // ---------- watcher lifecycle ----------
 function startWatcher() {
   const config = loadConfig();
@@ -184,6 +194,18 @@ function startWatcher() {
     updateTray();
     return;
   }
+  // Signed-out agency brain: don't spin a watcher that can only fail on the
+  // missing token (the old behaviour error-looped silently every 5s). Surface a
+  // clear, actionable "reconnect" state and a one-time notification instead.
+  if (needsReconnect(config)) {
+    if (watcherProcess) { try { watcherProcess.kill(); } catch (_) {} watcherProcess = null; }
+    watcherState = 'attention';
+    lastStopReason = 'You are signed out, so syncing is paused. Choose "Reconnect / sign in again".';
+    if (!reconnectNotified) { reconnectNotified = true; notifyReconnect(); }
+    updateTray();
+    return;
+  }
+  reconnectNotified = false;
   if (watcherProcess) return;
 
   const pathExtra = process.platform === 'win32'
@@ -274,6 +296,9 @@ let lastStopReason = null;
 // Fire the "stuck" desktop notification at most once per stuck episode; re-armed
 // when the watcher reports sync has recovered.
 let lastStuckNotified = false;
+// Same idea for the "signed out, please reconnect" notification (agency mode with
+// the token missing). One per episode; re-armed once a token is present again.
+let reconnectNotified = false;
 // Files the watcher parked locally (oversized, or a role the member can't push)
 // while the rest of the brain keeps syncing. Surfaced as a calm menu line — NOT
 // a red attention state, because syncing is still healthy.
@@ -288,6 +313,18 @@ function notifyStuck(reason) {
     new Notification({
       title: `${APP_NAME} needs attention`,
       body: `${reason}. Try quitting and reopening ${APP_NAME}; if it keeps happening, reply to your setup email.`,
+    }).show();
+  } catch (_) { /* notifications are best-effort */ }
+}
+
+// Signed-out agency brain: tell the member exactly what to do (sign in again),
+// rather than letting the watcher fail silently in the background.
+function notifyReconnect() {
+  try {
+    if (!Notification.isSupported()) return;
+    new Notification({
+      title: `${APP_NAME}: please sign in again`,
+      body: `Your sign-in was cleared, so syncing is paused. Open ${APP_NAME} and choose "Reconnect / sign in again".`,
     }).show();
   } catch (_) { /* notifications are best-effort */ }
 }
@@ -392,6 +429,12 @@ function buildMenu() {
     { label: lastEventLine ? `Last:  ${lastEventLine}` : 'Last:  (no activity yet)', enabled: false },
     { type: 'separator' },
   ];
+
+  // Signed-out agency brain: the one action that fixes it, right at the top.
+  if (needsReconnect(config)) {
+    items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard() });
+    items.push({ type: 'separator' });
+  }
 
   if (lastHeld && lastHeld.length) {
     const first = lastHeld[0];
@@ -1708,7 +1751,12 @@ app.whenReady().then(() => {
     // The Command Centre is the daily work surface, so a user-initiated launch
     // opens into it rather than vanishing into the menu bar. A hidden login
     // auto-start stays in the tray — don't pop a window in someone's face on boot.
-    if (!wasLaunchedAtLogin()) openCommandCentre();
+    // If they're signed out (token wiped), open the wizard so they can reconnect,
+    // not the Command Centre (which can't load their team without a token).
+    if (!wasLaunchedAtLogin()) {
+      if (needsReconnect(config)) showSetupWizard();
+      else openCommandCentre();
+    }
   }
 });
 

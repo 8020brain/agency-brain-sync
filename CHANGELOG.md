@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.24 — 2026-06-19
+
+- **A "Reconnect" button when you get signed out.** If your saved sign-in ever gets cleared (it can happen while troubleshooting), syncing used to stop quietly and the app couldn't see your team, with no obvious way back. Now the app spots this straight away, tells you what happened, and puts a clear "Reconnect / sign in again" option at the top of the menu (and opens it for you on launch). Signing back in with your email code brings your team and syncing right back, using your existing brain folder, with nothing re-downloaded. (Thanks to Jonti at WHO Digital for the report.)
+
 ## 0.9.23 — 2026-06-19
 
 - **A clearer message when your GitHub install isn't finished.** If you're an owner and you open the app before the Agency Brain GitHub App is installed on your repo, the app used to say "ask your owner to finish the install" — but you ARE the owner, so that was a dead end with nothing you could do. Now it tells you exactly what's left: install the App on your repo (with the link right there), then come back and try again. Team members still get pointed to their owner, now with what the owner actually needs to do. (Thanks to Ionut for the report.)
