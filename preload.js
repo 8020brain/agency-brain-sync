@@ -25,6 +25,7 @@ const api = {
   adoptExistingBrain: (args) => ipcRenderer.invoke('adopt-existing-brain', args),
   configureIdentity: (args) => ipcRenderer.invoke('configure-identity', args),
   markInstallComplete: (args) => ipcRenderer.invoke('mark-install-complete', args),
+  getInstallStatus: (teamSlug) => ipcRenderer.invoke('get-install-status', teamSlug),
 
   // Email + OTP first-run: enter email -> request code -> verify -> look up
   // which agency the email belongs to -> clone. The primary onboarding path.

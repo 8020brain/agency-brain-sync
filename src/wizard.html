@@ -82,6 +82,22 @@
         <div class="error-banner hidden" id="err-team"></div>
       </section>
 
+      <!-- 2.5 connect GitHub org (agency owner whose brain repo isn't created yet) -->
+      <section class="screen" data-step="2" id="scene-connect-org">
+        <div class="eyebrow">Step 2 &middot; Connect GitHub</div>
+        <h1>Let's create your agency brain.</h1>
+        <p class="lede">Your brain lives in a private repository on your business's GitHub organisation, so it stays yours and survives staff changes. Click below, then on GitHub <strong>choose your business organisation</strong> (not your personal account) and approve. I'll create your brain there and pull it down for you.</p>
+        <p style="color:#555;font-size:0.95em;">Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.</p>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-connect-org" type="button">Connect GitHub &amp; create my brain</button>
+        </div>
+        <p id="connect-org-status" aria-live="polite" style="min-height:1.3em;color:#555;"></p>
+        <div class="field" style="max-width:none;">
+          <button class="btn ghost hidden" id="btn-connect-recheck" type="button">I've finished on GitHub &mdash; check now</button>
+        </div>
+        <div class="error-banner hidden" id="err-connect-org"></div>
+      </section>
+
       <!-- 2b have-brain fork (solo only): adopt an existing brain, or set up new -->
       <section class="screen" data-step="3" id="scene-have-brain">
         <div class="eyebrow">Step 2 &middot; Your brain</div>

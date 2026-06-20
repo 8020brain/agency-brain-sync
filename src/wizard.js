@@ -386,7 +386,7 @@
     show('scene-team');
   }
 
-  function selectTeam(team) {
+  async function selectTeam(team) {
     teamInfo = {
       memberToken: authToken,
       teamSlug: team.slug,
@@ -397,6 +397,18 @@
       member: { email: authEmail, name: authName, role: team.role || 'team' },
     };
     renderFooterIdentity();
+    // An owner whose agency repo isn't created yet connects their GitHub org
+    // first; the app then creates + seeds the brain there. Everyone else — and
+    // owners already set up — go straight on (a not-ready repo for a scout shows
+    // as the "owner still finishing" message at clone time).
+    const role = (team.role || 'team').toLowerCase();
+    if (role === 'owner' || role === 'head_scout' || role === 'head-scout') {
+      try {
+        const st = await api.getInstallStatus(team.slug);
+        if (!st || !st.repoUrl) { enterConnectOrg(); return; }
+        teamInfo.repoUrl = st.repoUrl;
+      } catch (e) { /* status hiccup — fall through to the normal path */ }
+    }
     enterMachine();
   }
 
@@ -429,6 +441,65 @@
       } catch (e) { /* fall through to the normal clone */ }
     }
     selectTeam(team);
+  }
+
+  // ====================================================================
+  // 2.5 — connect GitHub org (agency owner whose brain repo isn't created yet)
+  // ====================================================================
+  let connectOrgPoll = null;
+  let connectOrgBound = false;
+  let connectOrgSlug = '';
+
+  function stopConnectOrgPoll() {
+    if (connectOrgPoll) { clearInterval(connectOrgPoll); connectOrgPoll = null; }
+  }
+
+  async function connectOrgCheckOnce() {
+    if (!connectOrgSlug) return;
+    try {
+      const st = await api.getInstallStatus(connectOrgSlug);
+      if (st && st.repoUrl) {
+        stopConnectOrgPoll();
+        if (teamInfo) teamInfo.repoUrl = st.repoUrl;
+        enterMachine();
+        return;
+      }
+      if (st && st.installed) {
+        const el = document.getElementById('connect-org-status');
+        if (el) el.textContent = 'Connected to GitHub — creating your brain…';
+      }
+    } catch (e) { /* keep waiting; the next tick retries */ }
+  }
+
+  function connectOrgStartWaiting() {
+    const recheckBtn = document.getElementById('btn-connect-recheck');
+    const statusEl = document.getElementById('connect-org-status');
+    if (recheckBtn) recheckBtn.classList.remove('hidden');
+    if (statusEl) statusEl.textContent = 'Waiting for GitHub… pick your business organisation and approve. This updates on its own once you finish.';
+    stopConnectOrgPoll();
+    connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
+  }
+
+  function enterConnectOrg() {
+    connectOrgSlug = (teamInfo && teamInfo.teamSlug) || '';
+    const connectBtn = document.getElementById('btn-connect-org');
+    const recheckBtn = document.getElementById('btn-connect-recheck');
+    // Bind listeners once; they read connectOrgSlug live, so re-entry with a
+    // different team is safe.
+    if (!connectOrgBound) {
+      connectOrgBound = true;
+      if (connectBtn) connectBtn.addEventListener('click', async () => {
+        const url = `https://github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(connectOrgSlug)}`;
+        try { await api.openExternalUrl(url); } catch (e) { /* ignore */ }
+        connectOrgStartWaiting();
+      });
+      if (recheckBtn) recheckBtn.addEventListener('click', () => { connectOrgCheckOnce(); });
+    }
+    stopConnectOrgPoll();
+    const statusEl = document.getElementById('connect-org-status');
+    if (statusEl) statusEl.textContent = '';
+    if (recheckBtn) recheckBtn.classList.add('hidden');
+    show('scene-connect-org');
   }
 
   // ====================================================================

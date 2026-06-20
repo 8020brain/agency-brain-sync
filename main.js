@@ -1299,6 +1299,16 @@ ipcMain.handle('list-my-teams', async (_evt, token) => {
   return r.json(); // { teams: [{ slug, name, role }] }
 });
 
+// Poll the backend for whether the GitHub App install has landed and the brain
+// repo exists yet — used by the wizard's "connect your GitHub org" step to know
+// when Phase 1 has created the repo. Public GET, no auth (returns only booleans
+// + the repo URL).
+ipcMain.handle('get-install-status', async (_evt, teamSlug) => {
+  const r = await fetch(`${API_BASE}/api/team-brain/install-status?team=${encodeURIComponent(teamSlug)}`);
+  if (!r.ok) throw new Error(`install-status failed (HTTP ${r.status})`);
+  return r.json();
+});
+
 // Seed a freshly-created EMPTY agency repo from the agency-brain-template.
 // The API install-callback (Phase 1, AGENCY_AUTO_CREATE_REPO) makes the org repo
 // EMPTY; this fills it on first clone. Clones the private template with a brokered
