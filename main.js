@@ -1299,6 +1299,66 @@ ipcMain.handle('list-my-teams', async (_evt, token) => {
   return r.json(); // { teams: [{ slug, name, role }] }
 });
 
+// Seed a freshly-created EMPTY agency repo from the agency-brain-template.
+// The API install-callback (Phase 1, AGENCY_AUTO_CREATE_REPO) makes the org repo
+// EMPTY; this fills it on first clone. Clones the private template with a brokered
+// read token, drops the template's history, copies its files over the (empty)
+// target, then commits + pushes to the owner's repo using the token still embedded
+// in `origin`. Returns true if it seeded, false if the repo already had content
+// (the normal already-bootstrapped path). Throws loudly if the template can't be
+// reached — better a clear error than a silently-empty brain.
+async function seedAgencyBrainIfEmpty(targetFolder, memberToken) {
+  // An empty repo has no commits, so rev-parse HEAD fails (unborn branch).
+  let isEmpty = false;
+  try {
+    await runGit(['-C', targetFolder, 'rev-parse', 'HEAD']);
+  } catch (e) {
+    isEmpty = true;
+  }
+  if (!isEmpty) return false;
+
+  sendWizardLog('Fresh repo — setting it up from the Agency Brain template…');
+
+  // Short-lived read token for the PRIVATE agency-brain-template.
+  const r = await fetch(`${API_BASE}/api/brain/auth-token?repo=agency`, {
+    headers: { Authorization: `Bearer ${memberToken}` },
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `couldn't get the template (HTTP ${r.status})`);
+  }
+  const { token: tmplToken, repo: tmplRepo } = await r.json();
+  const tmplSlug = tmplRepo || '8020brain/agency-brain-template';
+  const tmplUrl = `https://x-access-token:${tmplToken}@github.com/${tmplSlug}.git`;
+
+  // Clone the template shallow, drop its .git, copy its files onto the empty
+  // target (whose own .git still points at the owner's repo, token in origin).
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agency-tmpl-'));
+  try {
+    await runGit(['clone', '--depth', '1', tmplUrl, tmpDir]);
+    fs.rmSync(path.join(tmpDir, '.git'), { recursive: true, force: true });
+    fs.cpSync(tmpDir, targetFolder, { recursive: true });
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+
+  // Commit the seed (inline identity so it doesn't depend on git global config,
+  // which the wizard's configure-identity step sets separately) and push it as
+  // the repo's first content on main.
+  await runGit(['-C', targetFolder, 'add', '-A']);
+  await runGit([
+    '-C', targetFolder,
+    '-c', 'user.email=app@agencybrain',
+    '-c', 'user.name=Agency Brain',
+    'commit', '-m', 'Set up Agency Brain from template',
+  ]);
+  await runGit(['-C', targetFolder, 'branch', '-M', 'main']);
+  sendWizardLog('Publishing your brain to GitHub…');
+  await runGit(['-C', targetFolder, 'push', '-u', 'origin', 'main']);
+  sendWizardLog('Brain created and published.');
+  return true;
+}
+
 ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   const { memberToken, teamSlug, repoUrl } = args;
   // Normalise whatever the renderer sent into the OS-native form (collapses
@@ -1363,6 +1423,10 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   }
   if (!adopted) {
     await runGit(['clone', cloneUrl, targetFolder]);
+    // If Phase 1 (the API install-callback) created this org repo EMPTY, fill it
+    // from the agency-brain-template now — while the push token is still in the
+    // freshly-cloned origin. A repo that already has content is left untouched.
+    await seedAgencyBrainIfEmpty(targetFolder, memberToken);
   }
   // Rewrite the remote URL back to the token-less form so we don't keep a
   // 1-hour token on disk; the watcher will mint fresh tokens on each sync.
