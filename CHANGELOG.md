@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.27 — 2026-06-23
+
+- **Groundwork for signed Windows installs.** Behind the scenes, this gets the app ready to recognise our upcoming signed Windows builds, which help Windows trust the app and reduce "unknown publisher" warnings. Nothing changes in how the app works today. This release just makes sure the next update installs smoothly for everyone.
+
 ## 0.9.26 — 2026-06-19
 
 - **The "Start here" skill cards actually open now.** On the Skills page, the cards across the top looked clickable (they even highlight on hover) but clicking them did nothing. Now clicking a card opens that skill's details below, the same as picking it from the list on the left.
