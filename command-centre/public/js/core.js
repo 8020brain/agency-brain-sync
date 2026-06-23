@@ -91,7 +91,6 @@
       $('who-email').textContent=h.memberEmail||'';
       $('brand-ver').textContent=h.version?('v'+h.version):'';
       $('ft-ver').textContent='Agency Brain'+(h.version?(' v'+h.version):'');
-      $('ft-built').textContent=h.servedAt?('· built '+new Date(h.servedAt).toLocaleTimeString()):'';
       $('ft-path').textContent=h.brainRoot||'';
       applyRoleTabs(h.memberRole);
       CCROLE=role; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
