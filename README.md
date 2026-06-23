@@ -59,7 +59,7 @@ That's all you need. If you get stuck, ask your scout, or email `mike@ads2ai.com
 
 ### Why the security warning?
 
-The Mac and Windows warnings appear because Agency Brain isn't code-signed yet. Code signing requires a paid developer account from Apple ($99/yr) and from Microsoft (more involved). We're delaying that step until the v1 release. Once signed, the warnings go away entirely.
+The Mac and Windows warnings appear because Agency Brain isn't fully code-signed yet. Apple signing requires a paid developer account ($99/yr) and is still pending. Windows signing is actively being prepared; a near-term release will be signed and the SmartScreen warning will disappear at that point. The Mac Gatekeeper warning will go away once Apple signing is in place.
 
 The warning does NOT mean the app is unsafe; it means macOS or Windows hasn't been told who's responsible for it. The source code is in this public repository if you want to verify what the app does.
 
