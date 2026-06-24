@@ -80,18 +80,16 @@
           +'<button class="tp-check" data-tp-toggle="'+esc(s.id)+'" title="'+(isDone?'Mark not done':'Mark done')+'">'+(isDone?'✓':'')+'</button>'
           +'<div class="tp-step-main">'
           +'<div class="tp-step-head" data-tp-open="'+esc(s.id)+'">'
+          +'<span class="tp-caret">'+(TP_OPEN[s.id]?'▾':'▸')+'</span>'
           +'<span class="tp-step-title">'+esc(s.title)+'</span>'
           +'<span class="tp-chip">'+esc(s.type)+'</span>'
           +'<span class="tp-mins">'+s.minutes+' min</span>'
           +'</div>'
           +'<div class="tp-step-body"'+(TP_OPEN[s.id]?'':' hidden')+'>'
           +s.body.split(/\n+/).filter(Boolean).map(function(par){ return '<p>'+esc(par)+'</p>'; }).join('')
-          +(s.prompt?'<div class="tp-prompt"><code>'+esc(s.prompt)+'</code><button class="mini" data-tp-copy="'+esc(s.id)+'">'+(TP_SEL==='scout'?'Copy for Claude Code':'Copy for Cowork')+'</button></div>'
-            +'<p class="tp-hint">'+(TP_SEL==='scout'
-              ?'Paste it into Claude Code in your brain folder. Or skip the pasting: type <code>/start</code> there and Claude runs this whole path with you.'
-              :'Paste it into Cowork, the Claude desktop app pointed at your brain folder. Or skip the pasting: type <code>/start</code> in Cowork and Claude runs this whole path with you.')+'</p>':'')
+          +(s.prompt?'<div class="tp-prompt" data-tp-copy="'+esc(s.id)+'" title="Click anywhere to copy"><code>'+esc(s.prompt)+'</code><button class="mini" type="button" tabindex="-1">'+(TP_SEL==='scout'?'Copy for Claude Code':'Copy for Cowork')+'</button></div>':'')
           +(s.quiz?'<div class="tp-quiz">'+s.quiz.map(function(q){return '<details><summary>'+esc(q.q)+'</summary><p>'+esc(q.a)+'</p></details>';}).join('')+'</div>'
-            +'<div class="tp-prompt tp-quiz-copy"><code>Want it as a proper back-and-forth? Claude will quiz you.</code><button class="mini" data-tp-copy="'+esc(s.id)+'">'+(TP_SEL==='scout'?'Copy for Claude Code':'Copy for Cowork')+'</button></div>':'')
+            +'<div class="tp-prompt tp-quiz-copy" data-tp-copy="'+esc(s.id)+'" title="Click anywhere to copy"><code>Want it as a proper back-and-forth? Claude will quiz you.</code><button class="mini" type="button" tabindex="-1">'+(TP_SEL==='scout'?'Copy for Claude Code':'Copy for Cowork')+'</button></div>':'')
           +'</div></div></div>';
       });
       h+='</div></div>';
@@ -111,6 +109,8 @@
         TP_OPEN[id]=!TP_OPEN[id];
         var body=el.parentElement.querySelector('.tp-step-body');
         if(body) body.hidden=!TP_OPEN[id];
+        var caret=el.querySelector('.tp-caret');
+        if(caret) caret.textContent=TP_OPEN[id]?'▾':'▸';
       });
     });
     root.querySelectorAll('[data-tp-toggle]').forEach(function(el){
@@ -123,10 +123,9 @@
     root.querySelectorAll('[data-tp-copy]').forEach(function(el){
       el.addEventListener('click',function(){
         var txt=TP_COPY[el.getAttribute('data-tp-copy')]||'';
-        var label=el.textContent;
+        var btn=el.querySelector('.mini'); var label=btn?btn.textContent:'';
         navigator.clipboard.writeText(txt).then(function(){
-          el.textContent='Copied — paste it over there';
-          setTimeout(function(){ el.textContent=label; },2000);
+          if(btn){ btn.textContent='Copied — paste it over there'; setTimeout(function(){ btn.textContent=label; },2000); }
         });
       });
     });
