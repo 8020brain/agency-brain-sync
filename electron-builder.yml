@@ -93,6 +93,12 @@ win:
   publisherName:
     - 8020brain
     - Mike Rhodes
+  # Cloud code-signing hook (SSL.com eSigner CodeSignTool). Active only on the
+  # Windows CI leg, where build.yml downloads CodeSignTool and supplies the
+  # WINDOWS_SIGN_* secrets. It signs each .exe before latest.yml is generated so
+  # the auto-update hashes match the signed bytes. A local `build:win` without
+  # those env vars fails loudly by design — never silently ship unsigned.
+  sign: ./build/win-sign.cjs
 
 nsis:
   # One-click installer so auto-updates install silently and relaunch (matching

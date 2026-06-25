@@ -43,6 +43,37 @@ jobs:
 
       - run: npm install
 
+      # Windows signing prep (win leg only). CodeSignTool is a Java CLI, so it
+      # needs a JRE; the SSL.com Windows zip is fetched from a pinned release and
+      # its folder is exported as CODE_SIGN_TOOL_DIR for the electron-builder
+      # sign hook (build/win-sign.cjs) to call.
+      - name: Set up Java for CodeSignTool (Windows signing)
+        if: matrix.artifact == 'win'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download SSL.com CodeSignTool (Windows signing)
+        if: matrix.artifact == 'win'
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2-windows.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'codesigntool.zip'
+          $dest = Join-Path $env:RUNNER_TEMP 'codesigntool'
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          $bat = Get-ChildItem -Path $dest -Recurse -Filter 'CodeSignTool.bat' | Select-Object -First 1
+          if (-not $bat) {
+            Write-Error 'CodeSignTool.bat not found in the downloaded zip'
+            Get-ChildItem -Path $dest -Recurse | Select-Object -First 30
+            exit 1
+          }
+          $dir = $bat.DirectoryName
+          "CODE_SIGN_TOOL_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "CodeSignTool ready at $dir"
+
       - name: Build
         env:
           # Mac signing + notarisation. CSC_LINK is a Developer ID .p12; it must
@@ -55,7 +86,37 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows signing. Read by the electron-builder sign hook
+          # (build/win-sign.cjs) on the win leg; empty on mac so the hook is
+          # never invoked there. CODE_SIGN_TOOL_DIR is exported above.
+          WINDOWS_SIGN_USER: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_USER || '' }}
+          WINDOWS_SIGN_PASSWORD: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_PASSWORD || '' }}
+          WINDOWS_SIGN_TOTP_SECRET: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_TOTP_SECRET || '' }}
+          WINDOWS_SIGN_CREDENTIAL_ID: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_CREDENTIAL_ID || '' }}
         run: npm run ${{ matrix.script }}
+
+      # Hard gate: never let an unsigned (or wrongly-signed) Windows installer
+      # reach the release job. electron-builder already fails if the sign hook
+      # throws; this catches the "built but not properly signed" case too.
+      - name: Verify Windows installer is signed (Windows signing)
+        if: matrix.artifact == 'win'
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path dist -Recurse -Filter '*Setup.exe' | Select-Object -First 1
+          if (-not $exe) { Write-Error 'No Setup.exe found in dist'; exit 1 }
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          Write-Host "File:   $($exe.FullName)"
+          Write-Host "Status: $($sig.Status)"
+          Write-Host "Signer: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') {
+            Write-Error "Installer signature status is '$($sig.Status)', expected 'Valid'"
+            exit 1
+          }
+          if ($sig.SignerCertificate.Subject -notmatch 'Mike Rhodes') {
+            Write-Error "Unexpected signer: $($sig.SignerCertificate.Subject)"
+            exit 1
+          }
+          Write-Host 'OK: installer is validly signed by Mike Rhodes'
 
       - name: Upload installer
         uses: actions/upload-artifact@v7
