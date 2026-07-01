@@ -101,7 +101,11 @@
     '# 3) Test it (use the URL printed in step 1):',
     'curl https://gads-proxy.YOUR-SUBDOMAIN.workers.dev/ping',
     '',
-    '# Then paste the Worker URL into the box above. Each teammate only needs a gate token.'
+    '# Then paste the Worker URL into the box above. Each teammate only needs a gate token.',
+    '',
+    '# Do this ONCE per agency. The shared gate token is the default; the optional per-person',
+    '# tokens (manage-tokens.cjs) live on ONE machine only, so if a second person runs setup from',
+    '# another machine it wipes the rest. One person owns tokens; don\'t re-run this elsewhere.'
   ].join('\n');
 
   (function(){
