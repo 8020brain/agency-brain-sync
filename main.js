@@ -430,6 +430,14 @@ function buildMenu() {
     { type: 'separator' },
   ];
 
+  // A downloaded update waiting to install — the first, most prominent action, so
+  // it can't be missed in the menu. Reuses the tested relaunch flow (offers
+  // "Relaunch now / Later").
+  if (updateInfo && updateInfo.version) {
+    items.push({ label: `Restart to install update v${updateInfo.version}`, click: () => checkForUpdatesManually() });
+    items.push({ type: 'separator' });
+  }
+
   // Signed-out agency brain: the one action that fixes it, right at the top.
   if (needsReconnect(config)) {
     items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard() });
@@ -479,8 +487,15 @@ function buildMenu() {
 
 function updateTray() {
   if (!tray) return;
-  tray.setImage(makeTrayIcon(watcherState));
-  tray.setToolTip(`${APP_NAME} — ${statusLabel()}`);
+  // A downloaded-but-not-yet-installed update shows on the menu-bar icon itself:
+  // the attention icon plus a tooltip saying an update is waiting, so someone who
+  // never opens the Command Centre still sees it. Reads the same updateInfo the
+  // relaunch toast uses.
+  const pending = updateInfo && updateInfo.version;
+  tray.setImage(makeTrayIcon(pending || watcherState === 'attention' ? 'attention' : watcherState));
+  tray.setToolTip(pending
+    ? `${APP_NAME} update ready (v${updateInfo.version}). Restart to install.`
+    : `${APP_NAME} — ${statusLabel()}`);
   tray.setContextMenu(buildMenu());
 }
 
@@ -1101,6 +1116,7 @@ function setupAutoUpdater() {
     ulog('downloaded v' + (info && info.version) + ' — surfacing banner, auto-install in 5 min');
     if (setupWindow && !setupWindow.isDestroyed()) setupWindow.webContents.send('update-downloaded', updateInfo);
     scheduleAutoInstall();
+    updateTray();
   });
   // Check shortly after launch, then every 30 minutes (was 6h — too slow).
   // openCommandCentre also fires a check, so opening the app re-checks on the
