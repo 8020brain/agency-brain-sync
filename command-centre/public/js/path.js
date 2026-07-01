@@ -11,6 +11,17 @@
   var TP_OPEN={};        // step id -> true while expanded, survives re-renders
   var TP_COPY={};        // step id -> text the copy button puts on the clipboard
 
+  // Turn any http(s) URL in a paragraph into a clickable link (the rest stays escaped).
+  function tpLinkify(par){
+    return par.split(/(https?:\/\/[^\s)]+)/g).map(function(part){
+      if(/^https?:\/\//.test(part)){
+        var u=esc(part);
+        return '<a href="'+u+'" target="_blank" rel="noopener" style="color:#D64C00;text-decoration:underline">'+u+'</a>';
+      }
+      return esc(part);
+    }).join('');
+  }
+
   function tpLoad(){
     api('/api/team-path').then(function(d){
       TP_DATA=d;
@@ -69,24 +80,32 @@
 
     p.tracks.forEach(function(t,ti){
       var done=t.steps.filter(function(s){return tpDone(s.id);}).length;
+      var allDone=t.steps.length>0&&done===t.steps.length;
       h+='<div class="card tp-track">'
-        +'<div class="sec">'+(ti+1)+' · '+esc(t.title)+' <span class="note">'+done+'/'+t.steps.length+' · '+esc(t.tagline)+'</span></div>'
+        +'<div class="tp-track-head">'
+          +'<span class="tp-badge'+(allDone?' done':'')+'">'+(allDone?'✓':(ti+1))+'</span>'
+          +'<span class="tp-track-titles"><span class="tp-track-title">'+esc(t.title)+'</span>'
+          +'<span class="tp-track-tag">'+esc(t.tagline)+'</span></span>'
+          +'<span class="tp-track-prog">'+done+' / '+t.steps.length+' done</span>'
+        +'</div>'
         +'<div class="tp-steps">';
       t.steps.forEach(function(s){
         var isDone=tpDone(s.id);
+        var kind=(s.type||'').toLowerCase();
+        var kindLabel=kind?kind.charAt(0).toUpperCase()+kind.slice(1):'';
         if(s.prompt) TP_COPY[s.id]=s.prompt;
         else if(s.quiz) TP_COPY[s.id]='Run /start and give me the "'+s.title+'" quiz from the "'+t.title+'" track. Ask me one question at a time, in your own words, and let me answer before telling me how I did.';
         h+='<div class="tp-step'+(isDone?' done':'')+'" data-step="'+esc(s.id)+'">'
           +'<button class="tp-check" data-tp-toggle="'+esc(s.id)+'" title="'+(isDone?'Mark not done':'Mark done')+'">'+(isDone?'✓':'')+'</button>'
           +'<div class="tp-step-main">'
           +'<div class="tp-step-head" data-tp-open="'+esc(s.id)+'">'
-          +'<span class="tp-caret">'+(TP_OPEN[s.id]?'▾':'▸')+'</span>'
+          +'<span class="tp-caret" aria-hidden="true">'+(TP_OPEN[s.id]?'▾':'▸')+'</span>'
+          +'<span class="tp-chip tp-chip-'+esc(kind)+'">'+esc(kindLabel)+'</span>'
           +'<span class="tp-step-title">'+esc(s.title)+'</span>'
-          +'<span class="tp-chip">'+esc(s.type)+'</span>'
           +'<span class="tp-mins">'+s.minutes+' min</span>'
           +'</div>'
           +'<div class="tp-step-body"'+(TP_OPEN[s.id]?'':' hidden')+'>'
-          +s.body.split(/\n+/).filter(Boolean).map(function(par){ return '<p>'+esc(par)+'</p>'; }).join('')
+          +s.body.split(/\n+/).filter(Boolean).map(function(par){ return '<p>'+tpLinkify(par)+'</p>'; }).join('')
           +(s.prompt?'<div class="tp-prompt" data-tp-copy="'+esc(s.id)+'" title="Click anywhere to copy"><code>'+esc(s.prompt)+'</code><button class="mini" type="button" tabindex="-1">'+(TP_SEL==='scout'?'Copy for Claude Code':'Copy for Cowork')+'</button></div>':'')
           +(s.quiz?'<div class="tp-quiz">'+s.quiz.map(function(q){return '<details><summary>'+esc(q.q)+'</summary><p>'+esc(q.a)+'</p></details>';}).join('')+'</div>'
             +'<div class="tp-prompt tp-quiz-copy" data-tp-copy="'+esc(s.id)+'" title="Click anywhere to copy"><code>Want it as a proper back-and-forth? Claude will quiz you.</code><button class="mini" type="button" tabindex="-1">'+(TP_SEL==='scout'?'Copy for Claude Code':'Copy for Cowork')+'</button></div>':'')
