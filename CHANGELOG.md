@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.30 — 2026-07-02
+
+- **Setup pointers now send you to the right place.** A few in-app messages and help notes still said to finish setup "at agency.ads2ai.com", but setup moved into the app itself, so those were a dead end. They now point you to the app's own setup wizard. Nothing changes in how setup works; the words just match where it actually happens now.
+
 ## 0.9.29 — 2026-07-01
 
 - **The Getting Started path reads properly now.** The guided path in the Command Centre had cramped rows and tiny markers that were hard to make out. It now matches the Scout Path on the members portal: a clear number for each track, easy-to-read "Prompt / Read / Do / Quiz" tags, bigger arrows that show a step opens, and roomier steps, so it's obvious what each step is and how to expand it.

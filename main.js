@@ -462,7 +462,7 @@ function buildMenu() {
     { label: 'Check for updates…',       click: () => checkForUpdatesManually() },
     { type: 'separator' },
     // Phase 4: a solo (personal-mode) owner who's ready to bring teammates in
-    // self-creates their team + installs the App at agency.ads2ai.com, then
+    // self-creates their team + installs the GitHub App from the setup wizard, then
     // connects this app to it (the wizard does OTP -> pick team -> flip-to-agency).
     ...(config && config.mode === 'personal'
       ? [{ label: 'Connect to my agency team…', click: () => showSetupWizard() }]
@@ -925,7 +925,7 @@ ipcMain.handle('flip-to-agency', async (_evt, args) => {
   const team = summary.team || {};
   const requester = summary.requester || {};
   if (!team.installed) {
-    return { ok: false, error: "Your team's GitHub App isn't installed yet. Finish the install at agency.ads2ai.com, then connect here." };
+    return { ok: false, error: "Your team's GitHub App isn't installed yet. Finish the one-time GitHub setup in the app's setup wizard, then connect here." };
   }
 
   // In-place flip only applies when THIS folder's origin IS the agency repo
@@ -945,7 +945,7 @@ ipcMain.handle('flip-to-agency', async (_evt, args) => {
   // path rather than converting whatever this folder currently tracks (e.g. a solo
   // members-template clone) into agency mode against the wrong remote.
   if (!team.repoUrl) {
-    return { ok: false, mismatch: true, error: "Your agency repo isn't linked yet. Finish connecting it at agency.ads2ai.com, then connect here." };
+    return { ok: false, mismatch: true, error: "Your agency repo isn't linked yet. Finish the one-time GitHub setup in the app's setup wizard, then connect here." };
   }
   if (origin && normRepo(origin) !== normRepo(team.repoUrl)) {
     return {
@@ -1396,7 +1396,7 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
     `https://x-access-token:${token}@`
   );
   if (!cloneUrl.startsWith('https://x-access-token:')) {
-    throw new Error("Your agency's one-time setup isn't finished yet. The owner or a scout needs to create and connect your brain repo at agency.ads2ai.com first. Once that's done, sign in here again.");
+    throw new Error("Your agency's one-time setup isn't finished yet. The owner or a scout needs to finish setting up your agency brain in the Agency Brain app first. Once that's done, sign in here again.");
   }
   // Make sure the target's parent exists
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
