@@ -142,9 +142,19 @@
   // bottom-left "Relaunch to update" toast when a new build has downloaded.
   (function(){
     var toast=$('update-toast'); if(!toast || !window.agencyBrain) return;
-    function show(info){ if(!info || !info.version) return; var v=$('ut-version'); if(v) v.textContent='v'+info.version; toast.hidden=false; }
+    function show(info){
+      if(!info || !info.version) return;
+      var v=$('ut-version'); if(v) v.textContent='v'+info.version; toast.hidden=false;
+      // Also surface it on the Home tab header — the subtle, always-visible
+      // "→ vX ⟳" indicator beside the current version (Mike's pick over a banner).
+      var bv=$('brand-update-ver'); if(bv) bv.textContent='v'+info.version;
+      var bu=$('brand-update'); if(bu) bu.hidden=false;
+    }
     if(window.agencyBrain.getUpdateState) window.agencyBrain.getUpdateState().then(function(s){ if(s) show(s); }).catch(function(){});
     if(window.agencyBrain.onUpdateDownloaded) window.agencyBrain.onUpdateDownloaded(show);
+    // Clicking the header indicator relaunches to install, same as the toast.
+    var bu=$('brand-update');
+    if(bu) bu.addEventListener('click',function(e){ e.preventDefault(); if(window.agencyBrain.installUpdate) window.agencyBrain.installUpdate(); });
     toast.addEventListener('click',function(e){
       if(e.target && e.target.id==='ut-later'){
         if(window.agencyBrain.delayUpdate) window.agencyBrain.delayUpdate();
