@@ -246,3 +246,39 @@
   .tp-switch-btn{appearance:none;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;padding:8px 16px;background:#fff;color:var(--muted);border-right:1px solid var(--line);}
   .tp-switch-btn:last-child{border-right:0;}
   .tp-switch-btn.active{background:var(--accent);color:#fff;}
+
+  /* ---- Self-report progression rail (trust-spine) ---- */
+  #prog-self-root:empty{display:none;}
+  .prog-intro{color:var(--muted);font-size:var(--fs-sm);margin:0 0 14px;}
+  .prog-scorebar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:2px;overflow:hidden;margin:0 0 6px;}
+  .prog-scorebar-fill{height:100%;background:var(--accent);transition:width .25s ease;}
+  .prog-scorenum{font-weight:700;color:var(--ink);font-size:var(--fs-md);margin:0 0 18px;}
+  .prog-scorenum .note{color:var(--muted);font-weight:500;font-size:var(--fs-xs);}
+  .prog-lvl{border-top:1px solid var(--line);padding:12px 0;}
+  .prog-lvl:last-child{border-bottom:1px solid var(--line);}
+  .prog-lvl-head{display:flex;align-items:baseline;gap:10px;margin-bottom:9px;flex-wrap:wrap;}
+  .prog-lvl-badge{flex:none;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:var(--bg);color:var(--muted);border:1px solid var(--line);border-radius:2px;align-self:center;}
+  .prog-lvl-badge.done{background:var(--ok);color:#fff;border-color:var(--ok);}
+  .prog-lvl-name{font-weight:700;color:var(--ink);font-size:var(--fs-base);}
+  .prog-lvl-blurb{color:var(--muted);font-size:var(--fs-xs);}
+  .prog-lvl-count{margin-left:auto;color:var(--muted);font-size:var(--fs-xs);font-weight:600;align-self:center;}
+  .prog-lvl.done .prog-lvl-name{color:var(--ok);}
+  .prog-steps{display:flex;flex-wrap:wrap;gap:8px;}
+  .prog-step{appearance:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-sm);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:2px;padding:6px 11px;text-align:left;}
+  .prog-step:hover{border-color:var(--accent);}
+  .prog-step:disabled{opacity:.5;cursor:default;}
+  .prog-step .prog-check{flex:none;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1px solid var(--line);border-radius:2px;color:transparent;}
+  .prog-step.on{background:var(--accent-soft);border-color:var(--accent);}
+  .prog-step.on .prog-check{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  /* ---- Owner/scout: team rollup ---- */
+  .prog-roll{display:flex;flex-direction:column;gap:2px;}
+  .prog-roll-row{display:grid;grid-template-columns:minmax(120px,1.4fr) 3fr auto auto;align-items:center;gap:14px;padding:9px 0;border-top:1px solid var(--line);}
+  .prog-roll-row:first-child{border-top:0;}
+  .prog-roll-who{display:flex;flex-direction:column;line-height:1.3;}
+  .prog-roll-name{font-weight:700;color:var(--ink);font-size:var(--fs-sm);}
+  .prog-roll-role{color:var(--muted);font-size:var(--fs-2xs);text-transform:uppercase;letter-spacing:.06em;}
+  .prog-roll-bar{height:8px;background:var(--bg);border:1px solid var(--line);border-radius:2px;overflow:hidden;}
+  .prog-roll-fill{height:100%;background:var(--accent);}
+  .prog-roll-score{font-weight:700;color:var(--ink);font-size:var(--fs-sm);min-width:34px;text-align:right;}
+  .prog-roll-updated{color:var(--muted);font-size:var(--fs-2xs);min-width:52px;text-align:right;}

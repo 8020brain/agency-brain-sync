@@ -2,6 +2,11 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.31 — 2026-07-02
+
+- **See where your team is, right from the Command Centre.** Team members get a new "Where you are" panel on their Getting Started tab. They tick off, for themselves, how far along they feel on the six levels of getting the most from the brain. It's their own read, never a measurement and never watched. Owners and scouts see those self-reports gathered together on their dashboard, so it's easy to spot who might want a hand as people get going. Owners and scouts track their own progress over on the members portal, so nobody has to tick the same thing in two places.
+- **You can tell when an update is ready.** When a new version has downloaded and is waiting to install, the app now shows a quiet marker in the Command Centre header and on the menu-bar icon, so an update no longer slips in without you noticing it was there.
+
 ## 0.9.30 — 2026-07-02
 
 - **Setup pointers now send you to the right place.** A few in-app messages and help notes still said to finish setup "at agency.ads2ai.com", but setup moved into the app itself, so those were a dead end. They now point you to the app's own setup wizard. Nothing changes in how setup works; the words just match where it actually happens now.

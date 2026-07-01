@@ -35,6 +35,7 @@ const todoParser = require('./lib/todo-parser.cjs');
 const agentsTracker = require('./lib/agents-tracker.cjs');
 const homePrefs = require('./lib/home-prefs.cjs');
 const { getObservability } = require('./lib/observability.cjs');
+const progression = require('./lib/progression.cjs');
 
 // Identity for the header + version footer. main.js passes these from the
 // member's config.json, which the app got from the server at OTP login
@@ -494,6 +495,33 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(progress, null, 2) + '\n');
       return send(res, 200, { ok: true, path: key, progress });
+    }
+    // ---- Self-report progression rail (trust-spine, six levels) -----------
+    // Team members tick where they feel they are; owners/scouts see the team's
+    // self-reports rolled up. Team ticks live in .team-config/progression/
+    // <slug>.json (syncs team-wide). Owners/scouts track their own progression
+    // on the members-portal rail, not here — so the toggle is team-only. See
+    // lib/progression.cjs for the full rationale + the observability parallel.
+    if (req.method === 'GET' && p === '/api/progression') {
+      const role = (MEMBER_ROLE || (TEAM_SLUG ? 'team' : 'owner')).toLowerCase();
+      const payload = { role, levels: progression.LEVELS };
+      if (role === 'team') payload.self = progression.readSelf(BRAIN_ROOT, MEMBER_EMAIL, MEMBER_NAME);
+      else payload.rollup = progression.rollup(BRAIN_ROOT);
+      return send(res, 200, payload);
+    }
+    if (req.method === 'POST' && p === '/api/progression/toggle') {
+      const role = (MEMBER_ROLE || (TEAM_SLUG ? 'team' : 'owner')).toLowerCase();
+      if (role !== 'team') {
+        return send(res, 403, { error: 'Only team members self-report here. Owners and scouts track their own progression in the members portal.' });
+      }
+      if (!MEMBER_EMAIL) return send(res, 400, { error: 'No member identity yet — sign in first.' });
+      const b = await readBody(req);
+      try {
+        const self = progression.toggle(BRAIN_ROOT, MEMBER_EMAIL, MEMBER_NAME, String(b.stepId || '').trim());
+        return send(res, 200, { ok: true, self });
+      } catch (e) {
+        return send(res, 400, { error: e.message });
+      }
     }
     // ---- Google Ads connector setup (all local; see the helpers above) ----
     if (req.method === 'GET' && p === '/api/gads/detect') {
