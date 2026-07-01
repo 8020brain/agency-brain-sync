@@ -1374,6 +1374,9 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   // Normalise whatever the renderer sent into the OS-native form (collapses
   // mixed slashes that older renderer builds could produce).
   const targetFolder = path.normalize(args.targetFolder);
+  // Pre-flight before anything destructive: git must be present. A missing git
+  // otherwise only fails AFTER we've cleared an empty target folder.
+  await ensureGitAvailable();
   // Mint a fresh installation token to embed in the clone URL.
   const tok = await fetch(`${API_BASE}/api/team-brain/git-token`, {
     method: 'POST',
@@ -1406,10 +1409,11 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   };
   const wantRepo = repoKey(repoUrl || tokenRepoUrl);
   let adopted = false;
+  let existedEmpty = false;
   if (fs.existsSync(targetFolder)) {
     // An existing EMPTY folder is normal: the native picker creates the folder
     // when you select/make one. git clones cleanly into an empty dir. Only block
-    // on real content (dotfiles don't count); clear an empty target first.
+    // on real content (dotfiles don't count).
     const realContent = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
     if (realContent.length) {
       // The owner often already has their brain cloned locally (e.g.
@@ -1428,11 +1432,28 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
         throw new Error(`${targetFolder} already exists and isn't empty. Pick an empty folder or a new location.`);
       }
     } else {
-      fs.rmSync(targetFolder, { recursive: true, force: true });
+      // Empty target. Do NOT clear it yet — clone to a sibling temp first and
+      // only swap it in once the clone succeeds, so a mid-transfer failure never
+      // leaves the person with a deleted folder and no brain.
+      existedEmpty = true;
     }
   }
   if (!adopted) {
-    await runGit(['clone', cloneUrl, targetFolder]);
+    if (existedEmpty) {
+      const tmpClone = path.join(path.dirname(targetFolder), '.ab-clone-' + process.pid + '-' + Date.now());
+      try {
+        await runGit(['clone', cloneUrl, tmpClone]);
+      } catch (e) {
+        try { fs.rmSync(tmpClone, { recursive: true, force: true }); } catch { /* nothing cloned */ }
+        throw e; // target folder is left untouched
+      }
+      // Clone landed — now it's safe to replace the empty target (same
+      // filesystem, so rename is atomic and can't half-copy).
+      fs.rmSync(targetFolder, { recursive: true, force: true });
+      fs.renameSync(tmpClone, targetFolder);
+    } else {
+      await runGit(['clone', cloneUrl, targetFolder]);
+    }
     // If Phase 1 (the API install-callback) created this org repo EMPTY, fill it
     // from the agency-brain-template now — while the push token is still in the
     // freshly-cloned origin. A repo that already has content is left untouched.
@@ -1776,6 +1797,22 @@ function runGit(args) {
       }
     });
   });
+}
+
+// Pre-flight: confirm git is installed and runnable BEFORE we touch the target
+// folder. On Windows git is a separate install; a missing git otherwise only
+// surfaces after we've already cleared an empty target, which reads to the person
+// as "it deleted my brain." Fail here, loudly, with a plain-English fix.
+async function ensureGitAvailable() {
+  try {
+    await runGit(['--version']);
+  } catch (e) {
+    throw new Error(
+      process.platform === 'win32'
+        ? "Git isn't installed yet. Install it from https://git-scm.com/download/win (keep the default options), then fully quit and reopen Agency Brain and try again."
+        : "Git isn't available. Open Terminal and run `git --version` — if it offers to install the command line developer tools, accept, then reopen Agency Brain and try again."
+    );
+  }
 }
 
 // ---------- app lifecycle ----------

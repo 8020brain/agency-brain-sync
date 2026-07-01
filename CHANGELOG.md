@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.28 — 2026-07-01
+
+- **Setting up your brain can no longer wipe the folder you picked.** When you chose an empty folder and the download then failed (a dropped connection, or Git not being installed yet), the app had already cleared that folder first, so it looked like your brain had been deleted. Now the app checks Git is installed before it touches anything, downloads into a temporary spot, and only moves your brain into place once the download has fully succeeded. A failed setup leaves your folder exactly as it was, with a plain-English message about what to fix (for example, how to install Git on Windows).
+
 ## 0.9.27 — 2026-06-23
 
 - **Groundwork for signed Windows installs.** Behind the scenes, this gets the app ready to recognise our upcoming signed Windows builds, which help Windows trust the app and reduce "unknown publisher" warnings. Nothing changes in how the app works today. This release just makes sure the next update installs smoothly for everyone.
