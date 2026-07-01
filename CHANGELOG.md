@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.29 — 2026-07-01
+
+- **The Getting Started path reads properly now.** The guided path in the Command Centre had cramped rows and tiny markers that were hard to make out. It now matches the Scout Path on the members portal: a clear number for each track, easy-to-read "Prompt / Read / Do / Quiz" tags, bigger arrows that show a step opens, and roomier steps, so it's obvious what each step is and how to expand it.
+
 ## 0.9.28 — 2026-07-01
 
 - **Setting up your brain can no longer wipe the folder you picked.** When you chose an empty folder and the download then failed (a dropped connection, or Git not being installed yet), the app had already cleared that folder first, so it looked like your brain had been deleted. Now the app checks Git is installed before it touches anything, downloads into a temporary spot, and only moves your brain into place once the download has fully succeeded. A failed setup leaves your folder exactly as it was, with a plain-English message about what to fix (for example, how to install Git on Windows).

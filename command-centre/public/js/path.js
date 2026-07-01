@@ -99,7 +99,7 @@
           +'<button class="tp-check" data-tp-toggle="'+esc(s.id)+'" title="'+(isDone?'Mark not done':'Mark done')+'">'+(isDone?'✓':'')+'</button>'
           +'<div class="tp-step-main">'
           +'<div class="tp-step-head" data-tp-open="'+esc(s.id)+'">'
-          +'<span class="tp-caret" aria-hidden="true">'+(TP_OPEN[s.id]?'▾':'▸')+'</span>'
+          +'<span class="tp-caret'+(TP_OPEN[s.id]?' open':'')+'" aria-hidden="true">›</span>'
           +'<span class="tp-chip tp-chip-'+esc(kind)+'">'+esc(kindLabel)+'</span>'
           +'<span class="tp-step-title">'+esc(s.title)+'</span>'
           +'<span class="tp-mins">'+s.minutes+' min</span>'
@@ -129,7 +129,7 @@
         var body=el.parentElement.querySelector('.tp-step-body');
         if(body) body.hidden=!TP_OPEN[id];
         var caret=el.querySelector('.tp-caret');
-        if(caret) caret.textContent=TP_OPEN[id]?'▾':'▸';
+        if(caret) caret.classList.toggle('open', !!TP_OPEN[id]);
       });
     });
     root.querySelectorAll('[data-tp-toggle]').forEach(function(el){
