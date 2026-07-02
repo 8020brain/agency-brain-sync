@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.32 — 2026-07-02
+
+- **Fixes syncing that could get stuck offline and never come back.** In a rare case, the app could get a dead login pass frozen into its connection to GitHub, and then every attempt to sync would fail with "offline", retrying forever, even after restarting the app. This update makes the app clear out any stale pass and fetch a fresh one on every sync, so a connection that got wedged this way heals itself automatically the first time it runs. If your syncing has been sitting on "offline or fetch failed" and a restart didn't help, updating to this version brings it back on its own. (Thanks to Damien at Beacon for the detailed report.)
+
 ## 0.9.31 — 2026-07-02
 
 - **See where your team is, right from the Command Centre.** Team members get a new "Where you are" panel on their Getting Started tab. They tick off, for themselves, how far along they feel on the six levels of getting the most from the brain. It's their own read, never a measurement and never watched. Owners and scouts see those self-reports gathered together on their dashboard, so it's easy to spot who might want a hand as people get going. Owners and scouts track their own progress over on the members portal, so nobody has to tick the same thing in two places.

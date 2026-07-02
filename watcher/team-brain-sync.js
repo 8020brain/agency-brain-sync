@@ -254,17 +254,44 @@ async function getGitToken() {
   return tokenCache.token;
 }
 
+// Strip any embedded credential (x-access-token:<token>@, or any userinfo@) from
+// an https git URL so we always inject a FRESH token into a CLEAN base URL.
+// Without this the clone can wedge forever with no way to recover: if a prior op
+// was killed between set-url(authed) and the restore below, or an old clone was
+// set up with the token left in origin, the "clean" URL we read back already
+// carries a (now-expired) token. Re-embedding on top of it produces a malformed
+// double-auth URL (https://x-access-token:NEW@x-access-token:OLD@github.com/…)
+// that git rejects with "Invalid username or token", so every fetch fails and
+// the watcher loops on fetch_failed — a restart doesn't help, because nothing
+// ever removed the stale token. Looping the replace also collapses a
+// double-embed back to clean. (2026-07-02: a reinstalled agency clone was stuck
+// exactly this way — a dead ghs_ token frozen in origin, sync dead-looping.)
+function cleanRemoteUrl(url) {
+  let prev;
+  let u = url;
+  do {
+    prev = u;
+    u = u.replace(/^(https:\/\/)[^@/]*@/i, '$1');
+  } while (u !== prev);
+  return u;
+}
+
 async function withAuthenticatedRemote(fn) {
   if (MODE !== 'agency') return fn();
   const token = await getGitToken();
-  const original = git('remote get-url origin');
-  if (!original) throw new Error('no origin remote configured');
-  const authed = original.replace(/^https:\/\//, `https://x-access-token:${token}@`);
+  const current = git('remote get-url origin');
+  if (!current) throw new Error('no origin remote configured');
+  // Always work from the token-less base, never from whatever was on disk — a
+  // stale token in `current` would otherwise double-embed and wedge us.
+  const clean = cleanRemoteUrl(current);
+  const authed = clean.replace(/^https:\/\//, `https://x-access-token:${token}@`);
   git(`remote set-url origin "${authed}"`);
   try {
     return await fn();
   } finally {
-    git(`remote set-url origin "${original}"`);
+    // Restore the CLEAN base, not `current`: this actively heals a URL that had
+    // a stale token frozen into it, on the very first sync after the update.
+    git(`remote set-url origin "${clean}"`);
   }
 }
 
