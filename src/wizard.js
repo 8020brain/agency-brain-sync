@@ -532,6 +532,8 @@
     if (connectOrgPoll) { clearInterval(connectOrgPoll); connectOrgPoll = null; }
   }
 
+  let connectOrgInstalledTicks = 0; // ticks seen installed-but-no-repo (personal-account stall detector)
+
   async function connectOrgCheckOnce() {
     if (!connectOrgSlug) return;
     try {
@@ -543,8 +545,17 @@
         return;
       }
       if (st && st.installed) {
+        connectOrgInstalledTicks += 1;
         const el = document.getElementById('connect-org-status');
-        if (el) el.textContent = 'Connected to GitHub — creating your brain…';
+        // The repo can only be auto-created on a GitHub ORGANISATION (GitHub
+        // forbids app-created repos on personal accounts). Installed with no
+        // repo appearing usually means they picked their personal account, so
+        // after ~45s stop saying "creating…" and tell them the actual fix.
+        if (el) {
+          el.textContent = connectOrgInstalledTicks >= 11
+            ? 'Still waiting on GitHub. If you installed on your personal account rather than an organisation, that\'s the snag: create a free organisation at github.com/account/organizations/new, then click the connect button again and pick the organisation.'
+            : 'Connected to GitHub — creating your brain…';
+        }
       }
     } catch (e) { /* keep waiting; the next tick retries */ }
   }
@@ -555,6 +566,7 @@
     if (recheckBtn) recheckBtn.classList.remove('hidden');
     if (statusEl) statusEl.textContent = 'Waiting for GitHub… pick your business organisation and approve. This updates on its own once you finish.';
     stopConnectOrgPoll();
+    connectOrgInstalledTicks = 0;
     connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
   }
 
