@@ -30,6 +30,11 @@
   let adopted = false;          // adopt flow saved config itself; enterDone must not re-save
   let flipped = false;          // flip-to-agency saved+restarted itself; enterDone must not re-save
   let priorBrainPath = '';      // a personal brain this app already watched before this run (Path B notice)
+  // Launch intent from the query string. 'create-agency' means this run came from
+  // "Connect to my agency team…" (tray / Command Centre nudge), so a signed-in
+  // A2AI member with no team goes straight to naming their agency instead of the
+  // solo fork.
+  const launchIntent = new URLSearchParams(window.location.search).get('intent') || '';
 
   const DEMO_EMAIL = 'demo';
   const TOTAL = 7;
@@ -44,6 +49,7 @@
   const dots = rail.querySelectorAll('.dot');
 
   let machineBackTarget = 'scene-have-brain'; // where Back returns from scene-machine; set by enterMachine
+  let createTeamBackTarget = 'scene-otp';     // where Back returns from scene-create-team; set by enterCreateTeam
   function show(sceneId) {
     document.querySelectorAll('.screen').forEach((el) => el.classList.remove('active'));
     const scene = document.getElementById(sceneId);
@@ -63,6 +69,7 @@
       'scene-otp': 'scene-email',
       'scene-team': 'scene-otp',
       'scene-have-brain': 'scene-otp',
+      'scene-create-team': createTeamBackTarget,
       'scene-machine': machineBackTarget,
       'scene-clone': 'scene-machine',
     };
@@ -143,6 +150,12 @@
       if (/dev guard/i.test(msg)) return msg; // surface the dev guard verbatim to Mike
       if (net.test(msg)) return "I can't reach GitHub. Check your internet, then try again.";
       return "Something went wrong setting up your brain. Try again, or pick a different location.";
+    }
+    if (context === 'create-team') {
+      if (/slug already exists|already exists/i.test(msg)) return "An agency with that name already exists. Try a slightly different name.";
+      if (/leave the owner fields blank/i.test(msg)) return msg;
+      if (net.test(msg)) return "I can't reach the server. Check your internet, then try again.";
+      return "Something went wrong creating your agency. Try again in a moment.";
     }
     if (context === 'adopt') {
       // The precise block reasons from inspect/adopt are already plain English —
@@ -361,8 +374,11 @@
       soloConfirmed = true;
       renderFooterIdentity();
       // Demo always seeds a fresh demo folder, so it skips the fork. A real solo
-      // member is first asked whether to adopt the brain they already have.
+      // member is first asked whether to adopt the brain they already have —
+      // unless they launched via "Connect to my agency team…", which means they
+      // want an agency and don't have one yet, so go straight to creating it.
       if (demoMode) enterMachine();
+      else if (launchIntent === 'create-agency') enterCreateTeam();
       else show('scene-have-brain');
     } else {
       errorIn('err-otp',
@@ -441,6 +457,68 @@
       } catch (e) { /* fall through to the normal clone */ }
     }
     selectTeam(team);
+  }
+
+  // ====================================================================
+  // 2.4 — create the agency in-app (signed-in member with no team yet).
+  // The replacement for the retired agency.ads2ai.com/create-agency wizard:
+  // name the agency -> POST create-team (owner flow, free Solo tier; a paid
+  // package bumps it server-side) -> straight into the existing
+  // connect-org -> install GitHub App -> clone -> seed pipeline.
+  // ====================================================================
+  let createTeamBound = false;
+
+  function enterCreateTeam() {
+    const cur = document.querySelector('.screen.active');
+    if (cur && cur.id && cur.id !== 'scene-create-team') createTeamBackTarget = cur.id;
+    const input = document.getElementById('agencyNameInput');
+    const btn = document.getElementById('btn-create-team');
+    if (!createTeamBound) {
+      createTeamBound = true;
+      input.addEventListener('input', () => {
+        btn.disabled = input.value.trim().length < 2;
+        clearError('err-create-team');
+      });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !btn.disabled) doCreateTeam(); });
+      btn.addEventListener('click', doCreateTeam);
+    }
+    clearError('err-create-team');
+    btn.disabled = input.value.trim().length < 2;
+    show('scene-create-team');
+    input.focus();
+  }
+
+  async function doCreateTeam() {
+    const input = document.getElementById('agencyNameInput');
+    const btn = document.getElementById('btn-create-team');
+    const name = input.value.trim();
+    if (name.length < 2) return;
+    clearError('err-create-team');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Creating…';
+    try {
+      const res = await api.createTeam(authToken, name);
+      const team = (res && res.team) || {};
+      if (!team.slug) throw new Error('The server did not return your new agency.');
+      mode = 'agency';
+      teamInfo = {
+        memberToken: authToken,
+        teamSlug: team.slug,
+        teamName: team.name || name,
+        repoUrl: '',
+        scoutSeats: null,   // at-create snapshot unknown; server refreshes it live post-install
+        packageTier: null,
+        member: { email: authEmail, name: authName, role: (res.member && res.member.role) || 'owner' },
+      };
+      renderFooterIdentity();
+      enterConnectOrg();
+    } catch (err) {
+      errorIn('err-create-team', friendlyError(err, 'create-team'));
+      btn.disabled = false;
+    } finally {
+      btn.textContent = orig;
+    }
   }
 
   // ====================================================================
@@ -556,6 +634,7 @@
 
   document.getElementById('btn-have-new').addEventListener('click', enterMachine);
   document.getElementById('btn-have-existing').addEventListener('click', enterAdopt);
+  document.getElementById('link-create-agency').addEventListener('click', enterCreateTeam);
   document.getElementById('btn-adopt-back').addEventListener('click', () => { clearError('err-adopt'); show('scene-have-brain'); });
 
   function enterAdopt() {

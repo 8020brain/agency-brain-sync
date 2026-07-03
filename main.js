@@ -469,11 +469,12 @@ function buildMenu() {
     { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
     { label: 'Check for updates…',       click: () => checkForUpdatesManually() },
     { type: 'separator' },
-    // Phase 4: a solo (personal-mode) owner who's ready to bring teammates in
-    // self-creates their team + installs the GitHub App from the setup wizard, then
-    // connects this app to it (the wizard does OTP -> pick team -> flip-to-agency).
+    // A solo (personal-mode) owner who's ready to bring teammates in creates their
+    // team right in the setup wizard (OTP -> name your agency -> connect GitHub ->
+    // clone + seed). If their team already exists, the same entry point signs them
+    // in and flips this brain to agency mode (OTP -> pick team -> flip-to-agency).
     ...(config && config.mode === 'personal'
-      ? [{ label: 'Connect to my agency team…', click: () => showSetupWizard() }]
+      ? [{ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') }]
       : []),
     { label: 'Set up...',                click: () => showSetupWindow() },
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
@@ -616,7 +617,7 @@ function showSetupWindow() {
 // the entry point a personal-mode owner needs for the solo->team flip. Force the
 // wizard file back into the shared window so "Connect to my agency team…" always
 // lands on the sign-in flow.
-function showSetupWizard() {
+function showSetupWizard(intent) {
   showSetupWindow();
   if (setupWindow && !setupWindow.isDestroyed()) {
     // Resize back down to the wizard's footprint (openCommandCentre grows it to
@@ -626,7 +627,9 @@ function showSetupWizard() {
     setupWindow.setMinimumSize(600, 640);
     const b = setupWindow.getBounds();
     if (b.width > 760) setupWindow.setSize(680, 800);
-    setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
+    // intent rides the query string ('create-agency' = a member with no team yet
+    // goes straight to naming their agency after sign-in).
+    setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'), intent ? { query: { intent } } : undefined);
     setupWindow.show();
     setupWindow.focus();
   }
@@ -1313,6 +1316,25 @@ ipcMain.handle('list-my-teams', async (_evt, token) => {
     throw new Error(body.error || `HTTP ${r.status}`);
   }
   return r.json(); // { teams: [{ slug, name, role }] }
+});
+
+// Create a new agency team for the signed-in member — the in-app replacement for
+// the retired agency.ads2ai.com/create-agency wizard. Owner flow only: the caller
+// becomes the active owner, the server derives a unique slug from the name and
+// stamps the free Solo tier (a matching paid Stripe package bumps tier + seats
+// server-side). The wizard then hands straight into the existing
+// connect-org -> install App -> clone -> seed pipeline.
+ipcMain.handle('create-team', async (_evt, token, name) => {
+  const r = await fetch(`${API_BASE}/api/team-brain/create-team`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  return r.json(); // { team: { id, slug, name }, member: { id, role } }
 });
 
 // Poll the backend for whether the GitHub App install has landed and the brain
