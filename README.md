@@ -135,7 +135,7 @@ The latest installer is always at [releases/latest](https://github.com/8020brain
 | Where | What |
 |---|---|
 | `mikerhodesideas/8020api` | The API that mints invite codes, resolves them, and mints GitHub App installation tokens for the watcher. Endpoints live in `server/team-brain.ts`. |
-| `mikerhodesideas/agency-brain-portal` | The web portal at agency.ads2ai.com. Owners and scouts add team members, send invites, monitor sync state. |
+| `mikerhodesideas/agency-brain-portal` | RETIRED (2026-07-04): agency.ads2ai.com is now just a 301 table. Setup and roster live in this app (wizard + Command Centre); the utility pages (upgrade/help/claim/join) moved to ads2ai.com/agency-brain/*. |
 | `8020brain/agency-brain-template` | Template repo every new agency clones. Defines the folder layout, ships starter `CLAUDE.md`, and ships the `agency: true` skill set. |
 
 ### Reporting an issue

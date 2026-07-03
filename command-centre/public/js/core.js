@@ -34,19 +34,37 @@
   }
 
   // Per-person identity nudge: show until CLAUDE.local.md exists, one click writes
-  // it (the app already knows who they are from login). No typing, no email.
+  // it (the app already knows who they are from login). If the login name is
+  // blank (the members DB has no name for some people), the banner asks for it
+  // inline instead of dead-ending on "sign in again" (Richard, 2026-07-03).
   function maybeIdentity(h){
     var b=$('identity-nudge'); if(!b) return;
     if(h && h.hasLocalIdentity){ b.hidden=true; return; }
     b.hidden=false;
     var cta=$('identity-cta');
     if(cta && !cta.__wired){ cta.__wired=true; cta.addEventListener('click',function(){
+      var opts={method:'POST'};
+      if(cta.__askName){
+        var inp=$('identity-name'); var nm=(inp&&inp.value||'').trim();
+        if(!nm){ if(inp) inp.focus(); return; }
+        opts={method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nm})};
+      }
       cta.disabled=true; cta.textContent='Setting up…';
-      api('/api/write-identity',{method:'POST'}).then(function(r){
+      api('/api/write-identity',opts).then(function(r){
         $('identity-p').textContent='Done. Your Claude now knows you\'re '+(r.name||'you')+', '+(r.role||'')+' at '+(r.agency||'your agency')+'.';
         cta.remove();
         setTimeout(function(){ b.hidden=true; loadHealth(); }, 2500);
-      }).catch(function(e){ cta.disabled=false; cta.textContent='Set it up'; $('identity-p').textContent='Couldn\'t set it up: '+(e.message||'try again'); });
+      }).catch(function(e){
+        cta.disabled=false;
+        if(/don't know your name/i.test(e.message||'')){
+          cta.__askName=true; cta.textContent='Save';
+          $('identity-p').innerHTML='One quick thing: I don\'t have your name from your login. Type it here and I\'ll set you up. <input id="identity-name" placeholder="Your name" style="margin-left:8px;padding:4px 10px;font:inherit;border:1px solid #ccc;border-radius:2px;">';
+          var inp2=$('identity-name'); if(inp2){ inp2.focus(); inp2.addEventListener('keydown',function(ev){ if(ev.key==='Enter') cta.click(); }); }
+          return;
+        }
+        cta.textContent=cta.__askName?'Save':'Set it up';
+        $('identity-p').textContent='Couldn\'t set it up: '+(e.message||'try again');
+      });
     }); }
     var x=$('identity-x');
     if(x && !x.__wired){ x.__wired=true; x.addEventListener('click',function(){ b.hidden=true; }); }

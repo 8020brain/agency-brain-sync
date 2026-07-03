@@ -291,16 +291,17 @@ function ensureIdentityPointer() {
   lines.splice(at, 0, '', IDENTITY_POINTER);
   fs.writeFileSync(cm, lines.join('\n'));
 }
-function writeLocalIdentity() {
+function writeLocalIdentity(nameOverride) {
+  const who = (nameOverride || MEMBER_NAME || '').trim();
   const role = (MEMBER_ROLE || 'owner').toLowerCase();
   const agency = agencyName();
   const body = '# CLAUDE.local.md — local identity (per-person, never synced)\n\n'
-    + `You are the Agency Brain instance for **${MEMBER_NAME}**, a **${role}** at **${agency}**.\n\n`
+    + `You are the Agency Brain instance for **${who}**, a **${role}** at **${agency}**.\n\n`
     + 'This file is local to this machine and is never synced to the team.\n';
   ensureIdentityPointer();
   ensureGitignored('CLAUDE.local.md');
   fs.writeFileSync(path.join(BRAIN_ROOT, 'CLAUDE.local.md'), body);
-  return { name: MEMBER_NAME, role, agency };
+  return { name: who, role, agency };
 }
 
 // ---- Changelog page -------------------------------------------------------
@@ -594,9 +595,14 @@ const server = http.createServer(async (req, res) => {
     // it writes CLAUDE.local.md locally (git-ignored) and points the shared
     // CLAUDE.md at it. No typing, no email, nothing to commit per-person.
     if (req.method === 'POST' && p === '/api/write-identity') {
-      if (!MEMBER_NAME) return send(res, 400, { error: "I don't know your name yet. Sign in again, then reopen the Command Centre." });
+      // The login name can be blank (the members DB holds no name for some
+      // people), and "sign in again" can never fix that — so accept a typed
+      // name from the banner instead of dead-ending (Richard, 2026-07-03).
+      const b = await readBody(req);
+      const who = (MEMBER_NAME || (b && b.name) || '').trim();
+      if (!who) return send(res, 400, { needName: true, error: "I don't know your name yet — type it in and I'll set you up." });
       try {
-        return send(res, 200, { ok: true, ...writeLocalIdentity() });
+        return send(res, 200, { ok: true, ...writeLocalIdentity(who) });
       } catch (e) {
         return send(res, 500, { error: 'Could not write the identity file: ' + e.message });
       }

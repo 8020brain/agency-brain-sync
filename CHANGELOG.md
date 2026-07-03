@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.35 — 2026-07-04
+
+- **"Tell your brain who you are" no longer dead-ends when your login has no name.** For some members, signing in doesn't bring a name back with it, and the one-click identity setup would fail with "sign in again", which could never fix it. Now, if the app doesn't know your name, the banner simply asks you to type it, and one click finishes the job. (Thanks to Richard for the report.)
+
 ## 0.9.34 — 2026-07-04
 
 - **The "Add Scouts" button goes to the upgrade page's new home.** The last pages on the old agency.ads2ai.com site (upgrade, help, and the claim and join landing pages) moved to ads2ai.com/agency-brain. The old addresses redirect, so nothing breaks on older versions; this update just points the button at the new address directly.
