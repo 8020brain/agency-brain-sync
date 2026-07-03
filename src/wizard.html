@@ -82,6 +82,22 @@
         <div class="error-banner hidden" id="err-team"></div>
       </section>
 
+      <!-- 2.4 name your agency (owner with no team yet — the in-app replacement
+           for the retired agency.ads2ai.com/create-agency wizard) -->
+      <section class="screen" data-step="2" id="scene-create-team">
+        <div class="eyebrow">Step 2 &middot; Your agency</div>
+        <h1>Name your agency.</h1>
+        <p class="lede">This creates your agency's shared workspace. Use your business name, since it's what your team sees when they join. Next I'll connect your GitHub and create the brain itself.</p>
+        <div class="field">
+          <label for="agencyNameInput">Agency name</label>
+          <input id="agencyNameInput" type="text" placeholder="e.g. Bright Spark Digital" spellcheck="false" maxlength="80" autocomplete="organization">
+        </div>
+        <div class="error-banner hidden" id="err-create-team"></div>
+        <div class="field" style="max-width:none;">
+          <button class="btn primary" id="btn-create-team" type="button" disabled>Create my agency</button>
+        </div>
+      </section>
+
       <!-- 2.5 connect GitHub org (agency owner whose brain repo isn't created yet) -->
       <section class="screen" data-step="2" id="scene-connect-org">
         <div class="eyebrow">Step 2 &middot; Connect GitHub</div>
@@ -113,6 +129,7 @@
             <span class="c-sub">Create a fresh brain from the latest template</span>
           </button>
         </div>
+        <p style="margin-top:14px;"><span class="link" id="link-create-agency">Setting up Agency Brain for your team? Create your agency instead</span></p>
       </section>
 
       <!-- 2c adopt: point at an existing brain (Phase 1 = read-only inspection) -->

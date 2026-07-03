@@ -32,6 +32,9 @@ const api = {
   requestOtpCode: (email) => ipcRenderer.invoke('request-otp-code', email),
   verifyOtpCode: (email, code) => ipcRenderer.invoke('verify-otp-code', email, code),
   listMyTeams: (token) => ipcRenderer.invoke('list-my-teams', token),
+  // Create the agency team in-app (member with no team yet): the "Name your
+  // agency" wizard scene. Owner flow only — server derives the slug from name.
+  createTeam: (token, name) => ipcRenderer.invoke('create-team', token, name),
 
   // Claude desktop app detection / launch
   detectClaudeDesktop: () => ipcRenderer.invoke('detect-claude-desktop'),
@@ -60,7 +63,7 @@ const api = {
   signOut: () => ipcRenderer.invoke('sign-out'),
   // Phase 4 solo->team: flip an existing personal-mode brain into agency mode in
   // place (no re-clone) once the member has self-created their team + installed
-  // the GitHub App at agency.ads2ai.com. Args: { memberToken, teamSlug }.
+  // the GitHub App in the app's setup wizard. Args: { memberToken, teamSlug }.
   flipToAgency: (args) => ipcRenderer.invoke('flip-to-agency', args),
   // Auto-update: ask if a build is already downloaded + waiting, subscribe to
   // the "downloaded" event, and trigger the relaunch-and-install.
