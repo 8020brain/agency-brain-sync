@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.34 — 2026-07-04
+
+- **The "Add Scouts" button goes to the upgrade page's new home.** The last pages on the old agency.ads2ai.com site (upgrade, help, and the claim and join landing pages) moved to ads2ai.com/agency-brain. The old addresses redirect, so nothing breaks on older versions; this update just points the button at the new address directly.
+
 ## 0.9.33 — 2026-07-04
 
 - **You can now create your agency right inside the app.** Before this, a member who bought Agency Brain but had no team yet hit a dead end: the setup wizard could only join an existing agency, and the old website that used to create one was retired. Now the wizard has a "Name your agency" step. Sign in with your email, name your agency, connect your GitHub, and the app creates and fills your agency brain for you, end to end. The tray item "Connect to my agency team…" and the Command Centre's add-member nudge both take you straight there, and solo members setting up fresh will see a link for it too.

@@ -98,7 +98,7 @@
         // banner got missed — owners couldn't find where to add a Scout.)
         $('ub-h').textContent='Add Scouts to your team — €300/yr.';
         $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. It\'s +€300/yr for 2 Scout seats (pro-rated to your renewal) and lifts your free Team cap from 5 to 10.';
-        $('ub-cta').href='https://agency.ads2ai.com/upgrade.html';
+        $('ub-cta').href='https://ads2ai.com/agency-brain/upgrade';
         $('ub-cta').textContent='Add Scouts';
         var ubxB=$('ub-x'); if(ubxB){ ubxB.hidden=false; ubxB.title='Snooze for a week'; wireSnooze(ubxB, ob); }
         ob.hidden=false;
