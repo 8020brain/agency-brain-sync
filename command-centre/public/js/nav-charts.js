@@ -149,6 +149,9 @@
     setHelpNav('flag', true);                // everyone gets the flag-a-skill docs + form; the scout also has the live inbox on their Dashboard
     setHelpNav('faq', true);
     setHelpSection(isTeam ? 'faq' : 'setup');
+    // Getting started must track the effective role too, or a VIEW AS flip keeps
+    // showing the previous role's path (no-ops unless the role actually changed).
+    if(typeof tpApplyRole==='function') tpApplyRole();
     // "Start here" featured strip is for NEW users only (team). Scouts/owners know the skills.
     renderStartHere(isTeam);
     if(isScout) renderFeedback();

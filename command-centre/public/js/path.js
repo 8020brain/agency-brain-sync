@@ -22,14 +22,37 @@
     }).join('');
   }
 
+  // Effective role for this tab: the server role filtered through uiRole(), so the
+  // VIEW AS switcher and ?as= previews show what that role REALLY sees. Before this
+  // the tab used the raw server role, so Mike flipping VIEW AS to Team still saw the
+  // Scout path and (rightly) reported team members were getting the wrong content
+  // (2026-07-06). Real team members were fine; the preview was lying.
+  function tpEffRole(){
+    var r=((TP_DATA&&TP_DATA.role)||'').toLowerCase();
+    r=(typeof uiRole==='function')?(uiRole(r)||'').toLowerCase():r;
+    return r==='head-scout'?'scout':r;
+  }
+  function tpPickPath(){
+    var wantScout=(tpEffRole()==='scout'||tpEffRole()==='owner');
+    TP_SEL=(wantScout&&TP_DATA.paths.scout)?'scout':(TP_DATA.paths.team?'team':'scout');
+  }
+  var TP_ROLE_APPLIED=null;
+  // Called from applyRoleTabs on every role flip (and every roster refresh, so it
+  // must no-op unless the effective role actually changed, or it would stomp the
+  // user's switcher choice and collapse their open steps every 30s).
+  function tpApplyRole(){
+    if(!TP_DATA||!TP_DATA.available) return;
+    var role=tpEffRole();
+    if(role===TP_ROLE_APPLIED) return;
+    TP_ROLE_APPLIED=role;
+    tpPickPath();
+    TP_OPEN={};
+    tpRender();
+  }
   function tpLoad(){
     api('/api/team-path').then(function(d){
       TP_DATA=d;
-      if(d.available){
-        var role=(d.role||'').toLowerCase();
-        var wantScout=(role==='scout'||role==='head-scout'||role==='owner');
-        TP_SEL=(wantScout&&d.paths.scout)?'scout':(d.paths.team?'team':'scout');
-      }
+      if(d.available){ TP_ROLE_APPLIED=tpEffRole(); tpPickPath(); }
       tpRender();
     }).catch(function(){
       var r=$('tp-root'); if(r) r.innerHTML='<div class="card"><p class="tp-loading">Couldn\'t load the path. Is the app connected to your brain folder?</p></div>';
@@ -52,7 +75,7 @@
       return;
     }
     var cur=tpCur(); if(!cur){ root.innerHTML=''; return; }
-    var p=cur.def, role=(TP_DATA.role||'').toLowerCase();
+    var p=cur.def, role=tpEffRole();
     var isTeamRole=(role==='team');
     var bothPaths=!!(TP_DATA.paths.team&&TP_DATA.paths.scout);
     var allSteps=[], doneCount=0;
