@@ -305,10 +305,20 @@
     <!-- SCOUT: enter creds once -> shareable block -->
     <div id="gads-scout" hidden>
       <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
-      <div class="sec">Google Ads proxy <span class="note">recommended — set up once, your team never holds the credentials</span></div>
-      <p class="fs-intro" id="gp-proxy-intro">The easy way: open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill checks your setup, deploys a small Cloudflare Worker that holds the agency's Google Ads credentials, sets the secrets, and hands you back the Worker URL and a gate token. You set the URL here once (it syncs to your team); each member only ever holds the revocable gate token, never the credentials. That one shared gate token is the default and the simplest setup, right for most teams (to remove someone, generate a new token and re-share it). Per-person tokens are an optional extra for revoking one person at a time; if you use them, just one person administers them (the token list lives on that one machine only), so agree who that is before a second scout starts issuing tokens.</p>
-      <p class="fs-intro" style="margin-top:6px"><a href="https://m.ads2ai.com/vault-training.html" target="_blank" rel="noopener" style="color:#D64C00;font-weight:600">▶ See exactly how the vault works (a 2-minute interactive walkthrough)</a></p>
-      <p class="fs-intro" style="margin-top:6px">Prefer to run it yourself? <button class="add-btn secondary" id="gp-copy-cmds" style="margin-left:2px">Copy the setup commands</button> <span class="ago" style="margin-left:6px">paste them into a terminal in your brain folder, or hand the whole block to Claude.</span></p>
+      <div class="sec">Google Ads <span class="note">set up once, then your team just asks the brain for data</span></div>
+      <p class="fs-intro">The agency's Google Ads credentials live in one place: a small vault (a Cloudflare Worker) you set up once. The vault is what connects to Google Ads. Nobody on the team connects to anything, and nobody's laptop ever holds the credentials. Each person holds a revocable gate token, and their brain uses it to ask the vault for data.</p>
+
+      <div class="card block" style="margin-top:16px">
+        <div class="sec">How it works <span class="note">one setup, then it's just asking</span></div>
+        <div class="wc-steps">
+          <div class="wc-step"><span class="num">1</span><div><strong>Set up the vault once.</strong> Open your brain and say <b>"set up the Google Ads proxy"</b>. The <code>gads-proxy</code> skill deploys the Worker, stores the agency's credentials on it, and hands you back a Worker URL and a gate token.</div></div>
+          <div class="wc-step"><span class="num">2</span><div><strong>Save the URL, share the token.</strong> Save the Worker URL below (it syncs to your whole team automatically), then send each person the gate token privately.</div></div>
+          <div class="wc-step"><span class="num">3</span><div><strong>The team asks for data in plain English.</strong> In Cowork (or Claude Code) they describe what they want and where it should go: <i>"Pull last month's search terms for Acme and save them as a CSV."</i> Their brain calls the vault, the vault talks to Google Ads, and the file lands in the folder.</div></div>
+        </div>
+        <p class="fs-intro" style="margin-top:16px"><a href="https://m.ads2ai.com/vault-training.html" target="_blank" rel="noopener" style="color:#D64C00;font-weight:600">▶ See exactly how the vault works (a 2-minute interactive walkthrough)</a></p>
+        <p class="fs-intro" style="margin-top:6px">Prefer to run the setup yourself? <button class="add-btn secondary" id="gp-copy-cmds" style="margin-left:2px">Copy the setup commands</button> <span class="ago" style="margin-left:6px">paste them into a terminal in your brain folder, or hand the whole block to Claude.</span></p>
+      </div>
+
       <div class="grid flag-grid">
         <div class="card">
           <div class="sec">Set your team's proxy URL</div>
@@ -319,43 +329,47 @@
           <div class="assure" id="gp-current" hidden></div>
         </div>
         <div class="card">
-          <div class="sec">Hand each team member the gate token</div>
-          <p class="fs-intro" style="margin-top:0">Send each person the gate token privately (a DM or password manager). They paste it on their own Google Ads page and click Connect. The URL you set here syncs to them automatically, so they never touch it.</p>
-          <div class="assure"><strong>Why this is recommended.</strong> The Google Ads credentials live only on the Worker. A team member's machine only ever holds a gate token. To remove someone on the shared token, generate a new one and re-share it with whoever stays; on the optional per-person tokens you revoke just theirs. Either way the credentials are never touched. Keep tokens inside your team — the Worker accepts any valid token from anywhere.</div>
+          <div class="sec">Hand each person the gate token</div>
+          <p class="fs-intro" style="margin-top:0">Send the gate token privately (a DM or a password manager, never a group channel). Each person pastes it once on the Google Ads page of their own app, which just saves the key on their machine. That's their whole setup. From then on they never touch the token or that page again; they open Cowork and ask for the data they want.</p>
+          <details class="esc"><summary>Removing someone, and how the tokens work</summary><p>The credentials only ever live on the Worker. The one shared gate token is the default and right for most teams: to remove someone, generate a new token and re-share it with whoever stays. Per-person tokens are an optional extra for revoking one person at a time; if you use them, exactly one person administers the token list (it lives on that one machine only), so agree who that is before a second scout starts issuing tokens. Either way the credentials are never touched. Keep tokens inside your team, because the Worker accepts any valid token from anywhere.</p></details>
         </div>
       </div>
-      <hr style="border:none;border-top:1px solid #e4e2dc;margin:26px 0">
+
       <!-- FALLBACK: share the full credentials file directly. -->
-      <div class="sec">Alternative: share the credentials file <span class="note">simpler, but every team member ends up holding the full Google Ads credentials</span></div>
-      <p class="fs-intro">Enter the agency Google Ads credentials once. The app turns them into a single block of text you send to a team member however you like. Their app turns it back into a working setup. Nothing here is sent to us, stored on GitHub, or seen by any AI.</p>
-      <div class="grid flag-grid">
-        <div class="card">
-          <div class="sec">Agency credentials</div>
-          <div class="flag-form">
-            <label for="ga-dev">Developer token</label><input id="ga-dev" type="password" autocomplete="off">
-            <label for="ga-cid">OAuth client ID</label><input id="ga-cid" type="text" autocomplete="off">
-            <label for="ga-csec">OAuth client secret</label><input id="ga-csec" type="password" autocomplete="off">
-            <label for="ga-rt">Refresh token</label><input id="ga-rt" type="password" autocomplete="off">
-            <label for="ga-mcc">MCC / login customer ID</label><input id="ga-mcc" type="text" placeholder="5xxxxxxxxx" autocomplete="off">
-            <label for="ga-proj">GCP project ID</label><input id="ga-proj" type="text" autocomplete="off">
-            <div class="flag-actions"><button class="add-btn" id="ga-make">Create setup block</button><span class="af-status" id="ga-make-status"></span></div>
+      <div class="card block" style="margin-top:18px">
+        <details class="esc">
+          <summary>Alternative: share the credentials file instead (simpler, but every team member ends up holding the full Google Ads credentials)</summary>
+          <p class="fs-intro">Enter the agency Google Ads credentials once. The app turns them into a single block of text you send to a team member however you like. Their app turns it back into a working setup. Nothing here is sent to us, stored on GitHub, or seen by any AI.</p>
+          <div class="grid flag-grid" style="margin-top:14px">
+            <div class="card">
+              <div class="sec">Agency credentials</div>
+              <div class="flag-form">
+                <label for="ga-dev">Developer token</label><input id="ga-dev" type="password" autocomplete="off">
+                <label for="ga-cid">OAuth client ID</label><input id="ga-cid" type="text" autocomplete="off">
+                <label for="ga-csec">OAuth client secret</label><input id="ga-csec" type="password" autocomplete="off">
+                <label for="ga-rt">Refresh token</label><input id="ga-rt" type="password" autocomplete="off">
+                <label for="ga-mcc">MCC / login customer ID</label><input id="ga-mcc" type="text" placeholder="10 digits, e.g. 1234567890" autocomplete="off">
+                <label for="ga-proj">GCP project ID</label><input id="ga-proj" type="text" autocomplete="off">
+                <div class="flag-actions"><button class="add-btn" id="ga-make">Create setup block</button><span class="af-status" id="ga-make-status"></span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="sec">Send this to your team member</div>
+              <p class="fs-intro" style="margin-top:0">Share it however you prefer, shared doc, email, or Slack. It's one block; they paste it into their app's Google Ads page.</p>
+              <div class="copyblock" id="ga-block" hidden>Create the block first.</div>
+              <div class="assure"><strong>Safe to share this way.</strong> Your app built this locally. It never went through our servers, never onto GitHub, and never into an AI's context. The member's app just turns it back into a local file on their machine.</div>
+              <details class="esc"><summary>Not comfortable with members pasting this?</summary><p>That's your call as the Scout. Instead, send the team member the credentials file directly with your own instructions for saving it, and tell them to ignore the Google Ads page in their app.</p></details>
+            </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="sec">Send this to your team member</div>
-          <p class="fs-intro" style="margin-top:0">Share it however you prefer, shared doc, email, or Slack. It's one block; they paste it into their app's Google Ads page.</p>
-          <div class="copyblock" id="ga-block" hidden>Create the block first.</div>
-          <div class="assure"><strong>Safe to share this way.</strong> Your app built this locally. It never went through our servers, never onto GitHub, and never into an AI's context. The member's app just turns it back into a local file on their machine.</div>
-          <details class="esc"><summary>Not comfortable with members pasting this?</summary><p>That's your call as the Scout. Instead, send the team member the credentials file directly with your own instructions for saving it, and tell them to ignore the Google Ads page in their app.</p></details>
-        </div>
+        </details>
       </div>
     </div>
     <!-- MEMBER (team): paste block -> one click -->
     <div id="gads-member" hidden>
       <!-- RECOMMENDED: connect via the agency proxy (shown only when the Scout has set a URL) -->
       <div id="gads-proxy-member" hidden>
-        <div class="sec">Connect Google Ads <span class="note">paste the gate token your Scout sent you</span></div>
-        <p class="fs-intro">Your Scout set up a secure proxy. Paste the gate token they sent, click Connect, and you're done. Nothing to install. Need a token, or lost yours? Ask whoever set up the agency's proxy — they're the one who issues them.</p>
+        <div class="sec">Google Ads <span class="note">a one-time step: paste the gate token your Scout sent you</span></div>
+        <p class="fs-intro">Your agency's Google Ads credentials live in a vault your Scout set up; the vault is what talks to Google Ads. Paste the gate token they sent you and click Connect. That just saves the key on your machine, and you never touch it again. From then on you simply ask for data in Cowork: <i>"Pull last month's search terms for Acme and save them as a CSV."</i> Need a token, or lost yours? Ask whoever set up the agency's vault — they're the one who issues them.</p>
         <div class="grid flag-grid">
           <div class="card">
             <div class="sec">Paste your gate token</div>
@@ -403,11 +417,16 @@
       <nav class="help-nav">
         <button class="help-navi active" data-help="setup">Get set up</button>
         <button class="help-navi" data-help="how">How it works</button>
+        <button class="help-navi" data-help="cowork" hidden>Learn Cowork</button>
         <button class="help-navi" data-help="flag">Flag a skill</button>
         <button class="help-navi" data-help="faq">FAQ</button>
         <input id="help-search" class="help-search" type="search" placeholder="Search the FAQ…" autocomplete="off">
       </nav>
       <div class="help-pane">
+        <!-- Learn Cowork course: lives here for owners/scouts (optional reading for them);
+             team members get it as a top-level tab instead. applyRoleTabs moves the one
+             rendered #cw-root between this pane and #view-cowork. -->
+        <div class="help-sec" id="help-cowork" hidden></div>
         <div class="help-sec" id="help-setup">
     <div id="getset-owner">
       <div class="wc-hero" style="margin-bottom:22px">

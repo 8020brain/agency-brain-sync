@@ -118,7 +118,7 @@
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
     setTab('welcome', isTeam);
     setTab('path', true);   // the team path: team members run it, owners/scouts preview what their team sees
-    setTab('cowork', true);   // Learn Cowork course: standalone, available to every role
+    setTab('cowork', isTeam);   // Learn Cowork: team members work in Cowork so they get the tab; owners/scouts find it under Help (optional for them)
     setTab('owner', isOwner);
     setTab('scout', isScout);
     setTab('skills', true);   // owner+scout+team can all browse the full skill list here
@@ -141,6 +141,11 @@
     var setHelpNav=function(n,show){ var b=document.querySelector('.help-navi[data-help="'+n+'"]'); if(b) b.hidden=!show; };
     setHelpNav('setup', isOwner||isScout);  // team's onboarding is the Welcome tab
     setHelpNav('how', true);
+    setHelpNav('cowork', !isTeam);           // optional for owners/scouts, so it lives here not the top nav
+    // The one rendered Learn Cowork course (#cw-root) lives in the top-level tab for
+    // team, inside the Help pane for owners/scouts. Move the node to this role's home.
+    var cwRoot=$('cw-root'), cwHome=isTeam?$('view-cowork'):$('help-cowork');
+    if(cwRoot && cwHome && cwRoot.parentElement!==cwHome) cwHome.appendChild(cwRoot);
     setHelpNav('flag', true);                // everyone gets the flag-a-skill docs + form; the scout also has the live inbox on their Dashboard
     setHelpNav('faq', true);
     setHelpSection(isTeam ? 'faq' : 'setup');

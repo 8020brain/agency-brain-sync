@@ -68,6 +68,11 @@
         +'<button class="tp-switch-btn'+(TP_SEL==='team'?' active':'')+'" data-tp-path="team">Team path (what your team sees)</button>'
         +'</div>';
     }
+    // Owners land on the scout path without being scouts — say why, or it reads
+    // like a mislabelled page (Mike, 2026-07-06).
+    if(role==='owner'&&TP_SEL==='scout'){
+      h+='<p class="tp-why"><b>Why you\'re seeing the Scout path:</b> every agency needs one builder who sets the brain up and keeps making it better, and that\'s the scout role. If you\'ve added a scout, this is the path they\'re working through, so you can see what\'s getting built. If you\'re being your own scout, work it top to bottom yourself. Your team gets a much shorter path of their own; flip to "Team path" above to preview it.</p>';
+    }
     h+='<p class="tp-intro">'+esc(p.intro)+'</p>'
       +'<div class="tp-bar"><div class="tp-bar-fill" style="width:'+pct+'%"></div></div>'
       +'<div class="tp-cowork"><b>The guided way:</b> '+(TP_SEL==='scout'
