@@ -2,6 +2,25 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 0.9.39 — 2026-07-06
+
+- **Help has a new Updates page (owners and scouts).** It explains the two kinds of updates in plain words: the app keeps itself current automatically, while your agency's brain updates monthly with one pasted prompt from the members portal update page (m.ads2ai.com/agency-brain/update). The page walks the routine step by step, covers what an update can and can't touch (your clients, context, and customisations are off-limits), and points at the run-once prompt that turns future updates into a one-line yes at the start of a Claude Code session. Team members don't see it; updates reach them through the normal sync.
+
+## 0.9.38 — 2026-07-06
+
+- Groundwork for the Updates page above; the finished version ships in 0.9.39.
+
+## 0.9.37 — 2026-07-06
+
+- **Role previews show the right Getting started path.** Flipping the view-as preview to Team now shows the team path ("Your first weeks with the brain") instead of the Scout path. Real team members always got the right path; only the preview was wrong.
+
+## 0.9.36 — 2026-07-06
+
+- **The Google Ads page reads like a setup guide instead of a wall of text.** A three-step "How it works" sits up top, the two things to actually do sit below it, and the share-the-credentials-file fallback is tucked away until you want it. The copy now tells the true story: the vault (a small Cloudflare Worker) is the only thing that connects to Google Ads. A team member saves their gate token once, then just asks for data in Cowork, like "pull last month's search terms for Acme and save them as a CSV".
+- **Learn Cowork now looks like the Getting started tab** (chevrons to open each step, type chips, tick-offs) **and moved into the Help page for owners and scouts.** It's optional reading for scouts, so it no longer takes a tab across the top; team members, who work in Cowork, keep the Learn Cowork tab.
+- **Owners see why they're looking at the Scout path.** A short note at the top of Getting started explains that every agency needs one builder, and points at the switcher to preview the much shorter team path.
+- The MCC field placeholder no longer suggests every login customer ID starts with a 5.
+
 ## 0.9.35 — 2026-07-04
 
 - **"Tell your brain who you are" no longer dead-ends when your login has no name.** For some members, signing in doesn't bring a name back with it, and the one-click identity setup would fail with "sign in again", which could never fix it. Now, if the app doesn't know your name, the banner simply asks you to type it, and one click finishes the job. (Thanks to Richard for the report.)
