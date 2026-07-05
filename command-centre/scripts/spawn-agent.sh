@@ -33,15 +33,17 @@ SLOT=1
 SESSION=""
 TODO_TEXT=""
 PROJECT=""
+CLAUDE_SESSION_ID=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --cwd)         CWD="$2"; shift 2;;
-    --prompt-file) PROMPT_FILE="$2"; shift 2;;
-    --slot)        SLOT="$2"; shift 2;;
-    --session)     SESSION="$2"; shift 2;;
-    --todo-text)   TODO_TEXT="$2"; shift 2;;
-    --project)     PROJECT="$2"; shift 2;;
+    --cwd)               CWD="$2"; shift 2;;
+    --prompt-file)       PROMPT_FILE="$2"; shift 2;;
+    --slot)              SLOT="$2"; shift 2;;
+    --session)           SESSION="$2"; shift 2;;
+    --todo-text)         TODO_TEXT="$2"; shift 2;;
+    --project)           PROJECT="$2"; shift 2;;
+    --claude-session-id) CLAUDE_SESSION_ID="$2"; shift 2;;
     *) echo "spawn-agent.sh: unknown arg '$1'" >&2; exit 2;;
   esac
 done
@@ -71,6 +73,17 @@ fi
 if [[ ! "$SESSION" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   echo "spawn-agent.sh: session name has invalid chars: $SESSION" >&2
   exit 2
+fi
+
+# Optional pinned claude conversation id (claude --session-id). Lets the
+# tracker map this window to its jsonl exactly instead of guessing by file
+# birth time (which any other claude session starting in the same cwd at the
+# same moment can steal). UUID-validated since it lands in the launcher.
+SESSION_ID_ARGS=""
+if [[ -n "$CLAUDE_SESSION_ID" ]]; then
+  [[ "$CLAUDE_SESSION_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] \
+    || { echo "spawn-agent.sh: bad --claude-session-id '$CLAUDE_SESSION_ID'" >&2; exit 2; }
+  SESSION_ID_ARGS=" --session-id '$CLAUDE_SESSION_ID'"
 fi
 
 # ---- Grid position -------------------------------------------------------
@@ -109,7 +122,8 @@ Y2=$(( Y + TILE_H ))
 REGISTER="$(cd "$(dirname "$0")" && pwd)/register-agent.cjs"
 
 node "$REGISTER" --session "$SESSION" --slot "$SLOT" --cwd "$CWD" \
-  --todo "$TODO_TEXT" --project "$PROJECT" --prompt-file "$PROMPT_FILE" >/dev/null
+  --todo "$TODO_TEXT" --project "$PROJECT" --prompt-file "$PROMPT_FILE" \
+  --claude-session "$CLAUDE_SESSION_ID" >/dev/null
 
 # ---- Build the launcher + Terminal command -------------------------------
 #
@@ -148,7 +162,7 @@ tmux set-option destroy-unattached on 2>/dev/null || true
 tmux set-option status off 2>/dev/null || true
 tmux set-option mouse on 2>/dev/null || true
 tmux set-option history-limit 50000 2>/dev/null || true
-exec '$CLAUDE_BIN' --dangerously-skip-permissions "\$(cat '$PROMPT_FILE')"
+exec '$CLAUDE_BIN' --dangerously-skip-permissions$SESSION_ID_ARGS "\$(cat '$PROMPT_FILE')"
 LAUNCH
 chmod +x "$LAUNCHER"
 

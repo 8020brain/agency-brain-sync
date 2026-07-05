@@ -153,6 +153,17 @@ function findJsonlForAgent(agent) {
   const dir = path.join(CLAUDE_PROJECTS_DIR, encodeCwd(agent.cwd));
   if (!fs.existsSync(dir)) return null;
 
+  // Pinned id (spawn passed claude --session-id): the jsonl basename is known
+  // exactly — no guessing. Falls through to birth-time matching only while
+  // claude hasn't created the file yet, or for old records without a pin.
+  if (agent.claudeSession) {
+    const pinned = path.join(dir, agent.claudeSession + '.jsonl');
+    try {
+      const st = fs.statSync(pinned);
+      return { path: pinned, mtimeMs: st.mtimeMs, birthtimeMs: st.birthtimeMs };
+    } catch { return null; } // pinned but not written yet → 'running' upstream
+  }
+
   const spawnedAtMs = agent.spawnedAt ? Date.parse(agent.spawnedAt) : 0;
   const GRACE_MS = 5000;
 
@@ -371,7 +382,21 @@ function assignJsonls(agents) {
       (Date.parse(a.spawnedAt) || 0) - (Date.parse(b.spawnedAt) || 0));
 
     const claimed = new Set();
+    // Pass 1 — pinned ids (spawn passed claude --session-id): exact matches,
+    // claimed first so a pinned agent's file can never be stolen by (or steal
+    // from) the greedy pass. This makes a dispatch immune to look-alike jsonls
+    // from any other claude session starting in the same cwd at the same moment.
+    const unpinned = [];
     for (const a of sortedAgents) {
+      const match = a.claudeSession
+        ? files.find(f => path.basename(f.path, '.jsonl') === a.claudeSession) : null;
+      if (match) { claimed.add(match.path); assignment[a.session] = match; }
+      else if (!a.claudeSession) unpinned.push(a);
+      // pinned but file not written yet → leave unassigned ('running' upstream);
+      // never let it fall into the greedy pass and grab someone else's file.
+    }
+    // Pass 2 — legacy greedy birth-time matching for records without a pin.
+    for (const a of unpinned) {
       const spawnedAtMs = a.spawnedAt ? Date.parse(a.spawnedAt) : 0;
       const match = files.find(f => !claimed.has(f.path) && f.birthtimeMs >= spawnedAtMs - GRACE_MS);
       if (match) { claimed.add(match.path); assignment[a.session] = match; }

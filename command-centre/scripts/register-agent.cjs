@@ -72,6 +72,10 @@ if ('cwd' in args) rec.cwd = args.cwd;
 if ('todo' in args) rec.todoText = args.todo || null;
 if ('project' in args) rec.project = args.project || null;
 if ('prompt-file' in args) rec.promptFile = args['prompt-file'];
+// Pinned claude conversation id (claude --session-id): the jsonl basename is
+// known up front, so the tracker resolves this agent's file exactly instead
+// of guessing by birth time. Absent (old spawns) = greedy fallback.
+if ('claude-session' in args && args['claude-session']) rec.claudeSession = args['claude-session'];
 if ('window-id' in args && args['window-id']) rec.windowId = parseInt(args['window-id'], 10);
 if ('pid' in args && args.pid) rec.pid = parseInt(args.pid, 10);
 

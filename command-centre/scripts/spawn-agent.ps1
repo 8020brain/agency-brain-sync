@@ -37,7 +37,10 @@ param(
   [int]$Slot = 1,
   [string]$Session = '',
   [string]$TodoText = '',
-  [string]$Project = ''
+  [string]$Project = '',
+  # Pinned claude conversation id (claude --session-id): lets the tracker map
+  # this window to its jsonl exactly instead of guessing by file birth time.
+  [string]$ClaudeSessionId = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +55,11 @@ if (-not $Session) {
   $Session = 'agentbrain-' + ([guid]::NewGuid().ToString('N').Substring(0, 8))
 }
 if ($Session -notmatch '^[a-zA-Z0-9_-]+$') { Fail "session name has invalid chars: $Session" }
+
+# UUID-validated since it lands in the generated launcher.
+if ($ClaudeSessionId -and $ClaudeSessionId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+  Fail "bad -ClaudeSessionId: $ClaudeSessionId"
+}
 
 # ---- Resolve dependencies ------------------------------------------------
 $claude = (Get-Command claude -ErrorAction SilentlyContinue).Source
@@ -110,6 +118,7 @@ $rows = [int][math]::Max(8, [math]::Floor(($tileH - 40) / $charH))  # leave room
 $regArgs = @($registerScript, '--session', $Session, '--slot', "$Slot", '--cwd', $Cwd, '--prompt-file', $PromptFile)
 if ($TodoText) { $regArgs += @('--todo', $TodoText) }
 if ($Project) { $regArgs += @('--project', $Project) }
+if ($ClaudeSessionId) { $regArgs += @('--claude-session', $ClaudeSessionId) }
 & $node @regArgs | Out-Null
 
 # ---- Build the inner launcher --------------------------------------------
@@ -121,11 +130,12 @@ if (Test-Path -LiteralPath $pidFile) { Remove-Item -LiteralPath $pidFile -Force 
 
 # Escape single quotes for safe embedding in single-quoted PS literals.
 function Q($s) { return ($s -replace "'", "''") }
+$sessionIdArg = if ($ClaudeSessionId) { "--session-id '$ClaudeSessionId' " } else { '' }
 $launcherBody = @"
 Set-Content -LiteralPath '$(Q $pidFile)' -Value `$PID -Encoding ascii
 Set-Location -LiteralPath '$(Q $Cwd)'
 `$prompt = Get-Content -Raw -Encoding UTF8 -LiteralPath '$(Q $PromptFile)'
-& '$(Q $claude)' --dangerously-skip-permissions `$prompt
+& '$(Q $claude)' --dangerously-skip-permissions $sessionIdArg`$prompt
 "@
 
 $launcher = Join-Path $env:TEMP ("agentbrain-launch-" + ([guid]::NewGuid().ToString('N').Substring(0, 8)) + ".ps1")

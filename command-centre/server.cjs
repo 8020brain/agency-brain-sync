@@ -24,6 +24,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const PORT = parseInt(process.env.CC_PORT || '38917', 10);
@@ -136,18 +137,25 @@ function launchAgentSession({ prompt, todoText = null, project = null, cwd = BRA
   fs.writeFileSync(promptFile, prompt, 'utf8');
   const slot = agentsTracker.pickNextSlot();
   const session = `agentbrain-${Math.random().toString(36).slice(2, 10)}`;
+  // Pin the claude conversation id at spawn (claude --session-id) so the
+  // tracker maps this window to its jsonl EXACTLY. Birth-time guessing broke
+  // on Mike's Workbench 2026-07-05: another claude session's jsonl born in
+  // the same second in the same cwd stole the greedy match.
+  const claudeSession = crypto.randomUUID();
   let out;
   if (process.platform === 'win32') {
     const script = path.join(__dirname, 'scripts', 'spawn-agent.ps1');
     const psArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Cwd', cwd, '-PromptFile', promptFile, '-Slot', String(slot), '-Session', session];
     if (todoText) psArgs.push('-TodoText', todoText);
     if (project) psArgs.push('-Project', project);
+    psArgs.push('-ClaudeSessionId', claudeSession);
     out = spawnSync('powershell.exe', psArgs, { encoding: 'utf8', timeout: 15000 });
   } else {
     const script = path.join(__dirname, 'scripts', 'spawn-agent.sh');
     const a = ['--cwd', cwd, '--prompt-file', promptFile, '--slot', String(slot), '--session', session];
     if (todoText) a.push('--todo-text', todoText);
     if (project) a.push('--project', project);
+    a.push('--claude-session-id', claudeSession);
     out = spawnSync(script, a, { encoding: 'utf8', timeout: 8000 });
   }
   if (!out || out.status !== 0) {
