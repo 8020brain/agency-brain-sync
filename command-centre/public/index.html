@@ -750,31 +750,31 @@
           </ul>
         </div>
         <div class="sys">
-          <div class="tag">You run it · a couple of minutes</div>
-          <h3>The brain (skills, context, docs)</h3>
+          <div class="tag">You run it · monthly, a couple of minutes</div>
+          <h3>The brain (skills, commands, docs)</h3>
           <ul>
-            <li>New and improved skills ship to the agency template regularly, but your brain never pulls them in by itself. Nothing should overwrite what your team has customised without you seeing it first.</li>
-            <li>Updating is one prompt, run by one person (an owner or a scout). The whole team gets the result through the normal sync within a minute or two.</li>
-            <li>The update protects your customisations: it backs everything up first, shows you a plan of what would change, and leaves alone anything your team has made its own.</li>
+            <li>Updates to the agency template land <strong>monthly</strong>. Your brain never pulls them in by itself: nothing should overwrite what your team has customised without asking you first.</li>
+            <li>One person runs the update (an owner or a scout). The whole team gets the result through the normal sync within a minute or two.</li>
+            <li>An update only touches the toolkit that came from the template: skills, commands, docs, and their scripts. Your clients, projects, context, todos, and anything your agency added are completely off-limits to it. Skills you've customised get a plain-words explanation of what changed and a choice; everything replaced is backed up first.</li>
           </ul>
         </div>
       </div>
 
       <h2>Updating the brain, step by step</h2>
       <div class="flow">
-        <div class="step"><div class="n"></div><div class="t"><div class="h">Open the update page on the members portal</div><div class="muted">The current update prompt lives at m.ads2ai.com/agency-brain/update, along with notes on what's new since your last update.</div></div></div>
+        <div class="step"><div class="n"></div><div class="t"><div class="h">Open the update page on the members portal</div><div class="muted">The update prompt lives at m.ads2ai.com/agency-brain/update, along with how updates work and the fixes for a stuck updater.</div></div></div>
         <div class="step"><div class="n"></div><div class="t"><div class="h">Copy the update prompt</div><div class="muted">One click on that page puts it on your clipboard.</div></div></div>
-        <div class="step"><div class="n"></div><div class="t"><div class="h">Paste it into Claude Code, in your agency brain folder</div><div class="muted">Claude checks what's new, backs up your brain, shows you the plan, and applies only what you approve.</div></div></div>
+        <div class="step"><div class="n"></div><div class="t"><div class="h">Paste it into Claude Code, in your agency brain folder</div><div class="muted">It signs you in with your membership email (a 6-digit code, not a login), checks your version, shows what's new, and asks before touching anything you've changed.</div></div></div>
         <div class="step"><div class="n"></div><div class="t"><div class="h">That's it</div><div class="muted">The app syncs the updated brain to every teammate's machine within a minute or two. Nobody else does anything.</div></div></div>
       </div>
       <p style="margin-top:18px"><button class="btn" data-ext="https://m.ads2ai.com/agency-brain/update">Open the update page</button></p>
 
       <div class="callout">
-        <div class="h">Sometimes the app tells you first</div>
-        <p style="margin:0;">When an important fix goes out, a banner appears across the top of this Command Centre ("Agency Brain update ready") with a button that copies the exact prompt for that fix. It's the same routine: paste it into Claude Code in your brain folder.</p>
+        <div class="h">Do this once, and future updates become one word</div>
+        <p style="margin:0;">The update page also has a run-once prompt that switches on <strong>update notices</strong> for your agency. After that, when a new update ships, your next Claude Code session mentions it in one line at session start; you say yes, Claude applies it, and the reminder stops for the whole team. The app also fetches new updates into the brain in the background, so one current machine keeps the whole agency up to date.</p>
       </div>
 
-      <p class="muted">A good rhythm is to check the update page every week or two, or whenever a new skill is announced in the community.</p>
+      <p class="muted">If an update ever stops or fails (a missing team roster file, or an older updater erroring), the repair prompts are on the same update page. Each one is safe to run twice.</p>
     </div>
         </div>
         <div class="help-sec" id="help-flag" hidden>
@@ -820,7 +820,7 @@
         <h3 class="faq-section">Getting started</h3>
         <details class="faq-item"><summary>Do I have to use Cowork? <span class="faq-pill">Team</span></summary><div class="faq-a">No but you'll probably want to check it out at least. Cowork, inside the Claude desktop app, is the simplest option and what most Team members use. You can also work in Claude Code in a terminal/IDE, or the Claude Code VS extension, whatever you prefer. As long as the Agency Brain app is running &amp; Cowork/Code are working on the same folder, your work syncs the same way no matter which one you use.</div></details>
         <details class="faq-item"><summary>I'm already running my brain solo in a terminal. If I move to Agency Brain but don't add anyone, does anything change?</summary><div class="faq-a">No, and that's the point. Moving onto Agency Brain only makes sense if you want to bring team members in. If you're staying solo, just keep using <code>/brain-update</code> as you always have. The whole reason to upgrade is to become a team, and becoming a team means installing the GitHub App.</div></details>
-        <details class="faq-item"><summary>I already run a solo brain. Does the agency setup use it, or start fresh?</summary><div class="faq-a">It starts fresh, always. The setup wizard creates a brand-new agency brain from the template in your own private GitHub repo, and your existing solo brain is left exactly as it was. Nothing is merged or overwritten. Once the agency brain is up, run the migration prompt on the Install &amp; update page (<a href="https://m.ads2ai.com/agency-brain/install" target="_blank" rel="noopener">https://m.ads2ai.com/agency-brain/install</a>) to copy across just the custom skills and client folders you want. It treats your old brain as read-only and shows you a plan before it copies anything. (If the wizard ever asks you "do you already have a brain on this machine?", that's the solo setup path, not the agency one.)</div></details>
+        <details class="faq-item"><summary>I already run a solo brain. Does the agency setup use it, or start fresh?</summary><div class="faq-a">It starts fresh, always. The setup wizard creates a brand-new agency brain from the template in your own private GitHub repo, and your existing solo brain is left exactly as it was. Nothing is merged or overwritten. Once the agency brain is up, run the migration prompt on the Install page (<a href="https://m.ads2ai.com/agency-brain/install" target="_blank" rel="noopener">https://m.ads2ai.com/agency-brain/install</a>) to copy across just the custom skills and client folders you want. It treats your old brain as read-only and shows you a plan before it copies anything. (If the wizard ever asks you "do you already have a brain on this machine?", that's the solo setup path, not the agency one.)</div></details>
         <details class="faq-item"><summary>I set up a fresh agency brain. What gets copied across from my old one, and does it get touched?</summary><div class="faq-a">Claude copies across only the agency, client, and skill context you choose; you pick the categories. Anything sensitive stays out, so the shared brain starts clean, and your original personal brain is left exactly as it was. One thing to know: once the app switches to watching the new agency folder, it stops syncing your old personal brain. The done screen tells you this so it's not a surprise. Your old brain is safe and untouched, it's just no longer synced by this app.</div></details>
         <details class="faq-item"><summary>The wizard says I'm not set up on my own GitHub repo yet. What do I do first?</summary><div class="faq-a">That message only appears in the solo setup (adopting a brain you already have). Your brain needs to be on a private GitHub repo you own. Run the Update prompt from your setup guide (<a href="https://m.ads2ai.com/install" target="_blank" rel="noopener">https://m.ads2ai.com/install</a>); it checks you're in your brain folder, looks at your git remotes, and if you don't have your own repo yet it creates a private one under your account and pushes your brain to it. Then come back to the wizard and pick the folder again. Agency owners never hit this: the agency wizard creates the repo for you when you connect GitHub.</div></details>
         <details class="faq-item"><summary>Where should I host the agency brain repo, my personal GitHub or a business account?</summary><div class="faq-a">Use a GitHub organisation your business owns, not a personal account. In an org, the brain survives people coming and going: when someone leaves, you revoke their access and the org keeps everything, with nothing to transfer. A personal-account repo means a repo transfer every time the owner changes. I never host it for you and never create the org for you, but I'd strongly point you at setting one up.</div></details>
