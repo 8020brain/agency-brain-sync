@@ -141,6 +141,7 @@
     var setHelpNav=function(n,show){ var b=document.querySelector('.help-navi[data-help="'+n+'"]'); if(b) b.hidden=!show; };
     setHelpNav('setup', isOwner||isScout);  // team's onboarding is the Welcome tab
     setHelpNav('how', true);
+    setHelpNav('updates', !isTeam);          // owners/scouts run brain updates; team gets them via sync
     setHelpNav('cowork', !isTeam);           // optional for owners/scouts, so it lives here not the top nav
     // The one rendered Learn Cowork course (#cw-root) lives in the top-level tab for
     // team, inside the Help pane for owners/scouts. Move the node to this role's home.

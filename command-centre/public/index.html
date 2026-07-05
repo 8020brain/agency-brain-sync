@@ -417,6 +417,7 @@
       <nav class="help-nav">
         <button class="help-navi active" data-help="setup">Get set up</button>
         <button class="help-navi" data-help="how">How it works</button>
+        <button class="help-navi" data-help="updates" hidden>Updates</button>
         <button class="help-navi" data-help="cowork" hidden>Learn Cowork</button>
         <button class="help-navi" data-help="flag">Flag a skill</button>
         <button class="help-navi" data-help="faq">FAQ</button>
@@ -728,6 +729,52 @@
       <div class="hiw-foot">
         Agency Brain · sync &amp; update explainer. Times shown are the defaults the app ships with. Badges mark what's live today versus what's planned.
       </div>
+    </div>
+        </div>
+        <div class="help-sec" id="help-updates" hidden>
+    <!-- Owner/scout only (gated in applyRoleTabs). Team members never update anything;
+         changes reach them through the normal sync. -->
+    <div class="hiw">
+      <div class="eyebrow">Agency Brain · updates</div>
+      <h1>Two things update.<br>Only one of them is automatic.</h1>
+      <p class="lede">The Agency Brain app keeps itself current on its own. Your agency's brain, the shared folder of skills and context your team works in, is deliberately never touched by an auto-updater: it's your team's work, so updating it is a decision you make. Here's how both work, and the one small routine worth adopting.</p>
+
+      <div class="grid2">
+        <div class="sys">
+          <div class="tag">Automatic · nothing to do</div>
+          <h3>The app (and this Command Centre)</h3>
+          <ul>
+            <li>The app checks for a new version every few hours, downloads it quietly in the background, and shows a <strong>"Relaunch to update"</strong> toast when it's ready.</li>
+            <li>Click the toast, or the small <strong>⟳</strong> next to the version number in the top-left corner, and you reopen on the new version.</li>
+            <li>Everyone on the team gets this on their own machine. You never coordinate app updates.</li>
+          </ul>
+        </div>
+        <div class="sys">
+          <div class="tag">You run it · a couple of minutes</div>
+          <h3>The brain (skills, context, docs)</h3>
+          <ul>
+            <li>New and improved skills ship to the agency template regularly, but your brain never pulls them in by itself. Nothing should overwrite what your team has customised without you seeing it first.</li>
+            <li>Updating is one prompt, run by one person (an owner or a scout). The whole team gets the result through the normal sync within a minute or two.</li>
+            <li>The update protects your customisations: it backs everything up first, shows you a plan of what would change, and leaves alone anything your team has made its own.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2>Updating the brain, step by step</h2>
+      <div class="flow">
+        <div class="step"><div class="n"></div><div class="t"><div class="h">Open the update page on the members portal</div><div class="muted">The current update prompt lives at m.ads2ai.com/agency-brain/update, along with notes on what's new since your last update.</div></div></div>
+        <div class="step"><div class="n"></div><div class="t"><div class="h">Copy the update prompt</div><div class="muted">One click on that page puts it on your clipboard.</div></div></div>
+        <div class="step"><div class="n"></div><div class="t"><div class="h">Paste it into Claude Code, in your agency brain folder</div><div class="muted">Claude checks what's new, backs up your brain, shows you the plan, and applies only what you approve.</div></div></div>
+        <div class="step"><div class="n"></div><div class="t"><div class="h">That's it</div><div class="muted">The app syncs the updated brain to every teammate's machine within a minute or two. Nobody else does anything.</div></div></div>
+      </div>
+      <p style="margin-top:18px"><button class="btn" data-ext="https://m.ads2ai.com/agency-brain/update">Open the update page</button></p>
+
+      <div class="callout">
+        <div class="h">Sometimes the app tells you first</div>
+        <p style="margin:0;">When an important fix goes out, a banner appears across the top of this Command Centre ("Agency Brain update ready") with a button that copies the exact prompt for that fix. It's the same routine: paste it into Claude Code in your brain folder.</p>
+      </div>
+
+      <p class="muted">A good rhythm is to check the update page every week or two, or whenever a new skill is announced in the community.</p>
     </div>
         </div>
         <div class="help-sec" id="help-flag" hidden>
