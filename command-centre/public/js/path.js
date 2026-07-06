@@ -10,6 +10,15 @@
   var TP_SEL=null;       // 'team' | 'scout' — which path is on screen
   var TP_OPEN={};        // step id -> true while expanded, survives re-renders
   var TP_COPY={};        // step id -> text the copy button puts on the clipboard
+  // Track (section) collapse state, keyed by path+track. undefined = automatic
+  // (open unless every step is done — finished sections fold away by themselves,
+  // Mike 2026-07-06); true/false = the user clicked the header and overrode it.
+  var TP_TRACK_OPEN={};
+  function tpTrackKey(t,ti){ return TP_SEL+':'+(t.id||ti); }
+  function tpTrackOpen(t,ti,allDone){
+    var k=tpTrackKey(t,ti);
+    return TP_TRACK_OPEN[k]!==undefined?TP_TRACK_OPEN[k]:!allDone;
+  }
 
   // Turn any http(s) URL in a paragraph into a clickable link (the rest stays escaped).
   function tpLinkify(par){
@@ -47,6 +56,7 @@
     TP_ROLE_APPLIED=role;
     tpPickPath();
     TP_OPEN={};
+    TP_TRACK_OPEN={};
     tpRender();
   }
   function tpLoad(){
@@ -109,14 +119,16 @@
     p.tracks.forEach(function(t,ti){
       var done=t.steps.filter(function(s){return tpDone(s.id);}).length;
       var allDone=t.steps.length>0&&done===t.steps.length;
+      var trackOpen=tpTrackOpen(t,ti,allDone);
       h+='<div class="card tp-track">'
-        +'<div class="tp-track-head">'
+        +'<div class="tp-track-head" data-tp-track="'+esc(tpTrackKey(t,ti))+'" title="'+(trackOpen?'Collapse':'Expand')+' this section">'
           +'<span class="tp-badge'+(allDone?' done':'')+'">'+(allDone?'✓':(ti+1))+'</span>'
           +'<span class="tp-track-titles"><span class="tp-track-title">'+esc(t.title)+'</span>'
           +'<span class="tp-track-tag">'+esc(t.tagline)+'</span></span>'
           +'<span class="tp-track-prog">'+done+' / '+t.steps.length+' done</span>'
+          +'<span class="tp-track-caret'+(trackOpen?' open':'')+'" aria-hidden="true">›</span>'
         +'</div>'
-        +'<div class="tp-steps">';
+        +'<div class="tp-steps"'+(trackOpen?'':' hidden')+'>';
       t.steps.forEach(function(s){
         var isDone=tpDone(s.id);
         var kind=(s.type||'').toLowerCase();
@@ -147,7 +159,21 @@
       el.addEventListener('click',function(){
         TP_SEL=el.getAttribute('data-tp-path');
         TP_OPEN={};
+        TP_TRACK_OPEN={};
         tpRender();
+      });
+    });
+    // Section headers expand/collapse the whole track (finished ones start folded).
+    root.querySelectorAll('[data-tp-track]').forEach(function(el){
+      el.addEventListener('click',function(){
+        var k=el.getAttribute('data-tp-track');
+        var steps=el.parentElement.querySelector('.tp-steps');
+        var isOpen=!(steps&&steps.hidden);
+        TP_TRACK_OPEN[k]=!isOpen;
+        if(steps) steps.hidden=isOpen;
+        var caret=el.querySelector('.tp-track-caret');
+        if(caret) caret.classList.toggle('open',!isOpen);
+        el.title=(!isOpen?'Collapse':'Expand')+' this section';
       });
     });
     root.querySelectorAll('[data-tp-open]').forEach(function(el){
@@ -162,8 +188,18 @@
     });
     root.querySelectorAll('[data-tp-toggle]').forEach(function(el){
       el.addEventListener('click',function(){
-        api('/api/team-path/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:el.getAttribute('data-tp-toggle'),path:TP_SEL})})
-          .then(function(r){ var c=tpCur(); if(c) c.progress=r.progress; tpRender(); })
+        var stepId=el.getAttribute('data-tp-toggle');
+        api('/api/team-path/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:stepId,path:TP_SEL})})
+          .then(function(r){
+            var c=tpCur(); if(c) c.progress=r.progress;
+            // Ticking the LAST step of a section folds it away automatically:
+            // clear any manual override so the auto (collapsed-when-done) applies.
+            var cd=tpCur(); if(cd&&cd.def) cd.def.tracks.forEach(function(t,ti){
+              if(!t.steps.some(function(s){return s.id===stepId;})) return;
+              if(t.steps.length&&t.steps.every(function(s){return tpDone(s.id);})) delete TP_TRACK_OPEN[tpTrackKey(t,ti)];
+            });
+            tpRender();
+          })
           .catch(function(e){ alert(e.message||'Could not save.'); });
       });
     });

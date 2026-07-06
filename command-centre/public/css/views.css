@@ -205,7 +205,10 @@
   .tp-note{margin:12px 0 0;font-size:12.5px;color:var(--muted);}
   .tp-why{margin:0 0 14px;font-size:var(--fs-sm);color:var(--ink);line-height:1.55;border-left:3px solid var(--accent);padding:10px 14px;background:var(--accent-soft);max-width:860px;}
   .tp-track{margin-top:18px;padding:0;overflow:hidden;border-left:3px solid var(--accent);}
-  .tp-track-head{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;}
+  .tp-track-head{display:flex;align-items:flex-start;gap:14px;padding:18px 20px;cursor:pointer;user-select:none;}
+  .tp-track-head:hover{background:var(--bg);}
+  .tp-track-caret{flex:0 0 auto;width:16px;font-size:21px;font-weight:600;color:var(--muted);line-height:1;user-select:none;text-align:center;transition:transform .15s;padding-top:6px;}
+  .tp-track-caret.open{transform:rotate(90deg);}
   .tp-badge{flex:0 0 auto;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:15px;border-radius:2px;}
   .tp-badge.done{background:var(--accent);color:#fff;}
   .tp-track-titles{flex:1;min-width:0;}
@@ -213,6 +216,7 @@
   .tp-track-tag{display:block;font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4;}
   .tp-track-prog{flex:0 0 auto;font-size:12px;color:var(--muted);white-space:nowrap;padding-top:4px;}
   .tp-steps{display:flex;flex-direction:column;border-top:1px solid var(--line);}
+  .tp-steps[hidden]{display:none;}
   .tp-step{display:flex;gap:12px;align-items:flex-start;padding:12px 20px;border-top:1px solid var(--line);}
   .tp-step:first-child{border-top:0;}
   .tp-step:hover{background:var(--bg);}
