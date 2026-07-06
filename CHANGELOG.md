@@ -2,6 +2,11 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.0.0 — 2026-07-06
+
+- **Agency Brain is out of beta: welcome to version 1.0.** Nothing changes in how you use the app day to day.
+- **Updates now arrive from a new home.** Under the hood, the app fetches its automatic updates from our public downloads library (the same place the website's download buttons use). You don't need to do anything, but installing this version matters: it's the one that switches your app over, and future updates will only appear once you're on 1.0 or later.
+
 ## 0.9.39 — 2026-07-06
 
 - **Help has a new Updates page (owners and scouts).** It explains the two kinds of updates in plain words: the app keeps itself current automatically, while your agency's brain updates monthly with one pasted prompt from the members portal update page (m.ads2ai.com/agency-brain/update). The page walks the routine step by step, covers what an update can and can't touch (your clients, context, and customisations are off-limits), and points at the run-once prompt that turns future updates into a one-line yes at the start of a Claude Code session. Team members don't see it; updates reach them through the normal sync.

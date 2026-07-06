@@ -2,14 +2,19 @@ appId: com.8020brain.agencybrain
 productName: Agency Brain
 copyright: Copyright (c) 2026 8020brain
 
-# Auto-update feed. agency-brain-sync is a PUBLIC repo, so electron-updater can
-# read its releases with no token. This bakes app-update.yml into the app and
-# makes the build emit latest-mac.yml / latest.yml + .blockmap files (uploaded
-# to the release by CI). Builds use `--publish never`; CI does the upload.
+# Auto-update feed. Since v1.0.0 the feed lives on the PUBLIC downloads repo
+# (agency-brain-downloads), NOT this source repo, so this repo can go private
+# without breaking updates: electron-updater only ever needs the release
+# artifacts (latest*.yml + installers + blockmaps), which CI uploads to the
+# downloads repo. This bakes app-update.yml into the app and makes the build
+# emit latest-mac.yml / latest.yml + .blockmap files. Builds use
+# `--publish never`; CI does the upload. During the transition window CI also
+# keeps releasing on THIS repo so pre-1.0 installs (whose baked feed points
+# here) can still find the update that moves them over.
 publish:
   provider: github
   owner: 8020brain
-  repo: agency-brain-sync
+  repo: agency-brain-downloads
 
 directories:
   output: dist
