@@ -113,7 +113,9 @@
   // legacy alias of scout. The API still enforces real permissions server-side.
   function applyRoleTabs(serverRole){
     var role=uiRole((serverRole||'').toLowerCase());
-    if(role==='head-scout') role='scout';
+    // head-scout is a legacy alias of scout; 'agency' (ClientBrain: agency
+    // staff inside a client brain) gets the scout view — same access level.
+    if(role==='head-scout'||role==='agency') role='scout';
     var isTeam=(role==='team'), isOwner=(role==='owner'), isScout=(role==='scout');
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
     setTab('welcome', isTeam);

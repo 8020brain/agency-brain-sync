@@ -89,7 +89,7 @@
       // the handler is wired once, so a captured flag would go stale after a flip.
       [['add-member','add-form','af-name','solo-nudge'],['add-member-s','add-form-s','af-name-s','solo-nudge-s']].forEach(function(t){
         var ab=$(t[0]);
-        if(ab && (role==='owner'||role==='scout'||role==='head-scout')){
+        if(ab && (role==='owner'||role==='scout'||role==='head-scout'||role==='agency')){
           ab.hidden=false;
           // Once on a team, clear any solo nudge left visible from before (e.g. a
           // flip that didn't restart the window). The form stays user-toggled.
@@ -111,6 +111,7 @@
       $('ft-ver').textContent='Agency Brain'+(h.version?(' v'+h.version):'');
       $('ft-path').textContent=h.brainRoot||'';
       applyRoleTabs(h.memberRole);
+      applyBranding(h);
       CCROLE=role; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
       if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
       if(h.packageTier) PACKAGE_TIER=h.packageTier;
@@ -128,6 +129,26 @@
         sw.hidden=!showSwitch;
         if(showSwitch){ var eff=uiRole((h.memberRole||'').toLowerCase()); sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.role===eff); }); }
       }
+    }catch(e){}
+  }
+
+  // ClientBrain: a client brain shows the client's brand, never ours. The
+  // server's /api/branding serves the white-label record (live fetch with an
+  // offline cache); this swaps the visible name + accent pair. Best-effort —
+  // any failure leaves the default branding, never a broken page.
+  async function applyBranding(h){
+    if(((h&&h.teamKind)||'agency')!=='client') return;
+    try{
+      var b=await api('/api/branding');
+      var name=(b&&b.brandName)||'';
+      if(name){
+        document.title=name+' · Command Centre';
+        var suffix=document.querySelector('.brand .agency'); if(suffix) suffix.textContent='· '+name;
+        $('ft-ver').textContent=name+(h.version?(' v'+h.version):'');
+      }
+      var col=((b&&b.config)||{}).colours||{};
+      if(col.accentDeep) document.documentElement.style.setProperty('--accent',col.accentDeep);
+      if(col.accentSoft) document.documentElement.style.setProperty('--accent-soft',col.accentSoft);
     }catch(e){}
   }
 
@@ -198,12 +219,14 @@
   // The team table comes from the SERVER (the source of truth), acting as the
   // member — not from the local roles.json. Shows roster + who's synced.
   // Owners and scouts get inline Edit (name + role) and Remove controls.
-  var ROSTER_ROLES=['owner','head-scout','scout','team'];
+  // 'agency' (ClientBrain: agency staff inside a client brain, scout-level) is
+  // offered only inside client brains; the server rejects it elsewhere.
+  var ROSTER_ROLES=['owner','head-scout','scout','team','agency'];
   // Owner-only preview helper: ?as=team|scout|owner overrides the role used for
   // UI gating, so an owner can see exactly what a team member sees. UI-only —
   // the API still enforces real permissions, so this can't escalate anything.
   var DEV_ROLE_OVERRIDE=null;
-  function uiRole(serverRole){ if(DEV_ROLE_OVERRIDE) return DEV_ROLE_OVERRIDE; var a=new URLSearchParams(location.search).get('as'); return (a&&['owner','head-scout','scout','team'].indexOf(a)>=0)?a:serverRole; }
+  function uiRole(serverRole){ if(DEV_ROLE_OVERRIDE) return DEV_ROLE_OVERRIDE; var a=new URLSearchParams(location.search).get('as'); return (a&&['owner','head-scout','scout','team','agency'].indexOf(a)>=0)?a:serverRole; }
   var ICON_EDIT='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
   var ICON_TRASH='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
   function roleOptions(sel){

@@ -222,9 +222,22 @@
         repoUrl: res.repoUrl || '',
         scoutSeats: res.scoutSeats == null ? null : Number(res.scoutSeats),
         packageTier: res.packageTier || null,
+        kind: res.kind || 'agency',
         member: { email: authEmail, name: authName, role: m.role || res.memberRole || 'team' },
       };
       renderFooterIdentity();
+      // ClientBrain: a client brain's OWNER arriving by invite code is the
+      // first-time setup path — their repo doesn't exist yet, so route them
+      // through connect-org (GitHub App install on the client's org creates +
+      // seeds it), the same pipeline a self-created agency owner uses.
+      const inviteRole = (teamInfo.member.role || 'team').toLowerCase();
+      if (teamInfo.kind === 'client' && inviteRole === 'owner' && !teamInfo.repoUrl) {
+        try {
+          const st = await api.getInstallStatus(teamInfo.teamSlug);
+          if (!st || !st.repoUrl) { enterConnectOrg(); return; }
+          teamInfo.repoUrl = st.repoUrl;
+        } catch (e) { /* status hiccup — fall through to the normal path */ }
+      }
       enterMachine();
     } catch (err) {
       errorIn('err-code', friendlyCodeError(err));
@@ -410,6 +423,7 @@
       repoUrl: '',
       scoutSeats: team.scoutSeats == null ? null : Number(team.scoutSeats),
       packageTier: team.packageTier || null,
+      kind: team.kind || 'agency',
       member: { email: authEmail, name: authName, role: team.role || 'team' },
     };
     renderFooterIdentity();
@@ -873,7 +887,7 @@
         await api.seedDemoFolder(chosenFolder);
         await new Promise((r) => setTimeout(r, 600));
       } else if (mode === 'agency') {
-        await api.cloneAgencyBrain({ memberToken: teamInfo.memberToken, teamSlug: teamInfo.teamSlug, repoUrl: teamInfo.repoUrl, targetFolder: chosenFolder });
+        await api.cloneAgencyBrain({ memberToken: teamInfo.memberToken, teamSlug: teamInfo.teamSlug, repoUrl: teamInfo.repoUrl, targetFolder: chosenFolder, teamKind: teamInfo.kind || 'agency' });
         await api.configureIdentity({ brainPath: chosenFolder, memberEmail: authEmail, memberName: authName });
       } else {
         await api.cloneSoloBrain({ memberToken: authToken, targetFolder: chosenFolder });
@@ -988,6 +1002,17 @@
         // (preserving every personal-mode key) and restarted the watcher + CC, so
         // re-saving here would drop those keys and bounce the watcher a second time.
         if (!flipped) {
+          // ClientBrain: stamp the kind + brand name into config so the tray
+          // and dialogs brand as the client's brain from next launch. The
+          // brand name comes from the white-label record; a fetch failure
+          // just means default branding until the CC's live fetch lands.
+          let brandName = '';
+          if ((teamInfo.kind || 'agency') === 'client' && api.fetchClientConfig) {
+            try {
+              const cc = await api.fetchClientConfig({ memberToken: teamInfo.memberToken || authToken, teamSlug: teamInfo.teamSlug });
+              brandName = (cc && cc.config && cc.config.brandName) || '';
+            } catch (e) { /* default branding until the live fetch works */ }
+          }
           await api.saveConfig({
             brainPath: chosenFolder, mode: 'agency', teamSlug: teamInfo.teamSlug,
             memberEmail: authEmail, memberRole: (teamInfo.member || {}).role, memberToken: authToken, memberName: authName,
@@ -996,6 +1021,7 @@
             // /api/health refreshes it live so an upgrade reflects without a
             // re-login.
             scoutSeats: teamInfo.scoutSeats, packageTier: teamInfo.packageTier,
+            kind: teamInfo.kind || 'agency', brandName,
           });
         }
         api.markInstallComplete({ memberToken: authToken, teamSlug: teamInfo.teamSlug }).catch(() => {});

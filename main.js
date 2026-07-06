@@ -20,9 +20,19 @@ const { spawn, execFile, execFileSync } = require('child_process');
 const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
 const { adoptBrain } = require('./lib/adopt-brain.cjs');
 
-const APP_NAME = 'Agency Brain';
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
+// ClientBrain: a client brain shows the client's brand everywhere the app
+// speaks (tray tooltip, dialogs, window titles), never ours. brandName lands
+// in config.json at wizard setup when kind === 'client'; everyone else keeps
+// the default. Read once at boot — a brand change lands on next app start.
+const APP_NAME = (() => {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    if (cfg && cfg.kind === 'client' && cfg.brandName) return String(cfg.brandName);
+  } catch (e) { /* no config yet — fresh install */ }
+  return 'Agency Brain';
+})();
 const LOG_FILE = path.join(USER_DATA, 'sync.log');
 const ERR_FILE = path.join(USER_DATA, 'sync.err');
 const STATE_FILE = path.join(USER_DATA, 'state.json');
@@ -671,6 +681,10 @@ function startCommandCentre() {
       // live. Blank/0 means "not set" (banner stays hidden).
       AGENCY_SCOUT_SEATS: config.scoutSeats == null ? '' : String(config.scoutSeats),
       AGENCY_PACKAGE_TIER: config.packageTier || '',
+      // ClientBrain: 'client' brains brand the CC from the white-label record
+      // (served live by /api/branding, cached for offline). Default 'agency'.
+      AGENCY_TEAM_KIND: config.kind || 'agency',
+      AGENCY_BRAND_NAME: config.brandName || '',
       AGENCY_VERSION: require('./package.json').version,
       // The member's own login token + API base, so the Command Centre can do
       // team-management (live roster, add member) by acting AS the member —
@@ -1017,40 +1031,16 @@ ipcMain.handle('flip-to-agency', async (_evt, args) => {
 });
 
 // ---------- agency brain migrations ("brain updates") ----------
-// Published brain updates live in docs/migrations/ of the agency repo; the
-// sync hook announces unapplied ones in scout/owner Claude sessions. This
-// fetcher is the delivery path that doesn't depend on anyone running
-// /agency-update: poll the API with the member token the app already holds,
-// and write any migration file this repo doesn't have yet into the watched
-// folder. The watcher commits + pushes it like any other edit, so ONE
-// current machine per agency keeps the whole team's repo up to date.
-// Only tops up brains that already HAVE the migrations system (the folder
-// exists) — installing the system itself is the template's / bootstrap
-// prompt's job, not the app's.
-async function fetchBrainMigrations() {
-  try {
-    if (!config || config.mode !== 'agency' || !config.brainPath || !config.memberToken) return;
-    const migDir = path.join(config.brainPath, 'docs', 'migrations');
-    if (!fs.existsSync(migDir)) return;
-    const r = await fetch(`${API_BASE}/api/team-brain/migrations`, {
-      headers: { Authorization: `Bearer ${config.memberToken}` },
-    });
-    if (!r.ok) return;
-    const data = await r.json();
-    for (const m of (data && data.migrations) || []) {
-      const name = path.basename(String(m.file || ''));
-      // Only ever write files shaped like a migration, inside migDir.
-      if (!/^\d{4}-[a-z0-9-]+\.md$/i.test(name)) continue;
-      const id = name.slice(0, 4);
-      const dest = path.join(migDir, name);
-      const done = path.join(migDir, 'applied', `${id}.done`);
-      const skipped = path.join(migDir, 'applied', `${id}.skipped`);
-      if (fs.existsSync(dest) || fs.existsSync(done) || fs.existsSync(skipped)) continue;
-      fs.writeFileSync(dest, String(m.content || ''));
-      ulog(`brain migration ${id} fetched into docs/migrations/`);
-    }
-  } catch (_) { /* best-effort — next tick retries */ }
-}
+// There is deliberately NO auto-fetcher here. Brain updates are NOT just "pull
+// in new files": an agency that has edited a skill locally needs those changes
+// merged by hand, carefully, which is exactly what the sync engine's own
+// keep-both-sides conflict handling is built to avoid doing blindly. So updates
+// go through the Update page (m.ads2ai.com/agency-brain/update), where a person
+// applies them deliberately, never through an automatic write into the shared
+// repo. (A half-built auto-fetcher lived here until 2026-07; it errored on its
+// first line every run and never actually ran, and it was removed rather than
+// "fixed" so the auto-pull behaviour can't be switched on by accident. Mike's
+// call: automatic pulling of updates is unsafe and unwanted.)
 
 // Ensures .team-config/roles.json exists in the watched agency brain. That file
 // is the team roster the watcher reads for role-based push filtering and that
@@ -1315,7 +1305,23 @@ ipcMain.handle('list-my-teams', async (_evt, token) => {
     const body = await r.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${r.status}`);
   }
-  return r.json(); // { teams: [{ slug, name, role }] }
+  return r.json(); // { teams: [{ slug, name, role, kind }] }
+});
+
+// ClientBrain: fetch the client brain's white-label record (brand name,
+// colours, page visibility). The wizard reads brandName from it at setup so
+// the tray/dialog layer brands from config; the Command Centre re-fetches it
+// live at boot for the rest.
+ipcMain.handle('fetch-client-config', async (_evt, args) => {
+  const { memberToken, teamSlug } = args || {};
+  const r = await fetch(`${API_BASE}/api/team-brain/client-config?team=${encodeURIComponent(teamSlug || '')}`, {
+    headers: { Authorization: `Bearer ${memberToken}` },
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `client-config fetch failed (HTTP ${r.status})`);
+  }
+  return r.json(); // { config: {...}, updatedAt }
 });
 
 // Create a new agency team for the signed-in member — the in-app replacement for
@@ -1355,7 +1361,7 @@ ipcMain.handle('get-install-status', async (_evt, teamSlug) => {
 // in `origin`. Returns true if it seeded, false if the repo already had content
 // (the normal already-bootstrapped path). Throws loudly if the template can't be
 // reached — better a clear error than a silently-empty brain.
-async function seedAgencyBrainIfEmpty(targetFolder, memberToken) {
+async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
   // An empty repo has no commits, so rev-parse HEAD fails (unborn branch).
   let isEmpty = false;
   try {
@@ -1365,10 +1371,13 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken) {
   }
   if (!isEmpty) return false;
 
-  sendWizardLog('Fresh repo — setting it up from the Agency Brain template…');
+  sendWizardLog('Fresh repo — setting it up from the template…');
 
-  // Short-lived read token for the PRIVATE agency-brain-template.
-  const r = await fetch(`${API_BASE}/api/brain/auth-token?repo=agency`, {
+  // Short-lived read token for the PRIVATE template. ClientBrain deployments
+  // (teamKind === 'client') seed from client-brain-template; the server owns
+  // the repo mapping, we just say which flavour.
+  const repoFlavour = teamKind === 'client' ? 'client' : 'agency';
+  const r = await fetch(`${API_BASE}/api/brain/auth-token?repo=${repoFlavour}`, {
     headers: { Authorization: `Bearer ${memberToken}` },
   });
   if (!r.ok) {
@@ -1408,7 +1417,7 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken) {
 }
 
 ipcMain.handle('clone-agency-brain', async (_evt, args) => {
-  const { memberToken, teamSlug, repoUrl } = args;
+  const { memberToken, teamSlug, repoUrl, teamKind } = args;
   // Normalise whatever the renderer sent into the OS-native form (collapses
   // mixed slashes that older renderer builds could produce).
   const targetFolder = path.normalize(args.targetFolder);
@@ -1493,9 +1502,10 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
       await runGit(['clone', cloneUrl, targetFolder]);
     }
     // If Phase 1 (the API install-callback) created this org repo EMPTY, fill it
-    // from the agency-brain-template now — while the push token is still in the
+    // from the template now (agency-brain-template, or client-brain-template for
+    // a ClientBrain deployment) — while the push token is still in the
     // freshly-cloned origin. A repo that already has content is left untouched.
-    await seedAgencyBrainIfEmpty(targetFolder, memberToken);
+    await seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind);
   }
   // Rewrite the remote URL back to the token-less form so we don't keep a
   // 1-hour token on disk; the watcher will mint fresh tokens on each sync.
@@ -1877,8 +1887,6 @@ app.whenReady().then(() => {
   // Configure the updater before anything calls openCommandCentre (which kicks
   // off a check), so that check uses the configured singleton and listeners.
   setupAutoUpdater();
-  setTimeout(fetchBrainMigrations, 60 * 1000);
-  setInterval(fetchBrainMigrations, 30 * 60 * 1000);
   setTimeout(ensureAgencyRolesSeeded, 15 * 1000);
   setInterval(ensureAgencyRolesSeeded, 30 * 60 * 1000);
 

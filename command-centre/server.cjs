@@ -56,6 +56,10 @@ const PACKAGE_TIER_ENV = process.env.AGENCY_PACKAGE_TIER || '';
 // management (live roster, add member). Never grants more than the member has.
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
 const API_BASE = (process.env.AGENCY_API_BASE || 'https://api.ads2ai.com').replace(/\/+$/, '');
+// ClientBrain: kind 'client' brands the CC from the white-label record via
+// /api/branding (live fetch, cached in .git/ for offline). Default 'agency'.
+const TEAM_KIND = process.env.AGENCY_TEAM_KIND || 'agency';
+const BRAND_NAME_ENV = process.env.AGENCY_BRAND_NAME || '';
 // Set when this server process started — a freshness marker so Mike can tell a
 // reloaded preview really picked up new code (the version alone doesn't move
 // between builds).
@@ -226,6 +230,12 @@ function buildGadsYaml(f) {
 // the server needs an ADC file instead.
 function writeCredentialFile(yamlText) {
   const dest = path.join(BRAIN_ROOT, 'google-ads.yaml');
+  // Belt-and-braces: guarantee this credential file can never be committed to
+  // the shared agency repo, even on an adopted or older brain whose .gitignore
+  // predates the google-ads.yaml entry. The proxy path does the same for
+  // gads-proxy.yaml. (Credentials ideally live via the Cloudflare proxy or a
+  // file outside the brain; this protects the in-brain fallback from leaking.)
+  ensureGitignored('google-ads.yaml');
   fs.writeFileSync(dest, yamlText, { mode: 0o600 });
   return dest;
 }
@@ -389,9 +399,36 @@ ${out.join('\n')}
 
 const GADS_PROXY_VERIFY_PROMPT = "I've just connected our Google Ads proxy. There's a gads-proxy.yaml at the root of this brain with the proxy URL and a gate token. Confirm it works: use the gads-proxy skill to run a small query (list a few campaigns for one of our accounts) and show me the rows. Never print the token.";
 
+// Allowed values for this server's own origin/host — the app loads its page
+// from http://127.0.0.1:PORT (or localhost), so its OWN requests always match.
+const SELF_HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+const SELF_ORIGINS = new Set([`http://127.0.0.1:${PORT}`, `http://localhost:${PORT}`]);
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const p = url.pathname;
+
+  // Loopback hardening. This server holds the member's login token and, for the
+  // team-management routes, acts AS them — and it's reachable at 127.0.0.1:PORT
+  // from anything on this machine, including a web page open in the member's
+  // browser. Two header checks (which the app's OWN page always satisfies, so
+  // there is nothing for a member to configure and no secret to set) shut the
+  // browser attack surface: a malicious site can't drive it (CSRF) and a
+  // DNS-rebinding site can't read its responses.
+  //   - Host allowlist: a DNS-rebound request arrives with the attacker's
+  //     hostname, not 127.0.0.1/localhost — reject anything else.
+  //   - Origin check on writes: a cross-site POST carries the attacker page's
+  //     Origin; the app's page carries the loopback origin — reject a foreign one.
+  if (!SELF_HOSTS.has((req.headers.host || '').toLowerCase())) {
+    return send(res, 403, { error: 'forbidden host' });
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const origin = req.headers.origin;
+    if (origin && !SELF_ORIGINS.has(origin.toLowerCase())) {
+      return send(res, 403, { error: 'forbidden origin' });
+    }
+  }
+
   try {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
       return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'), true);
@@ -438,8 +475,32 @@ const server = http.createServer(async (req, res) => {
         ok: true, brainRoot: BRAIN_ROOT,
         memberEmail: MEMBER_EMAIL, memberName: MEMBER_NAME, memberRole, teamSlug: TEAM_SLUG, version: APP_VERSION, servedAt: SERVED_AT,
         scoutSeats, packageTier,
+        teamKind: TEAM_KIND,
         hasLocalIdentity: hasLocalIdentity(),
       });
+    }
+    if (req.method === 'GET' && p === '/api/branding') {
+      // ClientBrain: the white-label record for a client brain — brand name,
+      // accent colour pair, font, page visibility, help contacts. Fetched live
+      // from the API (as the member), with a last-good cache in .git/ (never
+      // synced) so branding survives offline starts. Agency brains get the
+      // defaults, so the renderer has one code path.
+      const defaults = { kind: TEAM_KIND, brandName: BRAND_NAME_ENV || '', config: null };
+      if (TEAM_KIND !== 'client' || !MEMBER_TOKEN || !TEAM_SLUG) return send(res, 200, defaults);
+      const cachePath = path.join(BRAIN_ROOT, '.git', 'agencybrain-branding.json');
+      try {
+        const j = await apiCall('GET', '/api/team-brain/client-config?team=' + encodeURIComponent(TEAM_SLUG), null, 0);
+        const cfg = (j && j.config) || {};
+        try { fs.writeFileSync(cachePath, JSON.stringify(cfg)); } catch (e) { /* cache is best-effort */ }
+        return send(res, 200, { kind: 'client', brandName: cfg.brandName || defaults.brandName, config: cfg });
+      } catch (e) {
+        try {
+          const cached = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+          return send(res, 200, { kind: 'client', brandName: cached.brandName || defaults.brandName, config: cached, cached: true });
+        } catch (e2) {
+          return send(res, 200, defaults);
+        }
+      }
     }
     if (req.method === 'GET' && p === '/api/observability') {
       return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));

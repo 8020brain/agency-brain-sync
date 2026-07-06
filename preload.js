@@ -17,6 +17,9 @@ const api = {
   consumePendingInviteToken: () => ipcRenderer.invoke('consume-pending-invite-token'),
   resolveInviteToken: (token) => ipcRenderer.invoke('resolve-invite-token', token),
   cloneAgencyBrain: (args) => ipcRenderer.invoke('clone-agency-brain', args),
+  // ClientBrain: the client brain's white-label record (brand name, colours).
+  // Args: { memberToken, teamSlug }. Wizard stores brandName in config.
+  fetchClientConfig: (args) => ipcRenderer.invoke('fetch-client-config', args),
   // Adopt flow (Phase 1): read-only inspection of a brain folder the member
   // already has, so the wizard can show its state before anything is written.
   inspectBrainFolder: (folder) => ipcRenderer.invoke('inspect-brain-folder', folder),

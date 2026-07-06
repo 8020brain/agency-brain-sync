@@ -47,7 +47,7 @@
 //                role allow-list.
 
 const chokidar = require('chokidar');
-const { execSync, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -108,36 +108,47 @@ function tsCompact() {
   return new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14).replace(/(\d{8})(\d{6})/, '$1-$2');
 }
 
-function git(cmd) {
-  try {
-    return execSync(`git -C "${REPO}" ${cmd}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-  } catch (err) {
-    const msg = (err.stderr || err.message || '').toString().trim();
-    console.error(`  git ${cmd} -> ${msg}`);
+// All git runs go through spawnSync with an ARGUMENT ARRAY and NO shell, so a
+// filename or roster name containing shell metacharacters ($(...), backticks,
+// quotes, ;, |) is handed to git as literal data and can never be interpreted as
+// a command. Callers pass each git argument as its own string — git('add', '--',
+// file) — never as one interpolated command string. Before 2026-07 these used
+// execSync(`git -C "${REPO}" ${cmd}`), which ran under /bin/sh and let a
+// booby-trapped filename or a synced roles.json name execute arbitrary commands
+// on every syncing machine. main.js's runGit() and lib/inspect-brain.cjs already
+// use this array pattern.
+function runGitRaw(args, captureStderr) {
+  const r = spawnSync('git', ['-C', REPO, ...args], {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', captureStderr ? 'pipe' : 'ignore'],
+    maxBuffer: 1024 * 1024 * 50,
+  });
+  const out = (r.stdout || '').toString().trim();
+  const err = (r.stderr || (r.error && r.error.message) || '').toString().trim();
+  return { ok: !r.error && r.status === 0, out, err };
+}
+
+function git(...args) {
+  const r = runGitRaw(args, true);
+  if (!r.ok) {
+    console.error(`  git ${args[0]} -> ${r.err}`);
     return null;
   }
+  return r.out;
 }
 
 // Read-only probe that never logs. Some reads (an unset config key) exit
 // non-zero by design; we don't want those surfacing as errors in the log.
-function gitProbe(cmd) {
-  try {
-    return execSync(`git -C "${REPO}" ${cmd}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
-  } catch {
-    return '';
-  }
+function gitProbe(...args) {
+  const r = runGitRaw(args, false);
+  return r.ok ? r.out : '';
 }
 
 // Run a git command that is EXPECTED to sometimes exit non-zero (a conflicting
-// merge, a missing merge stage). Returns { ok, out } and never logs — the
+// merge, a missing merge stage). Returns { ok, out, err } and never logs — the
 // caller decides what a non-zero exit means.
-function gitTry(cmd) {
-  try {
-    const out = execSync(`git -C "${REPO}" ${cmd}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-    return { ok: true, out };
-  } catch (err) {
-    return { ok: false, out: (err.stdout || '').toString().trim(), err: (err.stderr || err.message || '').toString().trim() };
-  }
+function gitTry(...args) {
+  return runGitRaw(args, true);
 }
 
 // A git process that dies mid-operation (notably a Cowork session, which can't
@@ -279,19 +290,19 @@ function cleanRemoteUrl(url) {
 async function withAuthenticatedRemote(fn) {
   if (MODE !== 'agency') return fn();
   const token = await getGitToken();
-  const current = git('remote get-url origin');
+  const current = git('remote', 'get-url', 'origin');
   if (!current) throw new Error('no origin remote configured');
   // Always work from the token-less base, never from whatever was on disk — a
   // stale token in `current` would otherwise double-embed and wedge us.
   const clean = cleanRemoteUrl(current);
   const authed = clean.replace(/^https:\/\//, `https://x-access-token:${token}@`);
-  git(`remote set-url origin "${authed}"`);
+  git('remote', 'set-url', 'origin', authed);
   try {
     return await fn();
   } finally {
     // Restore the CLEAN base, not `current`: this actively heals a URL that had
     // a stale token frozen into it, on the very first sync after the update.
-    git(`remote set-url origin "${clean}"`);
+    git('remote', 'set-url', 'origin', clean);
   }
 }
 
@@ -325,13 +336,14 @@ function currentRole() {
   return me?.role || MEMBER_ROLE_HINT;
 }
 
-// True when this role must NOT push relPath. Owners + scouts: never. Team: blocked
-// from root-level files (no "/") and root dotpaths (".claude/", ".team-config/",
-// ".github/", ".gitignore", …); any other path — every content folder, new ones
-// included — is allowed.
+// True when this role must NOT push relPath. Owners + scouts: never. The
+// 'agency' role (ClientBrain: agency staff inside a client's brain) gets
+// scout-level write access. Team: blocked from root-level files (no "/") and
+// root dotpaths (".claude/", ".team-config/", ".github/", ".gitignore", …);
+// any other path — every content folder, new ones included — is allowed.
 function pathBlockedForRole(relPath, role) {
   const norm = (role || '').toLowerCase().replace(/_/g, '-');
-  if (norm === 'owner' || norm === 'head-scout' || norm === 'scout') return false;
+  if (norm === 'owner' || norm === 'head-scout' || norm === 'scout' || norm === 'agency') return false;
   // Team's one allowed upward channel: skill feedback. flag-skill writes here,
   // and the whole point is that a flag reaches the scout, so let it sync up.
   if (relPath.startsWith('.team-config/feedback/')) return false;
@@ -375,10 +387,10 @@ function addToLocalExclude(rel) {
 // (git update-ref is instant and free). Old backups are pruned to KEEP_BACKUPS.
 function backupRef(tag) {
   const name = `refs/backups/${tag}-${tsCompact()}`;
-  git(`update-ref ${name} HEAD`);
-  const out = gitProbe('for-each-ref --sort=-creatordate --format=%(refname) refs/backups/');
+  git('update-ref', name, 'HEAD');
+  const out = gitProbe('for-each-ref', '--sort=-creatordate', '--format=%(refname)', 'refs/backups/');
   const refs = out.split('\n').filter(Boolean);
-  for (const stale of refs.slice(KEEP_BACKUPS)) git(`update-ref -d ${stale}`);
+  for (const stale of refs.slice(KEEP_BACKUPS)) git('update-ref', '-d', stale);
   return name;
 }
 
@@ -409,33 +421,33 @@ function sidecarName(rel, stamp) {
 // unmerged path, keep OUR version as the live file and write THEIR version to a
 // sidecar, then commit. Returns the list of conflicts (each {file, sidecar}).
 function resolveConflictsAndCommit(stamp) {
-  const unmerged = gitProbe('diff --name-only --diff-filter=U').split('\n').filter(Boolean);
+  const unmerged = gitProbe('diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
   const conflicts = [];
   for (const f of unmerged) {
-    const theirs = gitTry(`show ":3:${f}"`); // stage 3 = remote/their side
+    const theirs = gitTry('show', `:3:${f}`); // stage 3 = remote/their side
     try {
       if (theirs.ok) {
         const sc = sidecarName(f, stamp);
         const scAbs = path.join(REPO, sc);
         fs.mkdirSync(path.dirname(scAbs), { recursive: true });
         fs.writeFileSync(scAbs, theirs.out.endsWith('\n') ? theirs.out : `${theirs.out}\n`);
-        git(`add -- "${sc}"`);
+        git('add', '--', sc);
         conflicts.push({ file: f, sidecar: sc });
       }
       // Keep our clean version as the live file. If ours doesn't exist for this
       // path (e.g. deleted-by-us / modified-by-them), fall back to theirs so the
       // file isn't lost — the sidecar already preserved the other side either way.
-      const ours = git(`checkout --ours -- "${f}"`);
-      if (ours === null) git(`checkout --theirs -- "${f}"`);
-      git(`add -- "${f}"`);
+      const ours = git('checkout', '--ours', '--', f);
+      if (ours === null) git('checkout', '--theirs', '--', f);
+      git('add', '--', f);
     } catch (_) {
-      git(`add -- "${f}"`); // last resort: whatever's on disk, so the merge can finish
+      git('add', '--', f); // last resort: whatever's on disk, so the merge can finish
     }
   }
   // Stage everything the merge auto-resolved too, then commit the merge.
-  git('add -A');
-  let r = git('commit --no-edit');
-  if (r === null) r = git(`commit -m "auto-sync merge ${ts()} (kept both sides where edits overlapped)"`);
+  git('add', '-A');
+  let r = git('commit', '--no-edit');
+  if (r === null) r = git('commit', '-m', `auto-sync merge ${ts()} (kept both sides where edits overlapped)`);
   return conflicts;
 }
 
@@ -444,7 +456,7 @@ function resolveConflictsAndCommit(stamp) {
 function mergeWithSidecars(branch) {
   backupRef('pre-merge');
   const stamp = tsCompact();
-  let m = gitTry(`merge --no-edit origin/${branch}`);
+  let m = gitTry('merge', '--no-edit', `origin/${branch}`);
 
   // Safety net: a merge can refuse before it even starts when an uncommitted
   // local change (a held big file, or a race) sits on a path the merge must
@@ -454,7 +466,7 @@ function mergeWithSidecars(branch) {
     const blockers = parseMergeBlockers(m.err);
     if (blockers.length) {
       for (const b of blockers) { backupHeldEdit(b); revertProtectedEdit(b); }
-      m = gitTry(`merge --no-edit origin/${branch}`);
+      m = gitTry('merge', '--no-edit', `origin/${branch}`);
     }
   }
 
@@ -504,10 +516,10 @@ function backupHeldEdit(relPath) {
 // deleted file) or drop it entirely (a newly-created file). Touches both the
 // index and the working tree, so nothing is left to block the next pull.
 function revertProtectedEdit(relPath) {
-  const r = gitTry(`checkout HEAD -- "${relPath}"`);
+  const r = gitTry('checkout', 'HEAD', '--', relPath);
   if (!r.ok) {
     // No version in HEAD => the member created this file. Unstage and remove it.
-    git(`reset -q HEAD -- "${relPath}"`);
+    git('reset', '-q', 'HEAD', '--', relPath);
     try { fs.unlinkSync(path.join(REPO, relPath)); } catch (_) { /* already gone */ }
   }
 }
@@ -577,7 +589,7 @@ function stageAndCommit(s) {
   );
   if (!files.length) return { committed: false, held: [] };
 
-  git('add -A');
+  git('add', '-A');
   const held = [];
 
   if (MODE === 'agency') {
@@ -587,7 +599,7 @@ function stageAndCommit(s) {
       // Protected path edited by a role that can't push it. Make it genuinely
       // read-only: save the member's version, file a flag if it's a skill, then
       // restore the file so it can never wedge the next pull.
-      const diff = gitProbe(`diff HEAD -- "${f}"`);
+      const diff = gitProbe('diff', 'HEAD', '--', f);
       const sidecar = backupHeldEdit(f);
       const skill = skillNameFor(f);
       const flagged = skill ? fileSkillFlag(skill, f, sidecar, diff) : false;
@@ -601,30 +613,30 @@ function stageAndCommit(s) {
 
   // Hold oversized files among what's still staged: park in local exclude so
   // they stop reappearing, and leave them on disk untouched.
-  const stagedNow = gitProbe('diff --cached --name-only').split('\n').filter(Boolean);
+  const stagedNow = gitProbe('diff', '--cached', '--name-only').split('\n').filter(Boolean);
   for (const hit of oversizedFiles(stagedNow)) {
-    git(`reset -q HEAD -- "${hit.rel}"`);
+    git('reset', '-q', 'HEAD', '--', hit.rel);
     addToLocalExclude(hit.rel);
     held.push({ file: hit.rel, why: `${Math.round(hit.mb)} MB — too big to sync, kept on this machine only` });
   }
 
   for (const h of held) console.log(`[${ts()}]   held: ${h.file} — ${h.why}`);
 
-  const staged = gitProbe('diff --cached --name-only').split('\n').filter(Boolean);
+  const staged = gitProbe('diff', '--cached', '--name-only').split('\n').filter(Boolean);
   if (!staged.length) {
     return { committed: false, held }; // everything was held
   }
 
   const commitMsg = `auto-sync: ${ts()}`;
-  let commitResult = git(`commit -m "${commitMsg}"`);
+  let commitResult = git('commit', '-m', commitMsg);
   if (commitResult === null) {
     // Most common cause: this clone has no git author identity, so its very
     // first commit fails. Self-heal the identity and retry once.
     ensureGitIdentity();
-    commitResult = git(`commit -m "${commitMsg}"`);
+    commitResult = git('commit', '-m', commitMsg);
   }
   if (commitResult === null) {
-    git('reset -q HEAD');
+    git('reset', '-q', 'HEAD');
     return { committed: false, held, error: 'commit failed' };
   }
   console.log(`[${ts()}]   committed ${staged.length} file(s)${held.length ? `, held ${held.length}` : ''}`);
@@ -636,22 +648,22 @@ function stageAndCommit(s) {
 async function classifyState() {
   let fetchResult;
   try {
-    fetchResult = await withAuthenticatedRemote(() => git('fetch --quiet origin'));
+    fetchResult = await withAuthenticatedRemote(() => git('fetch', '--quiet', 'origin'));
   } catch (err) {
     return { state: 'fetch_failed', detail: err.message };
   }
   if (fetchResult === null) return { state: 'fetch_failed', detail: 'see git error above' };
 
-  const status = git('status --porcelain');
+  const status = git('status', '--porcelain');
   if (status === null) return { state: 'unknown' };
   const dirty = status.length > 0;
   const statusLines = status.split('\n').filter(Boolean);
 
-  const branch = git('rev-parse --abbrev-ref HEAD');
+  const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
   if (!branch) return { state: 'unknown' };
 
-  const localSha = git(`rev-parse ${branch}`);
-  const remoteSha = git(`rev-parse origin/${branch}`);
+  const localSha = git('rev-parse', branch);
+  const remoteSha = git('rev-parse', `origin/${branch}`);
   if (!localSha || !remoteSha) return { state: 'unknown', branch };
 
   if (localSha === remoteSha) {
@@ -660,7 +672,7 @@ async function classifyState() {
       : { state: 'clean_in_sync', branch };
   }
 
-  const ab = git(`rev-list --left-right --count ${branch}...origin/${branch}`);
+  const ab = git('rev-list', '--left-right', '--count', `${branch}...origin/${branch}`);
   if (!ab) return { state: 'unknown', branch };
   const [ahead, behind] = ab.split(/\s+/).map(Number);
 
@@ -728,7 +740,7 @@ async function doSync(trigger) {
     }
     if (s.state === 'clean_remote_ahead') {
       console.log(`[${ts()}] ${trigger}: remote ahead by ${s.behind}; fast-forwarding`);
-      const r = git(`merge --ff-only origin/${s.branch}`);
+      const r = git('merge', '--ff-only', `origin/${s.branch}`);
       if (r === null) {
         // Shouldn't happen (no local commits), but if it does, a real merge
         // handles it without losing anything.
@@ -801,7 +813,7 @@ async function doSync(trigger) {
     }
 
     // 3. Push (skip the network round-trip when there's genuinely nothing new).
-    const ahead = git(`rev-list --count origin/${s.branch}..${s.branch}`);
+    const ahead = git('rev-list', '--count', `origin/${s.branch}..${s.branch}`);
     if (ahead === '0' || ahead === null) {
       clearStall();
       reportRunning(held);
@@ -858,7 +870,7 @@ function scheduleDebouncedSync() {
 // it from the member identity. (2026-05-25: the agtest Windows clone hit exactly
 // this — onboarded before the identity step, every push blocked on commit.)
 function ensureGitIdentity() {
-  if (gitProbe('config user.email')) return; // already has an identity
+  if (gitProbe('config', 'user.email')) return; // already has an identity
   if (!MEMBER_EMAIL) {
     console.error(`[${ts()}] WARNING: no git identity and no member email to set one — commits will fail until 'git config user.email' is set`);
     return;
@@ -869,8 +881,8 @@ function ensureGitIdentity() {
     ? map.members.find((m) => (m.email || '').toLowerCase() === MEMBER_EMAIL)
     : null;
   if (me && me.name) name = me.name;
-  git(`config user.email "${MEMBER_EMAIL}"`);
-  git(`config user.name "${name}"`);
+  git('config', 'user.email', MEMBER_EMAIL);
+  git('config', 'user.name', name);
   console.log(`[${ts()}] set git identity: ${name} <${MEMBER_EMAIL}> (was unset)`);
 }
 
