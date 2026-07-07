@@ -557,7 +557,7 @@ function buildMenu() {
 
   // Signed-out OR session-expired agency brain: the one action that fixes it, at the top.
   if (needsReconnect(config) || authExpired) {
-    items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard() });
+    items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard('reconnect') });
     items.push({ type: 'separator' });
   }
 
@@ -735,6 +735,9 @@ function showSetupWindow() {
 // wizard file back into the shared window so "Connect to my agency team…" always
 // lands on the sign-in flow.
 function showSetupWizard(intent) {
+  // A reconnect re-mints the member token; the Command Centre freezes the token
+  // at spawn, so kill it here so it comes back with the fresh one after re-auth.
+  if (intent === 'reconnect' && ccProcess) { try { ccProcess.kill(); } catch (_) {} ccProcess = null; }
   showSetupWindow();
   if (setupWindow && !setupWindow.isDestroyed()) {
     // Resize back down to the wizard's footprint (openCommandCentre grows it to
@@ -1010,13 +1013,10 @@ ipcMain.handle('sign-out', () => {
     stopWatcher();
     if (ccProcess) { ccProcess.kill(); ccProcess = null; }
     if (process.platform === 'darwin' && app.dock) app.dock.show();
-    if (!setupWindow || setupWindow.isDestroyed()) {
-      showSetupWindow();
-    } else {
-      setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
-      setupWindow.show();
-      setupWindow.focus();
-    }
+    // Reopen the wizard in RECONNECT mode, not first-time setup: a signed-out
+    // member still has their brain folder on disk, so they should re-auth with
+    // their email and get straight back in, never the invite-code welcome.
+    showSetupWizard('reconnect');
     updateTray();
     return { ok: true };
   } catch (e) {
@@ -2018,7 +2018,7 @@ app.whenReady().then(() => {
     // If they're signed out (token wiped), open the wizard so they can reconnect,
     // not the Command Centre (which can't load their team without a token).
     if (!wasLaunchedAtLogin()) {
-      if (needsReconnect(config)) showSetupWizard();
+      if (needsReconnect(config)) showSetupWizard('reconnect');
       else openCommandCentre();
     }
   }

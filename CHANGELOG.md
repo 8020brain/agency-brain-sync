@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.0.2 — 2026-07-08
+
+- **Signing back in is one step now, not the whole setup again.** If your session expires or you sign out, "Reconnect / sign in again" takes you straight to entering your email and a code, and then puts you right back to work. Before, it walked you through the entire first-time setup (invite code, GitHub, choosing a folder) even though nothing had actually changed. Your brain folder, your team, and your role are all kept exactly as they were.
+
 ## 1.0.1 — 2026-07-07
 
 - **The app now tells you when your sign-in has expired, instead of stopping sync without a word.** Your sign-in refreshes roughly once a month. Before, if it lapsed, the app kept running and looked normal while it stopped syncing in the background, and nothing on screen told you. Now, the moment it happens, you get a desktop notification, the menu-bar icon switches to its needs-attention state with a "Reconnect / sign in again" option, and the Command Centre shows a banner across the top. Signing in once clears it, and syncing carries on from where it left off.

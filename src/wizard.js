@@ -29,6 +29,7 @@
   let soloConfirmed = false;    // true once routeAfterAuth confirms a solo member (footer role)
   let adopted = false;          // adopt flow saved config itself; enterDone must not re-save
   let flipped = false;          // flip-to-agency saved+restarted itself; enterDone must not re-save
+  let reconnectMode = false;    // reconnect intent: quick re-auth of an existing agency brain (no re-setup)
   let priorBrainPath = '';      // a personal brain this app already watched before this run (Path B notice)
   // Launch intent from the query string. 'create-agency' means this run came from
   // "Connect to my agency team…" (tray / Command Centre nudge), so a signed-in
@@ -80,6 +81,8 @@
       back.classList.add('hidden');
       back.onclick = null;
     }
+    // Reconnect starts on the email scene; there's nowhere useful to go back to.
+    if (reconnectMode && sceneId === 'scene-email') { back.classList.add('hidden'); back.onclick = null; }
   }
 
   // ---- helpers ----
@@ -366,6 +369,7 @@
         teams = (lookup && lookup.teams) || [];
       }
       renderFooterIdentity();
+      if (reconnectMode) { await reconnectFinalize(teams); return; }
       routeAfterAuth(teams);
     } catch (err) {
       const ctx = /my-teams|look up your agency/i.test((err && err.message) || '') ? 'otp' : 'otp';
@@ -398,6 +402,42 @@
         "This email isn't linked to a membership or an agency yet. If you just signed up or your owner just added you, give it a minute and try again, or check the exact address.");
       verifyBtn.disabled = false;
     }
+  }
+
+  // Reconnect: re-attach the existing on-disk agency brain with a fresh token —
+  // no invite code, no GitHub, no re-clone. Keeps the folder + team; refreshes
+  // only the token + identity, then restarts sync (save-config bounces the
+  // watcher). Falls back to the normal flow if there's no folder/team to reuse.
+  async function reconnectFinalize(teams) {
+    let prior = {};
+    try { prior = (await api.getConfig()) || {}; } catch (_) { prior = {}; }
+    if (!prior.brainPath) { routeAfterAuth(teams); return; }
+    const list = teams || [];
+    let team = prior.teamSlug ? list.find((t) => t.slug === prior.teamSlug) : null;
+    if (!team && prior.teamSlug) team = { slug: prior.teamSlug, name: prior.teamName || prior.teamSlug, role: prior.memberRole };
+    if (!team && list.length === 1) team = list[0];
+    if (!team) { routeAfterAuth(teams); return; }
+    try {
+      await api.saveConfig({
+        ...prior, mode: 'agency', brainPath: prior.brainPath, teamSlug: team.slug,
+        memberToken: authToken, memberEmail: authEmail, memberName: authName || prior.memberName,
+        memberRole: team.role || prior.memberRole,
+        scoutSeats: team.scoutSeats != null ? Number(team.scoutSeats) : (prior.scoutSeats != null ? prior.scoutSeats : null),
+        packageTier: team.packageTier || prior.packageTier || null,
+        kind: team.kind || prior.kind || 'agency',
+      });
+    } catch (e) { errorIn('err-otp', friendlyError(e, 'otp')); verifyBtn.disabled = false; return; }
+    mode = 'agency';
+    chosenFolder = prior.brainPath;
+    flipped = true; // config saved above — enterDone must not re-save
+    teamInfo = {
+      memberToken: authToken, teamSlug: team.slug, teamName: team.name || team.slug,
+      member: { email: authEmail, name: authName, role: team.role || prior.memberRole },
+      kind: team.kind || prior.kind || 'agency',
+      scoutSeats: team.scoutSeats != null ? Number(team.scoutSeats) : prior.scoutSeats,
+      packageTier: team.packageTier || prior.packageTier || null,
+    };
+    enterDone();
   }
 
   function renderTeamPicker(teams) {
@@ -1073,7 +1113,27 @@
       const prior = await api.getConfig();
       if (prior && prior.mode === 'personal' && prior.brainPath) priorBrainPath = prior.brainPath;
     } catch (_) { /* no prior config; brand-new install */ }
-    show('scene-welcome');
+    if (launchIntent === 'reconnect') {
+      reconnectMode = true;
+      // Quick re-auth of an existing agency brain, NOT first-time setup: hide the
+      // 7-step rail and start at a pre-filled email sign-in, skipping the invite
+      // code. After the code we just re-attach the existing folder + team.
+      const railEl = document.getElementById('rail'); if (railEl) railEl.style.display = 'none';
+      const scEl = document.getElementById('stepCount'); if (scEl) scEl.style.display = 'none';
+      const eb = document.querySelector('#scene-email .eyebrow'); if (eb) eb.textContent = 'Welcome back';
+      let priorEmail = '';
+      try { const pc = await api.getConfig(); priorEmail = (pc && pc.memberEmail) || ''; } catch (_) {}
+      show('scene-email');
+      const bb = document.getElementById('btn-back'); if (bb) bb.classList.add('hidden');
+      if (priorEmail) {
+        emailInput.value = priorEmail;
+        authEmail = priorEmail.toLowerCase();
+        if (sendCodeBtn) sendCodeBtn.disabled = false;
+      }
+      try { emailInput.focus(); } catch (_) {}
+    } else {
+      show('scene-welcome');
+    }
     // Deep-link join (agencybrain://join?token=…): the long token resolves the
     // same way as a pasted code, so kick it off automatically.
     let pending = null;
