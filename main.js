@@ -181,9 +181,79 @@ function loadConfig() {
     return null;
   }
 }
+// ---------- brain profiles (the switcher) ----------
+// One machine can hold several brains (a scout's own agency brain + the client
+// brains they service — the ClientBrain placement-B case). The top-level config
+// keys stay the ACTIVE brain, exactly as every existing reader (watcher, CC,
+// tray) expects, so old configs and old code paths keep working untouched.
+// config.brains[] archives a profile per known brain; saveConfig maintains it
+// on every write, and the tray's "Switch brain" swaps a profile into the top
+// level. Only ONE brain is ever active/synced at a time (the app is
+// single-instance by design); switching is the supported way to work across
+// brains, not parallel watchers.
+const BRAIN_PROFILE_KEYS = ['brainPath', 'mode', 'teamSlug', 'memberEmail', 'memberName', 'memberRole', 'memberToken', 'scoutSeats', 'packageTier', 'kind', 'brandName'];
+function brainKey(p) { return (p && (p.teamSlug || p.brainPath)) || ''; }
+function profileFromActive(cfg) {
+  const p = {};
+  for (const k of BRAIN_PROFILE_KEYS) if (cfg[k] !== undefined) p[k] = cfg[k];
+  return p;
+}
+function upsertProfile(brains, profile) {
+  const key = brainKey(profile);
+  if (!key || !profile.brainPath) return brains;
+  const next = brains.filter((b) => brainKey(b) !== key);
+  next.push(profile);
+  return next;
+}
+
 function saveConfig(c) {
   fs.mkdirSync(USER_DATA, { recursive: true });
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(c, null, 2));
+  const prev = loadConfig();
+  const merged = { ...c };
+  let brains = Array.isArray(c.brains) ? c.brains.slice()
+    : (prev && Array.isArray(prev.brains) ? prev.brains.slice() : []);
+  // A new active brain arriving (different key) archives the old one first, so
+  // setting up a second brain never clobbers the first. Same-key saves just
+  // refresh that brain's stored profile (fresh token, role, brand).
+  if (prev && prev.brainPath && brainKey(prev) && brainKey(prev) !== brainKey(merged)) {
+    brains = upsertProfile(brains, profileFromActive(prev));
+  }
+  if (merged.brainPath && brainKey(merged)) {
+    brains = upsertProfile(brains, profileFromActive(merged));
+  }
+  if (brains.length) merged.brains = brains;
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2));
+}
+
+// Swap another stored brain into the active slot: archive-and-swap via
+// saveConfig, then bounce the watcher + Command Centre so both come up
+// against the new folder and identity. A profile with an expired sign-in
+// token lands on the existing needsReconnect path (clear message, one click
+// to sign in again) rather than failing silently.
+function switchBrain(key) {
+  const cfg = loadConfig();
+  if (!cfg || !Array.isArray(cfg.brains)) return;
+  if (brainKey(cfg) === key) return;
+  const target = cfg.brains.find((b) => brainKey(b) === key);
+  if (!target) return;
+  const next = { ...cfg };
+  for (const k of BRAIN_PROFILE_KEYS) delete next[k];
+  Object.assign(next, target);
+  saveConfig(next);
+  if (ccProcess) { ccProcess.kill(); ccProcess = null; }
+  if (watcherProcess) {
+    watcherProcess.once('exit', () => startWatcher());
+    watcherProcess.kill('SIGINT');
+  } else {
+    startWatcher();
+  }
+  updateTray();
+}
+function brainLabel(p) {
+  const name = (p && p.kind === 'client' && p.brandName) ? p.brandName
+    : (p && p.teamSlug) ? p.teamSlug
+    : (p && p.brainPath) ? path.basename(p.brainPath) : '(unknown)';
+  return (p && p.kind === 'client' ? '◆ ' : '') + name;
 }
 
 // Agency mode but the saved sign-in token is gone — e.g. config.json was cleared
@@ -430,8 +500,11 @@ function buildMenu() {
     ? `Agency: ${config.teamSlug || 'unknown'} (${config.memberRole || 'team'})`
     : config && config.mode === 'personal' ? 'Personal sync' : '';
 
+  // A client brain shows the client's brand as the menu headline even before
+  // the next app restart re-derives APP_NAME from config.
+  const headline = (config && config.kind === 'client' && config.brandName) ? config.brandName : APP_NAME;
   const items = [
-    { label: APP_NAME, enabled: false },
+    { label: headline, enabled: false },
     { label: statusLabel(), enabled: false },
     ...(modeBadge ? [{ label: modeBadge, enabled: false }] : []),
     { type: 'separator' },
@@ -439,6 +512,23 @@ function buildMenu() {
     { label: lastEventLine ? `Last:  ${lastEventLine}` : 'Last:  (no activity yet)', enabled: false },
     { type: 'separator' },
   ];
+
+  // The brain switcher: shown the moment this machine knows more than one
+  // brain (a scout's own agency brain + client brains they service). One
+  // active at a time; switching bounces the watcher + Command Centre onto the
+  // picked brain. The active entry is ticked and disabled.
+  const knownBrains = (config && Array.isArray(config.brains)) ? config.brains : [];
+  if (knownBrains.length > 1) {
+    items.push({
+      label: 'Switch brain',
+      submenu: knownBrains.map((b) => ({
+        label: brainLabel(b) + (brainKey(b) === brainKey(config) ? '   ✓ active' : ''),
+        enabled: brainKey(b) !== brainKey(config),
+        click: () => switchBrain(brainKey(b)),
+      })),
+    });
+    items.push({ type: 'separator' });
+  }
 
   // A downloaded update waiting to install — the first, most prominent action, so
   // it can't be missed in the menu. Reuses the tested relaunch flow (offers
