@@ -106,7 +106,16 @@
           var nd=$(t[3]); if(nd) nd.hidden=true;
         }
       });
-      $('who-email').textContent=h.memberEmail||'';
+      // Session-expired surfacing: banner up top + the account line stops saying
+      // "signed in" so an expired session can't look normal while nothing syncs.
+      var _seb=$('session-expired-banner');
+      if(_seb) _seb.hidden=!h.sessionExpired;
+      if(h.sessionExpired){
+        $('who-role').textContent='Session expired';
+        $('who-email').textContent=(h.memberEmail||'')+' — reconnect in the app';
+      } else {
+        $('who-email').textContent=h.memberEmail||'';
+      }
       $('brand-ver').textContent=h.version?('v'+h.version):'';
       $('ft-ver').textContent='Agency Brain'+(h.version?(' v'+h.version):'');
       $('ft-path').textContent=h.brainRoot||'';

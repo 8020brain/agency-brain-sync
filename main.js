@@ -379,6 +379,12 @@ let lastStuckNotified = false;
 // Same idea for the "signed out, please reconnect" notification (agency mode with
 // the token missing). One per episode; re-armed once a token is present again.
 let reconnectNotified = false;
+// Runtime auth-expired flag, driven by the watcher (a 401 minting a git token):
+// the stored token is still PRESENT but the server has rejected it as expired.
+// Distinct from needsReconnect(config), which only catches a locally-MISSING
+// token. Both funnel into the same "Reconnect / sign in again" surface. Reset
+// when sync recovers (i.e. after the member signs in again).
+let authExpired = false;
 // Files the watcher parked locally (oversized, or a role the member can't push)
 // while the rest of the brain keeps syncing. Surfaced as a calm menu line — NOT
 // a red attention state, because syncing is still healthy.
@@ -404,7 +410,7 @@ function notifyReconnect() {
     if (!Notification.isSupported()) return;
     new Notification({
       title: `${APP_NAME}: please sign in again`,
-      body: `Your sign-in was cleared, so syncing is paused. Open ${APP_NAME} and choose "Reconnect / sign in again".`,
+      body: `Your sign-in has expired or was cleared, so syncing is paused. Open ${APP_NAME} and choose "Reconnect / sign in again".`,
     }).show();
   } catch (_) { /* notifications are best-effort */ }
 }
@@ -419,20 +425,31 @@ function applyWatcherState(payload) {
   const isAttention = payload.state === 'stop';
   if (isAttention) {
     lastStopReason = payload.reason || 'needs your attention';
-    // Only the stabilised "stuck" stop (repeated failures) nudges the user; a
-    // one-off transient stop stays a quiet tray colour.
-    if (payload.stuck && !lastStuckNotified) {
+    let changed = false;
+    if (payload.authExpired) {
+      // The watcher's git-token mint got a 401: the sign-in session is dead. Route
+      // it into the same reconnect surface as a locally-missing token — a one-time
+      // desktop prompt + the tray "Reconnect / sign in again…" item — so an expired
+      // session can never fail silently in the background again.
+      if (!authExpired) { authExpired = true; changed = true; }
+      if (!reconnectNotified) { reconnectNotified = true; notifyReconnect(); }
+    } else if (payload.stuck && !lastStuckNotified) {
+      // Only the stabilised "stuck" stop (repeated failures) nudges the user; a
+      // one-off transient stop stays a quiet tray colour.
       lastStuckNotified = true;
       notifyStuck(lastStopReason);
     }
     if (watcherState !== 'attention') {
       watcherState = 'attention';
-      updateTray();
+      changed = true;
     }
+    if (changed) updateTray();
   } else if (watcherState === 'attention') {
     // Watcher reports it cleared the stop; resume normal display.
     lastStopReason = null;
     lastStuckNotified = false;
+    authExpired = false;
+    reconnectNotified = false;
     watcherState = 'running';
     updateTray();
   } else if (heldChanged) {
@@ -538,8 +555,8 @@ function buildMenu() {
     items.push({ type: 'separator' });
   }
 
-  // Signed-out agency brain: the one action that fixes it, right at the top.
-  if (needsReconnect(config)) {
+  // Signed-out OR session-expired agency brain: the one action that fixes it, at the top.
+  if (needsReconnect(config) || authExpired) {
     items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard() });
     items.push({ type: 'separator' });
   }

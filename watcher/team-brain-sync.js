@@ -235,7 +235,13 @@ async function mintGitToken() {
   });
   if (!r.ok) {
     const body = await r.text().catch(() => '');
-    throw new Error(`git-token mint HTTP ${r.status}: ${body.slice(0, 200)}`);
+    const err = new Error(`git-token mint HTTP ${r.status}: ${body.slice(0, 200)}`);
+    // A 401 here means the member's sign-in session (member_token) has expired or
+    // been invalidated server-side. The token is still stored locally, so this
+    // request is the ONLY place the app learns it's dead — tag it so doSync raises
+    // a loud, specific "sign in again" state instead of a silent generic error.
+    if (r.status === 401) err.authExpired = true;
+    throw err;
   }
   const json = await r.json();
   return { token: json.token, expiresAt: new Date(json.expiresAt) };
@@ -650,6 +656,12 @@ async function classifyState() {
   try {
     fetchResult = await withAuthenticatedRemote(() => git('fetch', '--quiet', 'origin'));
   } catch (err) {
+    // An expired sign-in surfaces HERE first (the git-token mint 401s inside
+    // withAuthenticatedRemote). Don't bury it as a generic "offline / fetch
+    // failed" — re-throw so doSync raises the loud "Reconnect / sign in again"
+    // state. Without this the pull path silently mislabels an expired session as
+    // offline, which is the exact silent failure this fixes.
+    if (err && err.authExpired) throw err;
     return { state: 'fetch_failed', detail: err.message };
   }
   if (fetchResult === null) return { state: 'fetch_failed', detail: 'see git error above' };
@@ -835,7 +847,14 @@ async function doSync(trigger) {
     reportRunning(held);
   } catch (err) {
     console.error(`[${ts()}] sync error: ${err.message}`);
-    writeState('stop', `error: ${err.message}`);
+    if (err && err.authExpired) {
+      // Distinct from a generic sync error: the session is dead and only signing
+      // in again fixes it. Flag it so main.js prompts the member (desktop
+      // notification + tray "Reconnect / sign in again…") instead of failing mutely.
+      writeState('stop', 'Your sign-in has expired — open Agency Brain and choose "Reconnect / sign in again"', { authExpired: true });
+    } else {
+      writeState('stop', `error: ${err.message}`);
+    }
   } finally {
     syncing = false;
   }

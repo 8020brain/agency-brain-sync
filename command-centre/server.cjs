@@ -448,6 +448,11 @@ const server = http.createServer(async (req, res) => {
       // stale if the role changes, so prefer the live value. Falls back to the
       // config snapshot when offline / signed out / the API is cold.
       let memberRole = MEMBER_ROLE;
+      // sessionExpired: the stored member token was rejected (401) by the server —
+      // the sign-in has expired. Surfaced in the footer so the account line stops
+      // pretending you're signed in while nothing syncs. Only a real 401 sets it;
+      // a network error/timeout keeps the snapshot (offline is not "signed out").
+      let sessionExpired = false;
       if (MEMBER_TOKEN && TEAM_SLUG) {
         try {
           const r = await fetch(API_BASE + '/api/team-brain/my-teams', {
@@ -462,8 +467,10 @@ const server = http.createServer(async (req, res) => {
               if (t.packageTier) packageTier = t.packageTier;
               if (t.role) memberRole = t.role;
             }
+          } else if (r.status === 401) {
+            sessionExpired = true;
           }
-        } catch (e) { /* offline / slow / signed out — keep the snapshot */ }
+        } catch (e) { /* offline / slow — keep the snapshot; do NOT flag expiry */ }
       }
       // A solo / personal-mode brain has no team, so no server-assigned role.
       // The person who set up their own brain is its owner — present the Owner
@@ -477,6 +484,7 @@ const server = http.createServer(async (req, res) => {
         scoutSeats, packageTier,
         teamKind: TEAM_KIND,
         hasLocalIdentity: hasLocalIdentity(),
+        sessionExpired,
       });
     }
     if (req.method === 'GET' && p === '/api/branding') {
