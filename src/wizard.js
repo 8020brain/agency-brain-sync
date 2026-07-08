@@ -147,7 +147,14 @@
         // Role-aware: an owner hitting this IS the person who has to act, so never
         // tell them to "ask your owner" (the dead-end Ionut hit, 2026-06-19).
         const role = (teamInfo && teamInfo.member && teamInfo.member.role) || '';
-        if (role === 'owner') return "Almost there — you still need to install the Agency Brain GitHub App on your repo. Open github.com/apps/agency-brain-sync, click Install, pick the repo you created, then come back and click Try again.";
+        // The install URL MUST carry ?state=<team-slug>. A bare app URL comes
+        // back from GitHub with no team tag, producing the "Install incomplete:
+        // didn't receive both the installation_id and the team slug" dead-end.
+        const slug = (teamInfo && teamInfo.teamSlug) || '';
+        const installUrl = slug
+          ? `github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(slug)}`
+          : 'github.com/apps/agency-brain-sync';
+        if (role === 'owner') return `Almost there — you still need to install the Agency Brain GitHub App. Open ${installUrl}, click Install, choose your business organisation, then come back and click Try again.`;
         return "Your agency isn't fully set up yet — your owner still needs to install the Agency Brain GitHub App on the repo. Once they've done that, come back and try again.";
       }
       if (/dev guard/i.test(msg)) return msg; // surface the dev guard verbatim to Mike
@@ -237,7 +244,7 @@
       if (teamInfo.kind === 'client' && inviteRole === 'owner' && !teamInfo.repoUrl) {
         try {
           const st = await api.getInstallStatus(teamInfo.teamSlug);
-          if (!st || !st.repoUrl) { enterConnectOrg(); return; }
+          if (!st || !st.repoUrl || !st.installed) { enterConnectOrg(); return; }
           teamInfo.repoUrl = st.repoUrl;
         } catch (e) { /* status hiccup — fall through to the normal path */ }
       }
@@ -475,7 +482,13 @@
     if (role === 'owner' || role === 'head_scout' || role === 'head-scout') {
       try {
         const st = await api.getInstallStatus(team.slug);
-        if (!st || !st.repoUrl) { enterConnectOrg(); return; }
+        // Route to connect-org whenever the GitHub App isn't linked yet, not
+        // only when the repo is missing. An owner whose team carries a repo_url
+        // but no install (e.g. a migrated beta team) would otherwise skip the
+        // install step, fail the clone, and get sent to a bare app URL with no
+        // team tag — the "Install incomplete: didn't receive both the
+        // installation_id and the team slug" dead-end.
+        if (!st || !st.repoUrl || !st.installed) { enterConnectOrg(); return; }
         teamInfo.repoUrl = st.repoUrl;
       } catch (e) { /* status hiccup — fall through to the normal path */ }
     }
@@ -592,7 +605,12 @@
     if (!connectOrgSlug) return;
     try {
       const st = await api.getInstallStatus(connectOrgSlug);
-      if (st && st.repoUrl) {
+      // Only advance once the App install has actually landed. Requiring
+      // st.installed (not just st.repoUrl) matters for a team that already
+      // carries a repo_url but no install: without it, the first poll tick
+      // would fire immediately and bounce back to the clone, which fails
+      // because the App still isn't installed.
+      if (st && st.installed && st.repoUrl) {
         stopConnectOrgPoll();
         if (teamInfo) teamInfo.repoUrl = st.repoUrl;
         enterMachine();
