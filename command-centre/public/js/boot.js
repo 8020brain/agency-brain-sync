@@ -48,7 +48,13 @@
   loadHealth();
   loadRoster();
   loadObservability();
-  setInterval(function(){ loadObservability(); loadRoster(); },30000);
+  // Observability is read from the local repo, so it's free — keep it snappy.
+  // The roster comes from Neon via the API, and an agency adds a person about once a
+  // month, so polling it every 30s was ~57 database reads a MINUTE across all installs
+  // and stopped the (per-hour-billed) database ever sleeping. 5 minutes is plenty; the
+  // API also busts its cache the moment a roster actually changes. (2026-07-14)
+  setInterval(loadObservability, 30000);
+  setInterval(loadRoster, 5 * 60 * 1000);
 
   // ===== Get set up page + team-only Start here strip + scout Feedback inbox (2026-05-25) =====
   // NOTE: these MUST stay inside the IIFE — they call esc/ago/$/api/activateView/OBS/CCROLE,
