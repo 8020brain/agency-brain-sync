@@ -77,6 +77,10 @@ const MEMBER_EMAIL = (process.env.AGENCY_MEMBER_EMAIL || '').toLowerCase();
 const MEMBER_ROLE_HINT = process.env.AGENCY_MEMBER_ROLE || 'team';
 const APP_VERSION = process.env.AGENCY_APP_VERSION || '';
 const STATE_FILE = process.env.STATE_FILE || '';
+// Phone-dispatch: opt-in per machine (tray menu, default off). When on, each
+// sync is followed by a read-only check of origin for !inbox/!dispatch-*.md
+// notes captured from the phone, and a claude session is opened on each.
+const DISPATCH_ENABLED = process.env.BRAIN_DISPATCH === '1';
 
 if (!REPO) {
   console.error('ERROR: set BRAIN_PATH to the absolute path of the brain folder.');
@@ -926,8 +930,23 @@ chokidar.watch(REPO, {
   scheduleDebouncedSync();
 });
 
-setInterval(() => doSync('interval').catch(() => {}), PULL_INTERVAL_MS);
-doSync('startup').catch(() => {});
+// Phone-dispatch poller rides the sync cadence: notes only ever arrive from
+// origin, and doSync just fetched it, so checking right after costs one
+// ls-tree. The poller never touches git's network side (agency-mode fetches
+// need the app's token plumbing, which doSync owns).
+let dispatchPoller = null;
+if (DISPATCH_ENABLED) {
+  try {
+    dispatchPoller = require('./dispatch-poller').create({ repoPath: REPO, log: (m) => console.log(`[${ts()}] ${m}`) });
+    console.log(`[${ts()}] phone-dispatch: ON — watching origin for !dispatch- notes`);
+  } catch (e) {
+    console.error(`[${ts()}] phone-dispatch failed to start: ${e.message}`);
+  }
+}
+const afterSync = () => { if (dispatchPoller) { try { dispatchPoller.check(); } catch (e) { console.error(`[${ts()}] dispatch check error: ${e.message}`); } } };
+
+setInterval(() => doSync('interval').then(afterSync).catch(() => {}), PULL_INTERVAL_MS);
+doSync('startup').then(afterSync).catch(() => {});
 
 process.on('SIGINT', () => { console.log(`\n[${ts()}] stopped.`); writeState('stop', 'sigint'); process.exit(0); });
 process.on('SIGTERM', () => { console.log(`\n[${ts()}] stopped.`); writeState('stop', 'sigterm'); process.exit(0); });

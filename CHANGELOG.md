@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.0.3 — 2026-07-20
+
+- **Start a Claude session from your phone.** Dictate a note into the Brain Inbox on your phone (8020brain.com/i) and tap "Save & Start Session". Within about a minute, your Mac opens a Terminal window with Claude already working on that note, exactly as if you'd dispatched it from the Command Centre. Turn it on from the menu-bar icon with "Start sessions from your phone". It stays off unless you switch it on, so on a team only the computers you choose respond to phone notes. This first version is Mac only, and the machine needs the Claude command-line tool and tmux installed; if a note arrives and they're missing, the app tells you in the log instead of failing silently.
+
 ## 1.0.2 — 2026-07-08
 
 - **Signing back in is one step now, not the whole setup again.** If your session expires or you sign out, "Reconnect / sign in again" takes you straight to entering your email and a code, and then puts you right back to work. Before, it walked you through the entire first-time setup (invite code, GitHub, choosing a folder) even though nothing had actually changed. Your brain folder, your team, and your role are all kept exactly as they were.

@@ -300,6 +300,10 @@ function startWatcher() {
     STATE_FILE,
     PATH: pathExtra,
     ELECTRON_RUN_AS_NODE: '1',
+    // Phone-dispatch (Brain Inbox "Save & Start Session"): opt-in per machine
+    // via the tray menu, default off, so in a team only the machines the owner
+    // picks act on phone notes.
+    BRAIN_DISPATCH: config.dispatchEnabled ? '1' : '0',
   };
 
   // Agency-mode: pass identity + a way to mint fresh tokens
@@ -594,6 +598,13 @@ function buildMenu() {
       ? [{ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') }]
       : []),
     { label: 'Set up...',                click: () => showSetupWindow() },
+    // Phone-dispatch toggle (macOS only for now): when on, a note saved with
+    // "Save & Start Session" on the Brain Inbox phone app opens a Claude
+    // session on THIS machine within about a minute. Default off so a team's
+    // shared repo doesn't open sessions on every teammate's computer.
+    ...(process.platform === 'darwin' && config && config.brainPath
+      ? [{ label: `Start sessions from your phone: ${config.dispatchEnabled ? 'on' : 'off'}`, click: () => toggleDispatch() }]
+      : []),
     { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
     { type: 'separator' },
     { label: `About ${APP_NAME}`,        click: () => showAbout() },
@@ -618,6 +629,24 @@ function updateTray() {
 }
 
 // ---------- login item ----------
+// Flip phone-dispatch for this machine and bounce the watcher so the child
+// process picks up the new BRAIN_DISPATCH env. Kill directly (not
+// stopWatcher(), which parks the state as 'paused' and won't restart).
+function toggleDispatch() {
+  const cfg = loadConfig();
+  if (!cfg) return;
+  cfg.dispatchEnabled = !cfg.dispatchEnabled;
+  saveConfig(cfg);
+  if (watcherProcess) {
+    try { watcherProcess.kill('SIGINT'); } catch (_) {}
+    watcherProcess = null;
+    stopStateFileWatch();
+  }
+  watcherState = 'stopped';
+  startWatcher();
+  updateTray();
+}
+
 function getLoginItem() { return app.getLoginItemSettings().openAtLogin; }
 // Windows has no openAsHidden; instead we tag the login-item command with
 // --hidden and detect it in argv (see wasLaunchedAtLogin). macOS uses
