@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.0.4 — 2026-07-21
+
+- **The Google Ads page now points you at the Ads portal.** Team members get a card explaining the ready-made reports waiting for them at m.ads2ai.com/ads (budgets, search terms, account health and more) with nothing to set up on their side, plus a note to ask their Scout if their login isn't recognised yet. Owners and scouts get an "Open the Ads portal" link at the top of the page and a card explaining how to switch on team access so the whole agency can use it.
+
 ## 1.0.3 — 2026-07-20
 
 - **Start a Claude session from your phone.** Dictate a note into the Brain Inbox on your phone (8020brain.com/i) and tap "Save & Start Session". Within about a minute, your Mac opens a Terminal window with Claude already working on that note, exactly as if you'd dispatched it from the Command Centre. Turn it on from the menu-bar icon with "Start sessions from your phone". It stays off unless you switch it on, so on a team only the computers you choose respond to phone notes. This first version is Mac only, and the machine needs the Claude command-line tool and tmux installed; if a note arrives and they're missing, the app tells you in the log instead of failing silently.

@@ -306,7 +306,10 @@
     <!-- SCOUT: enter creds once -> shareable block -->
     <div id="gads-scout" hidden>
       <!-- RECOMMENDED: proxy. Credentials stay on the Worker; team holds only a gate token. -->
-      <div class="sec">Google Ads <span class="note">set up once, then your team just asks the brain for data</span></div>
+      <div class="sec-row" style="justify-content:space-between">
+        <div class="sec">Google Ads <span class="note">set up once, then your team just asks the brain for data</span></div>
+        <a href="https://m.ads2ai.com/ads" target="_blank" rel="noopener" style="color:#D64C00;font-weight:600;white-space:nowrap">Open the Ads portal ↗</a>
+      </div>
       <p class="fs-intro">The agency's Google Ads credentials live in one place: a small vault (a Cloudflare Worker) you set up once. The vault is what connects to Google Ads. Nobody on the team connects to anything, and nobody's laptop ever holds the credentials. Each person holds a revocable gate token, and their brain uses it to ask the vault for data.</p>
 
       <div class="card block" style="margin-top:16px">
@@ -333,6 +336,10 @@
           <div class="sec">Hand each person the gate token</div>
           <p class="fs-intro" style="margin-top:0">Send the gate token privately (a DM or a password manager, never a group channel). Each person pastes it once on the Google Ads page of their own app, which just saves the key on their machine. That's their whole setup. From then on they never touch the token or that page again; they open Cowork and ask for the data they want.</p>
           <details class="esc"><summary>Removing someone, and how the tokens work</summary><p>The credentials only ever live on the Worker. The one shared gate token is the default and right for most teams: to remove someone, generate a new token and re-share it with whoever stays. Per-person tokens are an optional extra for revoking one person at a time; if you use them, exactly one person administers the token list (it lives on that one machine only), so agree who that is before a second scout starts issuing tokens. Either way the credentials are never touched. Keep tokens inside your team, because the Worker accepts any valid token from anywhere.</p></details>
+        </div>
+        <div class="card">
+          <div class="sec">The Ads portal <span class="note">visual reports, ready in the browser</span></div>
+          <p class="fs-intro" style="margin-top:0">All the visual Google Ads reports (budgets, search terms, account health and more) live in the Ads portal at <a href="https://m.ads2ai.com/ads" target="_blank" rel="noopener" style="color:#D64C00;font-weight:600">m.ads2ai.com/ads</a>. Your whole team can use it too: switch on team access in the portal's Ads settings, and from then on they log in with their work email. They get every report without ever holding a credential.</p>
         </div>
       </div>
 
@@ -386,6 +393,11 @@
             <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork or Claude and paste this to confirm it works:</p>
             <div class="copyblock" id="gp-prompt"></div>
           </div>
+          <div class="card">
+            <div class="sec">See your accounts in the Ads portal</div>
+            <p class="fs-intro" style="margin-top:0">The Ads portal gives you ready-made reports for every account your agency manages: budgets, search terms, account health and more, all in your browser. Log in with your work email at <a href="https://m.ads2ai.com/ads" target="_blank" rel="noopener" style="color:#D64C00;font-weight:600">m.ads2ai.com/ads</a> and it takes you straight to your accounts. There's nothing to set up on your side.</p>
+            <p class="fs-intro" style="font-size:13px">If it doesn't recognise your email yet, ask your Scout to switch on team access in the portal's Ads settings.</p>
+          </div>
         </div>
       </div>
       <!-- FALLBACK: paste the full credentials block (shown when no proxy URL is set) -->
@@ -407,6 +419,11 @@
           <div class="assure" id="ga-saved-where" style="font-size:13px;margin-top:0">Saved your credentials.</div>
           <p style="font-size:14px;margin-top:12px">Open your agency brain in Cowork (or the Claude desktop app) and paste the prompt below to confirm it works. If you'd rather use the google-ads connector, fully quit Claude and reopen it first so it loads the new setup.</p>
           <div class="copyblock" id="ga-prompt"></div>
+        </div>
+        <div class="card">
+          <div class="sec">See your accounts in the Ads portal</div>
+          <p class="fs-intro" style="margin-top:0">The Ads portal gives you ready-made reports for every account your agency manages: budgets, search terms, account health and more, all in your browser. Log in with your work email at <a href="https://m.ads2ai.com/ads" target="_blank" rel="noopener" style="color:#D64C00;font-weight:600">m.ads2ai.com/ads</a> and it takes you straight to your accounts. There's nothing to set up on your side.</p>
+          <p class="fs-intro" style="font-size:13px">If it doesn't recognise your email yet, ask your Scout to switch on team access in the portal's Ads settings.</p>
         </div>
       </div>
       </div>
