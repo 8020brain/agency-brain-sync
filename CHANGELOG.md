@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.0.5 — 2026-07-21
+
+- **The Google Ads page now tells the whole data story.** The setup card gained a fourth step: once your vault works, ask your brain to "set up the daily ads data fetch" and each client's data lands in their folder every morning, syncs to your whole team, and feeds the Ads portal directly with no Google Sheet to maintain. It also points at the portal's team access switch so your entire team can use the reports.
+
 ## 1.0.4 — 2026-07-21
 
 - **The Google Ads page now points you at the Ads portal.** Team members get a card explaining the ready-made reports waiting for them at m.ads2ai.com/ads (budgets, search terms, account health and more) with nothing to set up on their side, plus a note to ask their Scout if their login isn't recognised yet. Owners and scouts get an "Open the Ads portal" link at the top of the page and a card explaining how to switch on team access so the whole agency can use it.
