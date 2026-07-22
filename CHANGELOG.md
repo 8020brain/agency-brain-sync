@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.0.6 — 2026-07-22
+
+- **Your synced ads data now feeds the Ads portal straight from this app.** When the app is running and your daily ads fetch saves client data into the brain, the Ads portal (m.ads2ai.com/ads) reads your accounts and reports directly from this computer. There is no Google Sheet in the path and your data never touches anyone else's servers. If your agency uses the script and Sheet method, nothing changes for you. One note on browsers: this works in Brave, Chrome, Edge and Firefox; Safari doesn't allow web pages to talk to local apps, so use one of the others for the Ads portal.
+
 ## 1.0.5 — 2026-07-21
 
 - **The Google Ads page now tells the whole data story.** The setup card gained a fourth step: once your vault works, ask your brain to "set up the daily ads data fetch" and each client's data lands in their folder every morning, syncs to your whole team, and feeds the Ads portal directly with no Google Sheet to maintain. It also points at the portal's team access switch so your entire team can use the reports.
