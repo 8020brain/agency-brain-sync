@@ -37,6 +37,7 @@ const agentsTracker = require('./lib/agents-tracker.cjs');
 const homePrefs = require('./lib/home-prefs.cjs');
 const { getObservability } = require('./lib/observability.cjs');
 const progression = require('./lib/progression.cjs');
+const adsData = require('./lib/ads-data.cjs');
 
 // Identity for the header + version footer. main.js passes these from the
 // member's config.json, which the app got from the server at OTP login
@@ -421,6 +422,14 @@ const server = http.createServer(async (req, res) => {
   //     Origin; the app's page carries the loopback origin — reject a foreign one.
   if (!SELF_HOSTS.has((req.headers.host || '').toLowerCase())) {
     return send(res, 403, { error: 'forbidden host' });
+  }
+  // Ads portal local data source (/ads, /ads/ping): read-only GET routes the
+  // members portal (m.ads2ai.com) reads cross-origin. Handled BEFORE the
+  // write-origin check below — its OPTIONS preflight carries the portal
+  // origin, and the module enforces its own origin allowlist + GET-only rule.
+  // The Host allowlist above still applies (DNS rebinding stays shut).
+  if (adsData.handleAds(req, res, url, { appVersion: APP_VERSION, brainRoot: BRAIN_ROOT })) {
+    return;
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     const origin = req.headers.origin;
