@@ -2,7 +2,7 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## Unreleased
+## 1.0.7 — 2026-07-23
 
 - **Setup can no longer strand you on a screen that can't succeed.** If the app can't confirm your GitHub setup yet, it now takes you to the guided "Connect GitHub" screen instead of the manual folder screen with a confusing error. The guided screen checks again on its own and moves you forward the moment things are ready.
 - **"Set up..." in the menu always opens setup now.** Previously, if the Command Centre was open, clicking "Set up..." silently did nothing.
