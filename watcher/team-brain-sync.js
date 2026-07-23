@@ -235,7 +235,7 @@ async function mintGitToken() {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${MEMBER_TOKEN}`,
     },
-    body: JSON.stringify({ teamSlug: TEAM_SLUG, appVersion: APP_VERSION }),
+    body: JSON.stringify({ teamSlug: TEAM_SLUG, appVersion: APP_VERSION, source: 'watcher' }),
   });
   if (!r.ok) {
     const body = await r.text().catch(() => '');

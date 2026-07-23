@@ -19,6 +19,7 @@ const os = require('os');
 const { spawn, execFile, execFileSync } = require('child_process');
 const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
 const { adoptBrain } = require('./lib/adopt-brain.cjs');
+const { ensureCredentialHelper } = require('./lib/git-credential.cjs');
 
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
@@ -316,6 +317,10 @@ function startWatcher() {
 
   // Agency-mode: pass identity + a way to mint fresh tokens
   if (config.mode === 'agency') {
+    // Register the git credential helper for every known brain clone, so git
+    // outside the app (terminal, Claude Code) mints live tokens instead of
+    // hitting the stale keychain cache. Self-heals on every start; never blocks.
+    ensureCredentialHelper(config, { userData: USER_DATA, exePath: process.execPath });
     env.BRAIN_SYNC_MODE = 'agency';
     env.AGENCY_TEAM_SLUG = config.teamSlug || '';
     env.AGENCY_MEMBER_EMAIL = config.memberEmail || '';
