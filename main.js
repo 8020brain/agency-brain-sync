@@ -868,6 +868,24 @@ async function ensureCommandCentre() {
 // Load the Command Centre into the app window (the post-onboarding home).
 async function openCommandCentre() {
   if (process.platform === 'darwin' && app.dock) app.dock.show();
+  // Self-heal (2026-07-23 test finding): if the configured brain folder has
+  // been deleted out from under us, every Command Centre surface breaks one
+  // card at a time (raw ENOENT on identity, empty Skills, "no guided path").
+  // Route back into setup instead, with a plain-English explanation.
+  const cfg = loadConfig();
+  if (cfg && cfg.brainPath && !fs.existsSync(cfg.brainPath)) {
+    const missingOpts = {
+      type: 'warning',
+      title: APP_NAME,
+      message: 'Your brain folder is missing.',
+      detail: `The folder this brain lives in (${cfg.brainPath}) is no longer on this computer — it may have been moved or deleted. Let's set it up again; your work is safe on GitHub and will download fresh.`,
+      buttons: ['Open setup'],
+    };
+    if (setupWindow) dialog.showMessageBoxSync(setupWindow, missingOpts);
+    else dialog.showMessageBoxSync(missingOpts);
+    showSetupWindow();
+    return { ok: false };
+  }
   const ok = await ensureCommandCentre();
   if (!setupWindow) showSetupWindow();
   if (!ok) {
