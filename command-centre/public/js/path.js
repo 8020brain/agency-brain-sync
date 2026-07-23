@@ -42,7 +42,12 @@
     return r==='head-scout'?'scout':r;
   }
   function tpPickPath(){
-    var wantScout=(tpEffRole()==='scout'||tpEffRole()==='owner');
+    // In a CLIENT brain the owner is the business owner, not a brain mechanic:
+    // they get the team path. The scout path stays for role=scout (a client's
+    // own technical person, setup Model A). Agency brains are unchanged.
+    var isClient=((TP_DATA&&TP_DATA.kind)||'agency')==='client';
+    var role=tpEffRole();
+    var wantScout=(role==='scout'||(role==='owner'&&!isClient));
     TP_SEL=(wantScout&&TP_DATA.paths.scout)?'scout':(TP_DATA.paths.team?'team':'scout');
   }
   var TP_ROLE_APPLIED=null;
@@ -86,6 +91,10 @@
     }
     var cur=tpCur(); if(!cur){ root.innerHTML=''; return; }
     var p=cur.def, role=tpEffRole();
+    // A client-brain owner uses the team path as THEIR path (see tpPickPath),
+    // so the tab treats them like a team member: no path switcher, no
+    // "what your team sees" framing, none of the agency scout copy.
+    if(((TP_DATA&&TP_DATA.kind)||'agency')==='client'&&role==='owner') role='team';
     var isTeamRole=(role==='team');
     var bothPaths=!!(TP_DATA.paths.team&&TP_DATA.paths.scout);
     var allSteps=[], doneCount=0;

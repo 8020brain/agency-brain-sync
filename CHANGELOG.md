@@ -9,6 +9,7 @@ What changed in each version of the Agency Brain app. You're reading the copy th
 - **If your brain folder goes missing, the app helps instead of breaking.** Deleting or moving the folder used to leave every Command Centre card erroring; now the app explains what happened and reopens setup. Your work is always safe on GitHub.
 - **Client brands now apply fully and immediately.** The brand font is honoured (it was saved but ignored), page show/hide choices per role are honoured, agency help contacts show at the top of the client's Help tab, brand names appear in the menus without needing a restart, and a client's brain folder is named for their brain (like acme-corp-brain), never for our product.
 - **The app's neutral name is now Business Brain.** Menus that aren't showing a client brand say Business Brain instead of Agency Brain. Nothing changes about where the app is installed or how updates arrive.
+- **A business owner in a client brain sees the right Getting Started.** If their agency turns the Getting Started page on for them, the owner of a client business now gets the everyday path ("Your first weeks with the brain"), not the technical Scout path, and none of the agency-flavoured wording that came with it. Agency brains are unchanged.
 
 ## 1.0.6 — 2026-07-22
 

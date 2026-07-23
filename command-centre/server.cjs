@@ -541,7 +541,7 @@ const server = http.createServer(async (req, res) => {
         paths[key] = { def, progress };
       }
       if (!Object.keys(paths).length) return send(res, 200, { available: false });
-      return send(res, 200, { available: true, role: MEMBER_ROLE || '', paths });
+      return send(res, 200, { available: true, role: MEMBER_ROLE || '', kind: TEAM_KIND, paths });
     }
     // ---- Brain updates (docs/migrations/) --------------------------------
     // Pending = a docs/migrations/NNNN-*.md with no applied/NNNN.done (or
