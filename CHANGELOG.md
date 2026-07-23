@@ -2,7 +2,11 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## 1.0.7 — 2026-07-23
+## 1.1.0 — 2026-07-24
+
+- **Git now works everywhere on your machine, not just inside the app.** Before this, only the app's own syncing had reliable access to your brain's GitHub repo. Anything else that used git, like Claude working in Cursor or a command run in Terminal, borrowed an old saved credential that expired an hour after it was saved, and on some machines it could never be replaced. When that happened you'd see baffling GitHub permission errors and a macOS "enter your login keychain password" pop-up that looked like a password problem but wasn't. The app now supplies every git command on your machine with a fresh credential directly, so those failures and that pop-up are gone for good. Thanks to Pete Tyler at The Digital Stride, whose detailed report of exactly this on two of his team's machines led straight to the fix.
+- **Clear messages when something does need you.** If git can't get access because you're signed out of the app, it now says so in plain words: open the Agency Brain app and sign in again. If your internet or our server is unreachable, it tells you that instead of failing mysteriously.
+- **One-time cleanup.** On first run after this update, the app removes the old stuck credential from your Mac's keychain so it can never confuse git (or you) again. It only touches the app's own entry, never your personal passwords.
 
 - **Setup can no longer strand you on a screen that can't succeed.** If the app can't confirm your GitHub setup yet, it now takes you to the guided "Connect GitHub" screen instead of the manual folder screen with a confusing error. The guided screen checks again on its own and moves you forward the moment things are ready.
 - **"Set up..." in the menu always opens setup now.** Previously, if the Command Centre was open, clicking "Set up..." silently did nothing.
