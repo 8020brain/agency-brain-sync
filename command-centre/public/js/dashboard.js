@@ -4,7 +4,7 @@
   // /api/team-roster; also /api/health if present). Null/0 until an admin links a
   // package, so the banner + plan card stay hidden until then. SCOUT_COUNT + ROSTER
   // are the live server roster. ME / ME_NAME identify the signed-in member.
-  var CCROLE='', SCOUT_SEATS=0, SCOUT_COUNT=0, SEATS_USED=0, PACKAGE_TIER=null, RENEWAL=null;
+  var CCROLE='', CCKIND='agency', SCOUT_SEATS=0, SCOUT_COUNT=0, SEATS_USED=0, PACKAGE_TIER=null, RENEWAL=null;
   var ME='', ME_NAME='', ROSTER=null, ROSTER_REQ=null, TEAMSLUG='', CUR_BANNER_SIG='';
   // Session-only reveal: the "Show dismissed cards" link sets this true so the
   // dismissed/snoozed banners reappear until the next refresh (or until re-dismissed).
@@ -59,7 +59,9 @@
     // shows on those dashboards. Members-portal only for now — agency members aren't
     // auto-added to Circle, so no Circle line yet. Dismissible, remembered.
     var r=ccRole();
-    var show=(r==='owner'||r==='scout') && (SHOW_DISMISSED || !portalNudgeDismissed());
+    // ClientBrain (2026-07-23): clients never see the members portal — it's the
+    // agencies' world and nothing in a client brain may point at it.
+    var show=(CCKIND!=='client') && (r==='owner'||r==='scout') && (SHOW_DISMISSED || !portalNudgeDismissed());
     ['portal-nudge','portal-nudge-s'].forEach(function(id){ var el=$(id); if(el) el.hidden=!show; });
     [['portal-nudge-x','portal-nudge'],['portal-nudge-x-s','portal-nudge-s']].forEach(function(p){
       var btn=$(p[0]); if(btn && !btn.__wired){ btn.__wired=true; btn.addEventListener('click', function(){

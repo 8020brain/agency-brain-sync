@@ -125,7 +125,7 @@
       $('ft-path').textContent=h.brainRoot||'';
       applyRoleTabs(h.memberRole);
       applyBranding(h);
-      CCROLE=role; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
+      CCROLE=role; CCKIND=((h&&h.teamKind)||'agency'); ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
       if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
       if(h.packageTier) PACKAGE_TIER=h.packageTier;
       maybeBanner(); maybePortalNudge(); maybeIdentity(h);
@@ -180,6 +180,16 @@
       var myRole=uiRole(((h&&h.memberRole)||'').toLowerCase())||'';
       Object.keys(pages).forEach(function(k){
         if(pages[k]&&pages[k][myRole]===false){
+          var t=document.querySelector('.tab[data-view="'+k+'"]');
+          if(t) t.hidden=true;
+        }
+      });
+      // Getting started + Learn Cowork carry agency-facing content and portal
+      // links, so client brains hide them UNLESS the agency explicitly turned
+      // them on for this role (2026-07-23: nothing in ClientBrain points at
+      // the members portal).
+      ['path','cowork'].forEach(function(k){
+        if(!(pages[k]&&pages[k][myRole]===true)){
           var t=document.querySelector('.tab[data-view="'+k+'"]');
           if(t) t.hidden=true;
         }
