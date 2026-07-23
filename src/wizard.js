@@ -246,7 +246,15 @@
           const st = await api.getInstallStatus(teamInfo.teamSlug);
           if (!st || !st.repoUrl || !st.installed) { enterConnectOrg(); return; }
           teamInfo.repoUrl = st.repoUrl;
-        } catch (e) { /* status hiccup — fall through to the normal path */ }
+        } catch (e) {
+          // With no repoUrl the clone screen can never succeed, so a status
+          // hiccup must NOT fall through to it (2026-07-23 test: Mike was
+          // stranded on the manual clone screen). Connect-org is safe either
+          // way — its 4s poll self-corrects once status answers.
+          console.error('[wizard] install-status failed on invite path:', e && e.message);
+          enterConnectOrg();
+          return;
+        }
       }
       enterMachine();
     } catch (err) {
@@ -490,7 +498,15 @@
         // installation_id and the team slug" dead-end.
         if (!st || !st.repoUrl || !st.installed) { enterConnectOrg(); return; }
         teamInfo.repoUrl = st.repoUrl;
-      } catch (e) { /* status hiccup — fall through to the normal path */ }
+      } catch (e) {
+        // Same rule as the invite path (2026-07-23): an owner with no known
+        // repoUrl must never fall through to the doomed clone screen on a
+        // status hiccup. Connect-org self-corrects: its poll routes an
+        // already-installed owner straight on within one tick.
+        console.error('[wizard] install-status failed on sign-in path:', e && e.message);
+        enterConnectOrg();
+        return;
+      }
     }
     enterMachine();
   }

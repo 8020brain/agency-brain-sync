@@ -698,6 +698,18 @@ function showSetupWindow() {
   if (process.platform === 'darwin' && app.dock) app.dock.show();
 
   if (setupWindow) {
+    // The wizard and the Command Centre share this window. "Set up..." must
+    // always land on the WIZARD — if the window is currently showing the
+    // Command Centre (or anything else), load the wizard back into it.
+    // Previously this branch just refocused whatever was showing, so with the
+    // CC open the menu item was a silent no-op (2026-07-23 test finding).
+    const cur = setupWindow.webContents.getURL() || '';
+    if (!/wizard\.html/.test(cur)) {
+      setupWindow.setMinimumSize(600, 640);
+      setupWindow.setSize(680, 800);
+      setupWindow.center();
+      setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
+    }
     setupWindow.show();
     setupWindow.focus();
     return;
