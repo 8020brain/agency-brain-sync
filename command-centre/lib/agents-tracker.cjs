@@ -30,7 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 const BRAIN_ROOT = process.env.BRAIN_ROOT
   || path.resolve(__dirname, '..', '..', '..');
@@ -71,7 +71,7 @@ function writeAgentsFile(agents) {
 
 function tmuxHasSession(session) {
   try {
-    execSync(`tmux has-session -t ${JSON.stringify(session)}`, {
+    execFileSync('tmux', ['has-session', '-t', session], {
       stdio: 'ignore',
     });
     return true;
@@ -82,7 +82,7 @@ function tmuxHasSession(session) {
 
 function tmuxKillSession(session) {
   try {
-    execSync(`tmux kill-session -t ${JSON.stringify(session)}`, {
+    execFileSync('tmux', ['kill-session', '-t', session], {
       stdio: 'ignore',
     });
     return true;
@@ -443,7 +443,7 @@ function focusAgent(session) {
   const script = path.join(__dirname, '..', 'scripts', 'focus-agent.sh');
   const winId = agent && agent.windowId ? String(agent.windowId) : '';
   try {
-    execSync(`${JSON.stringify(script)} ${JSON.stringify(session)} ${JSON.stringify(winId)}`, {
+    execFileSync(script, [session, winId], {
       stdio: 'ignore', timeout: 6000,
     });
   } catch { /* best-effort */ }
@@ -491,7 +491,7 @@ function killAgent(session) {
     // closes the hosting Windows Terminal tab. Then clear its pidfile.
     const pid = agent && agent.pid;
     if (pid) {
-      try { execSync(`taskkill /PID ${parseInt(pid, 10)} /T /F`, { stdio: 'ignore' }); } catch { /* best-effort */ }
+      try { execFileSync('taskkill', ['/PID', String(parseInt(pid, 10)), '/T', '/F'], { stdio: 'ignore' }); } catch { /* best-effort */ }
     }
     try {
       const pf = path.join(os.tmpdir(), `agentbrain-${session}.pid`);
@@ -501,7 +501,7 @@ function killAgent(session) {
     const script = path.join(__dirname, '..', 'scripts', 'kill-agent.sh');
     const winId = agent && agent.windowId ? String(agent.windowId) : '';
     try {
-      execSync(`${JSON.stringify(script)} ${JSON.stringify(session)} ${JSON.stringify(winId)}`, {
+      execFileSync(script, [session, winId], {
         stdio: 'ignore',
         timeout: 8000,
       });

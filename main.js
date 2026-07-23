@@ -26,13 +26,20 @@ const CONFIG_FILE = path.join(USER_DATA, 'config.json');
 // speaks (tray tooltip, dialogs, window titles), never ours. brandName lands
 // in config.json at wizard setup when kind === 'client'; everyone else keeps
 // the default. Read once at boot — a brand change lands on next app start.
-const APP_NAME = (() => {
+// Live, not boot-frozen (2026-07-23): the Acme test wrote the brand config
+// during the wizard, AFTER boot, so the tray menus kept saying the old name
+// until a restart. saveConfig() recomputes this so the next tray refresh and
+// any new window pick the brand up immediately. Neutral default is "Business
+// Brain" (decisions.md 2026-07-23) — the packaged app/installer name is a
+// SEPARATE, later change (kept as-is so existing installs are untouched).
+let APP_NAME = computeAppName();
+function computeAppName() {
   try {
     const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
     if (cfg && cfg.kind === 'client' && cfg.brandName) return String(cfg.brandName);
   } catch (e) { /* no config yet — fresh install */ }
-  return 'Agency Brain';
-})();
+  return 'Business Brain';
+}
 const LOG_FILE = path.join(USER_DATA, 'sync.log');
 const ERR_FILE = path.join(USER_DATA, 'sync.err');
 const STATE_FILE = path.join(USER_DATA, 'state.json');
@@ -223,6 +230,7 @@ function saveConfig(c) {
   }
   if (brains.length) merged.brains = brains;
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2));
+  APP_NAME = computeAppName();
 }
 
 // Swap another stored brain into the active slot: archive-and-swap via
@@ -586,7 +594,7 @@ function buildMenu() {
   items.push(
     { type: 'separator' },
     { label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) },
-    { label: 'Open agency brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
+    { label: 'Open your brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
     { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
     { label: 'Check for updates…',       click: () => checkForUpdatesManually() },
     { type: 'separator' },
@@ -988,16 +996,20 @@ ipcMain.handle('get-app-version', () => app.getVersion());
 // Default brain folder, OS-correct. path.join uses the right separator (\ on
 // Windows, / on macOS), so this no longer produces the mixed-slash path that
 // broke folder creation on Windows.
-ipcMain.handle('get-default-folder', () => path.join(os.homedir(), 'agencybrain'));
+// folderSlug (optional, 2026-07-23): a client brain's folder is named for
+// THEIR brain (brand slug, e.g. 'acme-corp-brain', or 'business-brain'),
+// never for our product. Agencies pass nothing and keep 'agencybrain'.
+ipcMain.handle('get-default-folder', (_evt, folderSlug) => path.join(os.homedir(), folderSlug || 'agencybrain'));
 
 // Given a folder the user picked, return the brain folder to use: the picked
-// folder itself if it's already named agencybrain, otherwise an agencybrain
-// folder nested inside it. path.basename is separator-safe, so this works on
+// folder itself if it's already named for the brain, otherwise a brain folder
+// nested inside it. path.basename is separator-safe, so this works on
 // Windows (backslashes) where the old `.endsWith('/agencybrain')` check failed
 // and double-appended.
-ipcMain.handle('resolve-target-folder', (_evt, picked) =>
-  path.basename(picked) === 'agencybrain' ? picked : path.join(picked, 'agencybrain')
-);
+ipcMain.handle('resolve-target-folder', (_evt, picked, folderSlug) => {
+  const name = folderSlug || 'agencybrain';
+  return path.basename(picked) === name ? picked : path.join(picked, name);
+});
 
 // ---------- Claude desktop app detection ----------
 ipcMain.handle('detect-claude-desktop', async () => {
@@ -1573,7 +1585,7 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
     '-C', targetFolder,
     '-c', 'user.email=app@agencybrain',
     '-c', 'user.name=Agency Brain',
-    'commit', '-m', 'Set up Agency Brain from template',
+    'commit', '-m', 'Set up your brain from template',
   ]);
   await runGit(['-C', targetFolder, 'branch', '-M', 'main']);
   sendWizardLog('Publishing your brain to GitHub…');

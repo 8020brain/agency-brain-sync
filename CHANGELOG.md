@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## Unreleased
+
+- **Setup can no longer strand you on a screen that can't succeed.** If the app can't confirm your GitHub setup yet, it now takes you to the guided "Connect GitHub" screen instead of the manual folder screen with a confusing error. The guided screen checks again on its own and moves you forward the moment things are ready.
+- **"Set up..." in the menu always opens setup now.** Previously, if the Command Centre was open, clicking "Set up..." silently did nothing.
+- **If your brain folder goes missing, the app helps instead of breaking.** Deleting or moving the folder used to leave every Command Centre card erroring; now the app explains what happened and reopens setup. Your work is always safe on GitHub.
+- **Client brands now apply fully and immediately.** The brand font is honoured (it was saved but ignored), page show/hide choices per role are honoured, agency help contacts show at the top of the client's Help tab, brand names appear in the menus without needing a restart, and a client's brain folder is named for their brain (like acme-corp-brain), never for our product.
+- **The app's neutral name is now Business Brain.** Menus that aren't showing a client brand say Business Brain instead of Agency Brain. Nothing changes about where the app is installed or how updates arrive.
+
 ## 1.0.6 — 2026-07-22
 
 - **Your synced ads data now feeds the Ads portal straight from this app.** When the app is running and your daily ads fetch saves client data into the brain, the Ads portal (m.ads2ai.com/ads) reads your accounts and reports directly from this computer. There is no Google Sheet in the path and your data never touches anyone else's servers. If your agency uses the script and Sheet method, nothing changes for you. One note on browsers: this works in Brave, Chrome, Edge and Firefox; Safari doesn't allow web pages to talk to local apps, so use one of the others for the Ads portal.

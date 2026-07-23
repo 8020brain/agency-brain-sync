@@ -3,7 +3,7 @@
 # Phase 1 spawn helper for the Home Command Centre.
 #
 # Opens a new Terminal.app window at a grid slot, starts a tmux session,
-# runs `claude --dangerously-skip-permissions` inside it with an initial
+# runs `claude --permission-mode auto` inside it with an initial
 # prompt. Writes session metadata to tools/dashboard/data/active-agents.json
 # so /api/agents can show it.
 #
@@ -162,7 +162,7 @@ tmux set-option destroy-unattached on 2>/dev/null || true
 tmux set-option status off 2>/dev/null || true
 tmux set-option mouse on 2>/dev/null || true
 tmux set-option history-limit 50000 2>/dev/null || true
-exec '$CLAUDE_BIN' --dangerously-skip-permissions$SESSION_ID_ARGS "\$(cat '$PROMPT_FILE')"
+exec '$CLAUDE_BIN' --permission-mode auto$SESSION_ID_ARGS "\$(cat '$PROMPT_FILE')"
 LAUNCH
 chmod +x "$LAUNCHER"
 

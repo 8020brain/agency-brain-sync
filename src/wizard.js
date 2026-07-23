@@ -154,8 +154,8 @@
         const installUrl = slug
           ? `github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(slug)}`
           : 'github.com/apps/agency-brain-sync';
-        if (role === 'owner') return `Almost there — you still need to install the Agency Brain GitHub App. Open ${installUrl}, click Install, choose your business organisation, then come back and click Try again.`;
-        return "Your agency isn't fully set up yet — your owner still needs to install the Agency Brain GitHub App on the repo. Once they've done that, come back and try again.";
+        if (role === 'owner') return `Almost there — you still need to install the GitHub App that keeps your brain in sync. Open ${installUrl}, click Install, choose your business organisation (not your personal account), then come back and click "Set up my brain" again.`;
+        return "Your team isn't fully set up yet — your owner still needs to install the GitHub App on the repo. Once they've done that, come back and click \"Set up my brain\" again.";
       }
       if (/dev guard/i.test(msg)) return msg; // surface the dev guard verbatim to Mike
       if (net.test(msg)) return "I can't reach GitHub. Check your internet, then try again.";
@@ -914,6 +914,24 @@
   // ====================================================================
   // 4 — files / clone
   // ====================================================================
+  // ClientBrain (2026-07-23): a client's brain folder is named for THEIR
+  // brain — the brand slug ('Acme Corp Brain' -> 'acme-corp-brain'), falling
+  // back to 'business-brain' — never 'agencybrain'. Agencies keep
+  // 'agencybrain' (returning '' here), so nothing changes for them.
+  let folderSlugCache = '';
+  async function brainFolderSlug() {
+    if (!teamInfo || teamInfo.kind !== 'client') return '';
+    if (folderSlugCache) return folderSlugCache;
+    let name = '';
+    try {
+      const cc = await api.fetchClientConfig({ memberToken: teamInfo.memberToken || authToken, teamSlug: teamInfo.teamSlug });
+      name = (cc && cc.config && cc.config.brandName) || '';
+    } catch (e) { /* offline or no kit config — neutral fallback below */ }
+    const slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    folderSlugCache = slug || 'business-brain';
+    return folderSlugCache;
+  }
+
   async function enterClone() {
     show('scene-clone');
     const pickBtn = document.getElementById('btn-pick-folder');
@@ -926,7 +944,7 @@
       chosenFolder = brainHome;
       note.textContent = '(sandbox — your real brain is never touched)';
     } else if (mode === 'agency') {
-      chosenFolder = await api.getDefaultFolder();    // ~/agencybrain
+      chosenFolder = await api.getDefaultFolder(await brainFolderSlug());
       note.textContent = '';
     } else {
       chosenFolder = homePath + '/Projects/brain';     // canonical solo path

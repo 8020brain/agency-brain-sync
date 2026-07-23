@@ -63,7 +63,11 @@
           return;
         }
         cta.textContent=cta.__askName?'Save':'Set it up';
-        $('identity-p').textContent='Couldn\'t set it up: '+(e.message||'try again');
+        // Never show raw filesystem errors (2026-07-23 test: a deleted brain
+        // folder surfaced as "ENOENT: no such file or directory" here).
+        var im=e.message||'try again';
+        if(/ENOENT|no such file|EACCES|EPERM/i.test(im)) im='your brain folder seems to be missing on this computer. Click the brain icon in the menu bar and choose "Set up..." to reconnect it.';
+        $('identity-p').textContent='Couldn\'t set it up: '+im;
       });
     }); }
     var x=$('identity-x');
@@ -158,6 +162,52 @@
       var col=((b&&b.config)||{}).colours||{};
       if(col.accentDeep) document.documentElement.style.setProperty('--accent',col.accentDeep);
       if(col.accentSoft) document.documentElement.style.setProperty('--accent-soft',col.accentSoft);
+      // Brand font (2026-07-23: portal saves it, we now honour it). Google
+      // Fonts load with graceful fallback — offline just keeps system-ui.
+      var font=String(((b&&b.config)||{}).font||'').replace(/[^\w \-]/g,'').trim();
+      if(font){
+        var l=document.createElement('link');
+        l.rel='stylesheet';
+        l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(font).replace(/%20/g,'+')+':wght@400;600;700&display=swap';
+        document.head.appendChild(l);
+        document.body.style.fontFamily="'"+font+"',system-ui,sans-serif";
+      }
+      // Page-visibility toggles (2026-07-23: portal saves them, we now honour
+      // them). pages[viewKey][role] === false hides that tab for that role;
+      // anything else leaves it as applyRoleTabs decided. Runs after
+      // applyRoleTabs (call order in loadHealth), so hide wins.
+      var pages=((b&&b.config)||{}).pages||{};
+      var myRole=uiRole(((h&&h.memberRole)||'').toLowerCase())||'';
+      Object.keys(pages).forEach(function(k){
+        if(pages[k]&&pages[k][myRole]===false){
+          var t=document.querySelector('.tab[data-view="'+k+'"]');
+          if(t) t.hidden=true;
+        }
+      });
+      // Help contacts (2026-07-23): a client's Help tab leads with THEIR
+      // agency's contact details, injected above the stock content.
+      var help=((b&&b.config)||{}).help||[];
+      if(help.length){
+        var pane=document.querySelector('#view-help .help-pane');
+        var exist=document.getElementById('client-help-contacts');
+        if(pane&&!exist){
+          var box=document.createElement('div');
+          box.id='client-help-contacts';
+          box.style.cssText='border-left:4px solid var(--accent);background:#fff;padding:14px 18px;margin-bottom:18px;';
+          var rows=help.map(function(hc){
+            var label=String(hc.label||hc.type||'Contact');
+            var value=String(hc.value||'');
+            var href='';
+            if(/email/i.test(hc.type||'')||/@/.test(value)) href='mailto:'+value;
+            else if(/^https?:\/\//i.test(value)) href=value;
+            else if(/phone|tel/i.test(hc.type||'')) href='tel:'+value.replace(/[^+\d]/g,'');
+            var esc=function(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+            return '<div style="margin:3px 0"><strong>'+esc(label)+':</strong> '+(href?'<a href="'+esc(href)+'">'+esc(value)+'</a>':esc(value))+'</div>';
+          }).join('');
+          box.innerHTML='<div style="font-weight:700;margin-bottom:6px">Need a hand? Contact your team</div>'+rows;
+          pane.insertBefore(box,pane.firstChild);
+        }
+      }
     }catch(e){}
   }
 

@@ -1,0 +1,16 @@
+# Copy this to wrangler.toml and fill in your own values.
+# This deploys to YOUR OWN Cloudflare account — the vault is always yours.
+
+name = "agency-brain-vault"        # your Worker name (becomes part of the URL)
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Your own R2 bucket. Create it first:
+#   npx wrangler r2 bucket create agency-brain-vault
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "agency-brain-vault"
+
+# The bearer token is set as a SECRET, never written in this file:
+#   npx wrangler secret put VAULT_TOKEN
+# (paste a long random string when prompted — this is your "gate token")

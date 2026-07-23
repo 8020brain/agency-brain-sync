@@ -73,7 +73,7 @@
           +'<span class="tp-caret'+(CW_OPEN[s.id]?' open':'')+'" aria-hidden="true">›</span>'
           +'<span class="tp-chip tp-chip-'+esc(kind)+'">'+esc(kindLabel)+'</span>'
           +'<span class="tp-step-title">'+esc(s.title)+'</span>'
-          +'<span class="tp-mins">'+s.minutes+' min</span>'
+          +'<span class="tp-mins">'+esc(s.minutes)+' min</span>'
           +'</div>'
           +'<div class="tp-step-body"'+(CW_OPEN[s.id]?'':' hidden')+'>'
           +s.body.split(/\n+/).filter(Boolean).map(function(par){ return '<p>'+tpLinkify(par)+'</p>'; }).join('')

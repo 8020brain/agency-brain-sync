@@ -5,7 +5,7 @@
 
 .DESCRIPTION
   Opens a tiled Windows Terminal (wt.exe) window at a grid slot, running
-  `claude --dangerously-skip-permissions` with an initial prompt read from a
+  `claude --permission-mode auto` with an initial prompt read from a
   file. Registers the session in tools/dashboard/data/active-agents.json (via
   register-agent.cjs) so /api/agents can show it, and records the launcher
   process PID so the tracker can check liveness (process alive) and kill it
@@ -135,7 +135,7 @@ $launcherBody = @"
 Set-Content -LiteralPath '$(Q $pidFile)' -Value `$PID -Encoding ascii
 Set-Location -LiteralPath '$(Q $Cwd)'
 `$prompt = Get-Content -Raw -Encoding UTF8 -LiteralPath '$(Q $PromptFile)'
-& '$(Q $claude)' --dangerously-skip-permissions $sessionIdArg`$prompt
+& '$(Q $claude)' --permission-mode auto $sessionIdArg`$prompt
 "@
 
 $launcher = Join-Path $env:TEMP ("agentbrain-launch-" + ([guid]::NewGuid().ToString('N').Substring(0, 8)) + ".ps1")
