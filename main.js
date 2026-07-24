@@ -537,6 +537,8 @@ function buildMenu() {
   // A client brain shows the client's brand as the menu headline even before
   // the next app restart re-derives APP_NAME from config.
   const headline = (config && config.kind === 'client' && config.brandName) ? config.brandName : APP_NAME;
+  // Read-only status header: who this brain is, whether it's syncing, where it
+  // lives, and what happened last.
   const items = [
     { label: headline, enabled: false },
     { label: statusLabel(), enabled: false },
@@ -547,37 +549,22 @@ function buildMenu() {
     { type: 'separator' },
   ];
 
-  // The brain switcher: shown the moment this machine knows more than one
-  // brain (a scout's own agency brain + client brains they service). One
-  // active at a time; switching bounces the watcher + Command Centre onto the
-  // picked brain. The active entry is ticked and disabled.
-  const knownBrains = (config && Array.isArray(config.brains)) ? config.brains : [];
-  if (knownBrains.length > 1) {
-    items.push({
-      label: 'Switch brain',
-      submenu: knownBrains.map((b) => ({
-        label: brainLabel(b) + (brainKey(b) === brainKey(config) ? '   ✓ active' : ''),
-        enabled: brainKey(b) !== brainKey(config),
-        click: () => switchBrain(brainKey(b)),
-      })),
-    });
-    items.push({ type: 'separator' });
-  }
+  // ---- Urgent, only when something needs the user (top of the action list) ----
 
-  // A downloaded update waiting to install — the first, most prominent action, so
-  // it can't be missed in the menu. Reuses the tested relaunch flow (offers
-  // "Relaunch now / Later").
+  // A downloaded update waiting to install — the most prominent action, so it
+  // can't be missed. Reuses the tested relaunch flow (offers "Relaunch / Later").
   if (updateInfo && updateInfo.version) {
     items.push({ label: `Restart to install update v${updateInfo.version}`, click: () => checkForUpdatesManually() });
     items.push({ type: 'separator' });
   }
 
-  // Signed-out OR session-expired agency brain: the one action that fixes it, at the top.
+  // Signed-out OR session-expired agency brain: the one action that fixes it.
   if (needsReconnect(config) || authExpired) {
     items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard('reconnect') });
     items.push({ type: 'separator' });
   }
 
+  // Files kept local (not pushed) — surface which and let the user open the folder.
   if (lastHeld && lastHeld.length) {
     const first = lastHeld[0];
     const extra = lastHeld.length > 1 ? ` (+${lastHeld.length - 1} more)` : '';
@@ -586,42 +573,80 @@ function buildMenu() {
     items.push({ label: 'Open folder to review held file(s)', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); } });
     items.push({ type: 'separator' });
   }
-  if (watcherState === 'attention') {
-    items.push({ label: 'Open log to see what needs attention', click: () => shell.openPath(LOG_FILE) });
+
+  // Needs-attention state gets ONE log link, up top. In every other state the log
+  // lives once in the housekeeping group below — never both (that was the old
+  // "Open log…" / "Show log" duplicate).
+  const logAtTop = watcherState === 'attention';
+  if (logAtTop) {
+    items.push({ label: 'See what needs attention', click: () => shell.openPath(LOG_FILE) });
     items.push({ type: 'separator' });
   }
+
+  // ---- Primary actions ----
+  items.push(
+    { label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) },
+    { label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
+  );
+
+  // ---- Brain switcher: only when this machine has more than one DISTINCT brain
+  // FOLDER. Deduped by folder, so a brain re-tagged during testing (one folder
+  // saved under several identities) never shows phantom/duplicate entries. ----
+  const seenFolders = new Set();
+  const realBrains = ((config && Array.isArray(config.brains)) ? config.brains : []).filter((b) => {
+    if (!b || !b.brainPath) return false;
+    if (seenFolders.has(b.brainPath)) return false;
+    seenFolders.add(b.brainPath);
+    return true;
+  });
+  if (realBrains.length > 1) {
+    items.push({ type: 'separator' });
+    items.push({
+      label: 'Switch brain',
+      submenu: realBrains.map((b) => ({
+        label: brainLabel(b) + (brainKey(b) === brainKey(config) ? '   ✓ active' : ''),
+        enabled: brainKey(b) !== brainKey(config),
+        click: () => switchBrain(brainKey(b)),
+      })),
+    });
+  }
+
+  // ---- Sync + housekeeping ----
+  items.push({ type: 'separator' });
   if (watcherState === 'paused') {
     items.push({ label: 'Resume syncing', click: () => { watcherState = 'stopped'; startWatcher(); } });
   } else {
     items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' || watcherState === 'attention' });
   }
+  if (!logAtTop) {
+    items.push({ label: 'Show log', click: () => shell.openPath(LOG_FILE) });
+  }
+  items.push({ label: 'Check for updates…', click: () => checkForUpdatesManually() });
 
+  // A solo (personal-mode) owner ready to bring teammates in — a first-class
+  // upgrade action, not buried in Settings. Opens the setup wizard, which
+  // creates the team (OTP -> name agency -> connect GitHub -> clone + seed) or,
+  // if it already exists, signs in and flips this brain to agency mode.
+  if (config && config.mode === 'personal') {
+    items.push({ type: 'separator' });
+    items.push({ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') });
+  }
+
+  // ---- Settings: the on/off toggles + re-run setup, grouped in one home ----
+  items.push({ type: 'separator' });
+  items.push({
+    label: 'Settings',
+    submenu: [
+      { label: `Start at login: ${getLoginItem() ? 'On' : 'Off'}`, click: () => toggleLoginItem() },
+      { label: 'Run setup again…', click: () => showSetupWindow() },
+    ],
+  });
+
+  // ---- App ----
   items.push(
     { type: 'separator' },
-    { label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) },
-    { label: 'Open your brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
-    { label: 'Show log',                 click: () => shell.openPath(LOG_FILE) },
-    { label: 'Check for updates…',       click: () => checkForUpdatesManually() },
-    { type: 'separator' },
-    // A solo (personal-mode) owner who's ready to bring teammates in creates their
-    // team right in the setup wizard (OTP -> name your agency -> connect GitHub ->
-    // clone + seed). If their team already exists, the same entry point signs them
-    // in and flips this brain to agency mode (OTP -> pick team -> flip-to-agency).
-    ...(config && config.mode === 'personal'
-      ? [{ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') }]
-      : []),
-    { label: 'Set up...',                click: () => showSetupWindow() },
-    // Phone-dispatch toggle (macOS only for now): when on, a note saved with
-    // "Save & Start Session" on the Brain Inbox phone app opens a Claude
-    // session on THIS machine within about a minute. Default off so a team's
-    // shared repo doesn't open sessions on every teammate's computer.
-    ...(process.platform === 'darwin' && config && config.brainPath
-      ? [{ label: `Start sessions from your phone: ${config.dispatchEnabled ? 'on' : 'off'}`, click: () => toggleDispatch() }]
-      : []),
-    { label: `Auto-start at login: ${getLoginItem() ? 'on' : 'off'}`, click: () => toggleLoginItem() },
-    { type: 'separator' },
-    { label: `About ${APP_NAME}`,        click: () => showAbout() },
-    { label: `Quit ${APP_NAME}`,         click: () => { isQuitting = true; stopWatcher(); setTimeout(() => app.quit(), 200); } },
+    { label: `About ${APP_NAME}`, click: () => showAbout() },
+    { label: `Quit ${APP_NAME}`, click: () => { isQuitting = true; stopWatcher(); setTimeout(() => app.quit(), 200); } },
   );
 
   return Menu.buildFromTemplate(items);
@@ -645,6 +670,9 @@ function updateTray() {
 // Flip phone-dispatch for this machine and bounce the watcher so the child
 // process picks up the new BRAIN_DISPATCH env. Kill directly (not
 // stopWatcher(), which parks the state as 'paused' and won't restart).
+// NOTE: the "Start sessions from your phone" tray toggle was removed 2026-07-24
+// (undocumented, confusing) — the feature still runs off config.dispatchEnabled,
+// so this handler is kept ready for a one-line re-add once it's properly explained.
 function toggleDispatch() {
   const cfg = loadConfig();
   if (!cfg) return;
