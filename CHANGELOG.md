@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.3 — 2026-07-24
+
+- **Dress your Command Centre in your own agency's brand.** Owners and scouts can now pick your agency's colours and font on the new "Your Brand" page in the members portal (m.ads2ai.com/agency-brain/branding), and every seat on your team sees the new look the next time their Command Centre loads. Choose from twelve ready-made colours or enter your exact brand colour, with an instant preview on the page. Nothing to configure in the app itself. Thanks to Chris at Jaywing for asking for this.
+
 ## 1.1.2 — 2026-07-24
 
 - **Your client's brand now sticks between visits.** Before, every refresh of a client brain's Command Centre showed the stock orange colours and font for a moment before the client's own brand loaded in. The app now remembers the brand on the machine and paints it before the page appears, so a refresh looks right from the first instant. The very first visit on a new machine still loads the brand once, and everything after that is instant.

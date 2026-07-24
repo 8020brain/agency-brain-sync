@@ -158,9 +158,16 @@
     return '#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
   }
   async function applyBranding(h){
-    if(((h&&h.teamKind)||'agency')!=='client'){ try{localStorage.removeItem('cc-branding');}catch(e){} return; }
+    var kind=(h&&h.teamKind)||'agency';
+    // Client brains wear their client's brand; agency brains can wear their
+    // OWN (the portal's Your Brand page, 2026-07-24 — Jaywing's ask). Any
+    // other kind stays stock, and clears the pre-paint cache so it can't
+    // go stale.
+    if(kind!=='client'&&kind!=='agency'){ try{localStorage.removeItem('cc-branding');}catch(e){} return; }
     try{
       var b=await api('/api/branding');
+      // An agency that never saved a brand runs stock — drop any old cache.
+      if(kind==='agency'&&!(b&&b.config)){ try{localStorage.removeItem('cc-branding');}catch(e){} return; }
       var name=(b&&b.brandName)||'';
       if(name){
         document.title=name+' · Command Centre';
@@ -185,6 +192,9 @@
       // Cache the applied brand so index.html can paint it before first
       // render on the next load — no flash of the default orange/Oxanium.
       try{ localStorage.setItem('cc-branding', JSON.stringify({brandName:name, accentDeep:col.accentDeep||'', accentSoft:col.accentSoft||'', accentHover:hov, font:font})); }catch(e){}
+      // Everything below (page toggles, path/cowork hiding, help contacts)
+      // is CLIENT-brain-only — an agency brain keeps all its own tabs.
+      if(kind!=='client') return;
       // Page-visibility toggles (2026-07-23: portal saves them, we now honour
       // them). pages[viewKey][role] === false hides that tab for that role;
       // anything else leaves it as applyRoleTabs decided. Runs after

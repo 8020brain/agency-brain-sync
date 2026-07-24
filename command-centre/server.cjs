@@ -503,17 +503,20 @@ const server = http.createServer(async (req, res) => {
       // synced) so branding survives offline starts. Agency brains get the
       // defaults, so the renderer has one code path.
       const defaults = { kind: TEAM_KIND, brandName: BRAND_NAME_ENV || '', config: null };
-      if (TEAM_KIND !== 'client' || !MEMBER_TOKEN || !TEAM_SLUG) return send(res, 200, defaults);
+      // 'client' wears the client's white-label; 'agency' wears the agency's
+      // OWN brand (portal "Your Brand" page, 2026-07-24). Anything else stays
+      // stock. Same endpoint serves both — the record lives on the team row.
+      if ((TEAM_KIND !== 'client' && TEAM_KIND !== 'agency') || !MEMBER_TOKEN || !TEAM_SLUG) return send(res, 200, defaults);
       const cachePath = path.join(BRAIN_ROOT, '.git', 'agencybrain-branding.json');
       try {
         const j = await apiCall('GET', '/api/team-brain/client-config?team=' + encodeURIComponent(TEAM_SLUG), null, 0);
         const cfg = (j && j.config) || {};
         try { fs.writeFileSync(cachePath, JSON.stringify(cfg)); } catch (e) { /* cache is best-effort */ }
-        return send(res, 200, { kind: 'client', brandName: cfg.brandName || defaults.brandName, config: cfg });
+        return send(res, 200, { kind: TEAM_KIND, brandName: cfg.brandName || defaults.brandName, config: cfg });
       } catch (e) {
         try {
           const cached = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
-          return send(res, 200, { kind: 'client', brandName: cached.brandName || defaults.brandName, config: cached, cached: true });
+          return send(res, 200, { kind: TEAM_KIND, brandName: cached.brandName || defaults.brandName, config: cached, cached: true });
         } catch (e2) {
           return send(res, 200, defaults);
         }
