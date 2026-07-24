@@ -157,6 +157,15 @@
         if (role === 'owner') return `Almost there — you still need to install the GitHub App that keeps your brain in sync. Open ${installUrl}, click Install, choose your business organisation (not your personal account), then come back and click "Set up my brain" again.`;
         return "Your team isn't fully set up yet — your owner still needs to install the GitHub App on the repo. Once they've done that, come back and click \"Set up my brain\" again.";
       }
+      if (/repository not found|could not read from remote repository/i.test(msg)) {
+        // The server said this brain's repo exists, but GitHub can't find it — it
+        // was deleted, or an install callback never finished creating it. We can't
+        // recreate it from the clone step (that's the GitHub-install step's job),
+        // so say so plainly instead of falling through to the catch-all below.
+        // (2026-07-24: Mike hit the generic "something went wrong" cloning a
+        // deleted client repo whose server install record was still stale.)
+        return "I couldn't find your brain's GitHub repo — it looks like it was removed, or setup didn't finish creating it. Try \"Set up my brain\" again; if it keeps failing, whoever set up your brain needs to finish the GitHub install.";
+      }
       if (/dev guard/i.test(msg)) return msg; // surface the dev guard verbatim to Mike
       if (net.test(msg)) return "I can't reach GitHub. Check your internet, then try again.";
       return "Something went wrong setting up your brain. Try again, or pick a different location.";

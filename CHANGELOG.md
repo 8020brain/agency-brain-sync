@@ -2,6 +2,12 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.2 — 2026-07-24
+
+- **Your client's brand now sticks between visits.** Before, every refresh of a client brain's Command Centre showed the stock orange colours and font for a moment before the client's own brand loaded in. The app now remembers the brand on the machine and paints it before the page appears, so a refresh looks right from the first instant. The very first visit on a new machine still loads the brand once, and everything after that is instant.
+- **Buttons hover in your brand colour.** The solid filled buttons used to flash the old orange when you hovered over them, even on a fully re-branded brain. Hovering now shows a slightly darker shade of your brand colour instead, so the whole page stays on brand.
+- **A clearer message when your brain's repo can't be found.** If setup can't find your brain's GitHub repo (say it was removed, or a previous setup never finished creating it), the app now says exactly that and what to do next, instead of the generic "something went wrong".
+
 ## 1.1.0 — 2026-07-24
 
 - **Git now works everywhere on your machine, not just inside the app.** Before this, only the app's own syncing had reliable access to your brain's GitHub repo. Anything else that used git, like Claude working in Cursor or a command run in Terminal, borrowed an old saved credential that expired an hour after it was saved, and on some machines it could never be replaced. When that happened you'd see baffling GitHub permission errors and a macOS "enter your login keychain password" pop-up that looked like a password problem but wasn't. The app now supplies every git command on your machine with a fresh credential directly, so those failures and that pop-up are gone for good. Thanks to Pete Tyler at The Digital Stride, whose detailed report of exactly this on two of his team's machines led straight to the fix.
