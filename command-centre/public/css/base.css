@@ -1,6 +1,6 @@
   :root{
     --bg:#faf9f7; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b;
-    --line:#e6e3dd; --accent:#D64C00; --accent-soft:#fbeee7;
+    --line:#e6e3dd; --accent:#D64C00; --accent-soft:#fbeee7; --accent-hover:#b94000;
     --draft:#6b6b6b; --draft-bg:#efedea;
     --live:#D64C00; --live-bg:#fbeee7;
     --trusted:#1a1a1a; --trusted-bg:#e9e7e2;
@@ -59,7 +59,7 @@
   .pulse b{font-weight:700;}
   .sec-row{display:flex;align-items:center;gap:12px;}
   .add-btn{margin-left:auto;appearance:none;font-family:inherit;font-size:var(--fs-xs);font-weight:700;letter-spacing:.03em;text-transform:none;cursor:pointer;background:var(--accent);color:#fff;border:none;border-radius:2px;padding:6px 13px;}
-  .add-btn:hover{background:#b94000;} .add-btn:disabled{opacity:.5;cursor:default;}
+  .add-btn:hover{background:var(--accent-hover);} .add-btn:disabled{opacity:.5;cursor:default;}
   /* secondary (outline) — for the "+ Add member" toggle, so the form's primary
      action (Send invite) keeps the strong solid weight on its own. */
   .add-btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent);}

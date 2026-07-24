@@ -9,6 +9,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/views.css">
+<script>
+/* Paint the cached client brand BEFORE first render, so a refresh never
+   flashes the default orange/Oxanium. core.js refreshes this cache from
+   /api/branding after load; non-client (agency) brains never write it. */
+(function(){
+  try{
+    var b=JSON.parse(localStorage.getItem('cc-branding')||'null');
+    if(!b) return;
+    var r=document.documentElement.style;
+    if(b.accentDeep) r.setProperty('--accent',b.accentDeep);
+    if(b.accentSoft) r.setProperty('--accent-soft',b.accentSoft);
+    if(b.accentHover) r.setProperty('--accent-hover',b.accentHover);
+    var font=String(b.font||'').replace(/[^\w \-]/g,'').trim();
+    if(font){
+      var l=document.createElement('link'); l.rel='stylesheet';
+      l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(font).replace(/%20/g,'+')+':wght@400;600;700&display=swap';
+      document.head.appendChild(l);
+      var s=document.createElement('style');
+      s.textContent="body{font-family:'"+font+"',system-ui,sans-serif;}";
+      document.head.appendChild(s);
+    }
+    if(b.brandName) document.title=b.brandName+' · Command Centre';
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 <div id="session-expired-banner" hidden style="background:#D64C00;color:#fff;padding:11px 16px;font-weight:600;text-align:center;line-height:1.4;">Your sign-in has expired, so nothing is syncing right now. Open Agency Brain in your menu bar and choose &ldquo;Reconnect / sign in again&rdquo; to fix it, then this clears on its own.</div>

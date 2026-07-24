@@ -8,7 +8,7 @@
   .verdict .vp{font-size:14px;color:var(--muted);margin-top:4px;} .verdict .vp b{color:var(--ink);font-weight:600;}
   .verdict .vact{margin-top:12px;display:flex;gap:9px;flex-wrap:wrap;}
   .btn{font-family:inherit;font-weight:600;font-size:var(--fs-sm);padding:8px 16px;border:0;border-radius:2px;background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block;}
-  .btn:hover{background:#b94000;}
+  .btn:hover{background:var(--accent-hover);}
   .btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent);} .btn.ghost:hover{background:var(--accent-soft);}
   .btn.sm{font-size:var(--fs-xs);padding:5px 12px;} .btn.mut{background:#fff;color:var(--muted);border:1px solid var(--line);} .btn.mut:hover{border-color:var(--accent);color:var(--accent);}
   .btn[disabled]{opacity:.5;cursor:default;}

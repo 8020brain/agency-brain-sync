@@ -149,8 +149,16 @@
   // server's /api/branding serves the white-label record (live fetch with an
   // offline cache); this swaps the visible name + accent pair. Best-effort —
   // any failure leaves the default branding, never a broken page.
+  // Hover shade for filled buttons: ~18% darker than the brand accent, so
+  // hover never falls back to the stock orange on a re-branded brain.
+  function hoverShade(hex){
+    var m=/^#?([0-9a-f]{6})$/i.exec(String(hex||'').trim()); if(!m) return '';
+    var n=parseInt(m[1],16), f=0.82;
+    var r=Math.round(((n>>16)&255)*f), g=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
+    return '#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
+  }
   async function applyBranding(h){
-    if(((h&&h.teamKind)||'agency')!=='client') return;
+    if(((h&&h.teamKind)||'agency')!=='client'){ try{localStorage.removeItem('cc-branding');}catch(e){} return; }
     try{
       var b=await api('/api/branding');
       var name=(b&&b.brandName)||'';
@@ -160,8 +168,10 @@
         $('ft-ver').textContent=name+(h.version?(' v'+h.version):'');
       }
       var col=((b&&b.config)||{}).colours||{};
+      var hov=hoverShade(col.accentDeep)||col.accentDeep||'';
       if(col.accentDeep) document.documentElement.style.setProperty('--accent',col.accentDeep);
       if(col.accentSoft) document.documentElement.style.setProperty('--accent-soft',col.accentSoft);
+      if(hov) document.documentElement.style.setProperty('--accent-hover',hov);
       // Brand font (2026-07-23: portal saves it, we now honour it). Google
       // Fonts load with graceful fallback — offline just keeps system-ui.
       var font=String(((b&&b.config)||{}).font||'').replace(/[^\w \-]/g,'').trim();
@@ -172,6 +182,9 @@
         document.head.appendChild(l);
         document.body.style.fontFamily="'"+font+"',system-ui,sans-serif";
       }
+      // Cache the applied brand so index.html can paint it before first
+      // render on the next load — no flash of the default orange/Oxanium.
+      try{ localStorage.setItem('cc-branding', JSON.stringify({brandName:name, accentDeep:col.accentDeep||'', accentSoft:col.accentSoft||'', accentHover:hov, font:font})); }catch(e){}
       // Page-visibility toggles (2026-07-23: portal saves them, we now honour
       // them). pages[viewKey][role] === false hides that tab for that role;
       // anything else leaves it as applyRoleTabs decided. Runs after
