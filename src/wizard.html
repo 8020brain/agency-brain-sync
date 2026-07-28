@@ -113,6 +113,18 @@
         <div class="field" style="max-width:none;">
           <button class="btn ghost hidden" id="btn-connect-recheck" type="button">I've finished on GitHub &mdash; check now</button>
         </div>
+
+        <!-- Recovery: shown only when the server tells us it genuinely can't
+             create the brain itself. Never a guess. -->
+        <div class="hidden" id="connect-org-recovery" style="margin-top:1.2em;border-left:3px solid #D64C00;padding:0.2em 0 0.2em 1em;">
+          <p id="connect-org-recovery-msg" style="color:#333;margin:0 0 0.8em 0;"></p>
+          <div class="hidden" id="connect-org-picker">
+            <p style="color:#555;font-size:0.95em;margin:0 0 0.5em 0;">Or point it at one you already have:</p>
+            <select id="connect-org-repo-select" style="max-width:100%;padding:0.5em;"></select>
+            <button class="btn ghost" id="btn-connect-use-repo" type="button" style="margin-left:0.5em;">Use this one</button>
+          </div>
+        </div>
+
         <div class="error-banner hidden" id="err-connect-org"></div>
       </section>
 

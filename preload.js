@@ -29,6 +29,10 @@ const api = {
   configureIdentity: (args) => ipcRenderer.invoke('configure-identity', args),
   markInstallComplete: (args) => ipcRenderer.invoke('mark-install-complete', args),
   getInstallStatus: (teamSlug) => ipcRenderer.invoke('get-install-status', teamSlug),
+  // Finish setup once GitHub is connected: the server creates the brain repo
+  // (or adopts the right existing one) and tells us plainly when it can't.
+  ensureBrainRepo: (token, teamSlug) => ipcRenderer.invoke('ensure-brain-repo', token, teamSlug),
+  setTeamRepoUrl: (token, teamSlug, repoUrl) => ipcRenderer.invoke('set-team-repo-url', token, teamSlug, repoUrl),
 
   // Email + OTP first-run: enter email -> request code -> verify -> look up
   // which agency the email belongs to -> clone. The primary onboarding path.

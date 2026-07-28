@@ -624,7 +624,54 @@
     if (connectOrgPoll) { clearInterval(connectOrgPoll); connectOrgPoll = null; }
   }
 
-  let connectOrgInstalledTicks = 0; // ticks seen installed-but-no-repo (personal-account stall detector)
+  let connectOrgEnsureInFlight = false;  // one ensure call at a time
+  let connectOrgEnsureDone = false;      // stop re-asking once the server has ruled
+
+  function showConnectOrgRecovery(res) {
+    const wrap = document.getElementById('connect-org-recovery');
+    const msg = document.getElementById('connect-org-recovery-msg');
+    const picker = document.getElementById('connect-org-picker');
+    const select = document.getElementById('connect-org-repo-select');
+    const statusEl = document.getElementById('connect-org-status');
+    if (statusEl) statusEl.textContent = '';
+    if (!wrap || !msg) return;
+
+    const where = res.accountLogin ? `“${res.accountLogin}”` : 'the account you picked';
+    // Every message below states something the server actually established.
+    // The old screen guessed "you probably used a personal account" for every
+    // stall, which was wrong and sent people off to make an org they already had.
+    let text;
+    if (res.reason === 'personal-account') {
+      text = `GitHub is connected to ${where}, which is a personal account. GitHub doesn't let apps create repositories on a personal account, only on an organisation. Creating a free organisation at github.com/account/organizations/new takes a minute, then click the connect button again and pick it.`;
+    } else if (res.reason === 'no-admin') {
+      text = `GitHub is connected to the ${where} organisation, but the install wasn't given permission to create repositories there. Someone with owner access on that organisation needs to approve the install, then click the connect button again.`;
+    } else if (res.reason === 'create-failed') {
+      text = `GitHub is connected to ${where}, but it refused to create the brain: ${res.detail || 'no reason given'}. Try again in a moment, and if it keeps happening send me this message.`;
+    } else {
+      text = `I couldn't reach that GitHub install to finish setting things up${res.detail ? ` (${res.detail})` : ''}. Try the connect button again.`;
+    }
+    msg.textContent = text;
+
+    const repos = Array.isArray(res.repos) ? res.repos : [];
+    if (picker && select && repos.length) {
+      select.innerHTML = '';
+      for (const r of repos) {
+        const opt = document.createElement('option');
+        opt.value = r.cloneUrl;
+        opt.textContent = r.fullName;
+        select.appendChild(opt);
+      }
+      picker.classList.remove('hidden');
+    } else if (picker) {
+      picker.classList.add('hidden');
+    }
+    wrap.classList.remove('hidden');
+  }
+
+  function hideConnectOrgRecovery() {
+    const wrap = document.getElementById('connect-org-recovery');
+    if (wrap) wrap.classList.add('hidden');
+  }
 
   async function connectOrgCheckOnce() {
     if (!connectOrgSlug) return;
@@ -641,17 +688,35 @@
         enterMachine();
         return;
       }
-      if (st && st.installed) {
-        connectOrgInstalledTicks += 1;
+      // Installed, but no brain yet. Don't sit here hoping the GitHub redirect
+      // did the job — ask the server to finish it. It creates the repo on any
+      // org we can administer, however many repos that org already holds.
+      // (Before this, an owner who did everything right but left "All
+      // repositories" ticked on a non-empty org waited forever: Gerrards,
+      // 2026-07-28.)
+      if (st && st.installed && !connectOrgEnsureDone && !connectOrgEnsureInFlight) {
+        connectOrgEnsureInFlight = true;
         const el = document.getElementById('connect-org-status');
-        // The repo can only be auto-created on a GitHub ORGANISATION (GitHub
-        // forbids app-created repos on personal accounts). Installed with no
-        // repo appearing usually means they picked their personal account, so
-        // after ~45s stop saying "creating…" and tell them the actual fix.
-        if (el) {
-          el.textContent = connectOrgInstalledTicks >= 11
-            ? 'Still waiting on GitHub. If you installed on your personal account rather than an organisation, that\'s the snag: create a free organisation at github.com/account/organizations/new, then click the connect button again and pick the organisation.'
-            : 'Connected to GitHub — creating your brain…';
+        if (el) el.textContent = 'Connected to GitHub — creating your brain…';
+        try {
+          const res = await api.ensureBrainRepo(authToken, connectOrgSlug);
+          if (res && !res.blocked && res.repoUrl) {
+            stopConnectOrgPoll();
+            if (teamInfo) teamInfo.repoUrl = res.repoUrl;
+            enterMachine();
+            return;
+          }
+          if (res && res.blocked) {
+            connectOrgEnsureDone = true;
+            stopConnectOrgPoll();
+            showConnectOrgRecovery(res);
+          }
+        } catch (e) {
+          // Transient (offline, API restart): let the poll try again.
+          const el2 = document.getElementById('connect-org-status');
+          if (el2) el2.textContent = 'Connected to GitHub — creating your brain…';
+        } finally {
+          connectOrgEnsureInFlight = false;
         }
       }
     } catch (e) { /* keep waiting; the next tick retries */ }
@@ -663,7 +728,10 @@
     if (recheckBtn) recheckBtn.classList.remove('hidden');
     if (statusEl) statusEl.textContent = 'Waiting for GitHub… pick your business organisation and approve. This updates on its own once you finish.';
     stopConnectOrgPoll();
-    connectOrgInstalledTicks = 0;
+    hideConnectOrgRecovery();
+    // A fresh attempt gets a fresh ruling from the server.
+    connectOrgEnsureDone = false;
+    connectOrgEnsureInFlight = false;
     connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
   }
 
@@ -708,12 +776,39 @@
         try { await api.openExternalUrl(url); } catch (e) { /* ignore */ }
         connectOrgStartWaiting();
       });
-      if (recheckBtn) recheckBtn.addEventListener('click', () => { connectOrgCheckOnce(); });
+      // "Check now" is also the retry: clear the previous ruling so the server
+      // gets asked again rather than the screen staying stuck on it.
+      if (recheckBtn) recheckBtn.addEventListener('click', () => {
+        connectOrgEnsureDone = false;
+        hideConnectOrgRecovery();
+        if (!connectOrgPoll) connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
+        connectOrgCheckOnce();
+      });
+      const useRepoBtn = document.getElementById('btn-connect-use-repo');
+      if (useRepoBtn) useRepoBtn.addEventListener('click', async () => {
+        const select = document.getElementById('connect-org-repo-select');
+        const repoUrl = select && select.value;
+        if (!repoUrl) return;
+        const orig = useRepoBtn.textContent;
+        useRepoBtn.disabled = true;
+        useRepoBtn.textContent = 'Setting it up…';
+        try {
+          await api.setTeamRepoUrl(authToken, connectOrgSlug, repoUrl);
+          stopConnectOrgPoll();
+          if (teamInfo) teamInfo.repoUrl = repoUrl;
+          enterMachine();
+        } catch (err) {
+          errorIn('err-connect-org', friendlyError(err, 'set-repo'));
+          useRepoBtn.disabled = false;
+          useRepoBtn.textContent = orig;
+        }
+      });
     }
     stopConnectOrgPoll();
     const statusEl = document.getElementById('connect-org-status');
     if (statusEl) statusEl.textContent = '';
     if (recheckBtn) recheckBtn.classList.add('hidden');
+    hideConnectOrgRecovery();
     show('scene-connect-org');
   }
 

@@ -1575,6 +1575,38 @@ ipcMain.handle('get-install-status', async (_evt, teamSlug) => {
   return r.json();
 });
 
+// Ask the server to finish the GitHub side: create the brain repo in the org
+// we're installed on, or adopt the right existing one. Replaces the old
+// "wait and hope the redirect did it" loop, which stranded any owner whose org
+// already had repos in it (Gerrards, 2026-07-28).
+// Returns { blocked:false, repoUrl } or { blocked:true, reason, repos }.
+ipcMain.handle('ensure-brain-repo', async (_evt, token, teamSlug) => {
+  const r = await fetch(`${API_BASE}/api/team-brain/ensure-brain-repo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ teamSlug }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  return r.json();
+});
+
+// The owner picked one of their existing repos to be the brain.
+ipcMain.handle('set-team-repo-url', async (_evt, token, teamSlug, repoUrl) => {
+  const r = await fetch(`${API_BASE}/api/team-brain/update-team`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ teamSlug, repoUrl }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  return r.json();
+});
+
 // Seed a freshly-created EMPTY agency repo from the agency-brain-template.
 // The API install-callback (Phase 1, AGENCY_AUTO_CREATE_REPO) makes the org repo
 // EMPTY; this fills it on first clone. Clones the private template with a brokered

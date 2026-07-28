@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.7 — 2026-07-28
+
+- **Setup now creates your brain on your organisation, whatever else is already in there.** If you connected GitHub to your business organisation and that organisation already had other repositories in it, setup quietly gave up: it only ever created your brain when it could see an empty organisation. The screen sat on "creating your brain" and then told you that you'd probably picked a personal account, which wasn't true and sent you looking for a problem you didn't have. Setup now creates your brain on any organisation it's allowed to, no matter how much work is already sitting there, and you don't have to change any GitHub settings to make it happen.
+- **When setup really can't continue, it tells you the actual reason.** The old screen made one guess and showed it to everybody. It now says what's genuinely in the way: that the account you chose is a personal one and GitHub won't let apps create repositories there, or that the install wasn't given permission to create repositories on your organisation, along with what to do about it. If you'd rather use a repository you already have, there's now a list of them to pick from.
+- **"Check now" actually retries.** It used to re-read the same answer. It now asks again from scratch, so once you've fixed whatever was in the way, one click picks it up.
+
+Thanks to Greg Dickson at Gerrards, who hit this on his first run and reported it.
+
 ## 1.1.6 — 2026-07-28
 
 - **Read the invite email before you send it.** Adding someone to a brain sends them an email, and until now you had no way of seeing what it said. There's a "Show the email they'll get" link under the add-member form that shows you exactly who it comes from, where replies go, the subject, and the full text. It's the real email, not a mock-up, so what you read is what lands.
