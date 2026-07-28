@@ -2,6 +2,11 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.6 — 2026-07-28
+
+- **Read the invite email before you send it.** Adding someone to a brain sends them an email, and until now you had no way of seeing what it said. There's a "Show the email they'll get" link under the add-member form that shows you exactly who it comes from, where replies go, the subject, and the full text. It's the real email, not a mock-up, so what you read is what lands.
+- **Invites into a client brain now come from the client's brand, not from me.** A client's staff were getting an email from "Mike Rhodes" that talked about Agency Brain and was signed off by me, which meant nothing to people who've never heard of me. Those invites now arrive from the client's own brand name, describe the brain as theirs, and are signed by whoever at your agency sent it. Replies come to you, not to me. Invites to your own agency team are unchanged.
+
 ## 1.1.5 — 2026-07-28
 
 - **"I have a code" is now in the menu, so you can add a second brain without signing out.** Once you had one brain set up on your machine, there was no visible way to enter a new setup code. The only route was "Run setup again..." tucked inside Settings, which nobody reads as code entry, so staging a client brain meant signing out of the Command Centre and back in again to find the option. The menu now carries "I have a code (add a brain)..." at all times, and it opens straight to the code box with the cursor already in it.

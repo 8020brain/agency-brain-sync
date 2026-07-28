@@ -191,6 +191,18 @@
             <button class="add-btn" id="af-send">Send invite</button>
             <span class="af-status" id="af-status"></span>
           </div>
+          <div class="invite-preview" id="invite-preview" hidden>
+            <button type="button" class="ip-toggle" id="ip-toggle" aria-expanded="false">Show the email they'll get</button>
+            <div class="ip-body" id="ip-body" hidden>
+              <div class="ip-meta">
+                <div><span class="ip-k">From</span><span class="ip-v" id="ip-from"></span></div>
+                <div><span class="ip-k">Replies go to</span><span class="ip-v" id="ip-replyto"></span></div>
+                <div><span class="ip-k">Subject</span><span class="ip-v" id="ip-subject"></span></div>
+              </div>
+              <pre class="ip-text" id="ip-text"></pre>
+              <p class="ip-note">The code shown here is a sample. Each person gets their own.</p>
+            </div>
+          </div>
           <div class="table-scroll">
             <table class="team-table">
               <thead id="team-head"><tr><th>Name</th><th>Email</th><th>Role</th><th>Activity</th></tr></thead>
@@ -281,6 +293,18 @@
             <select id="af-role-s"><option value="team">Team</option><option value="scout">Scout</option><option value="owner">Owner</option></select>
             <button class="add-btn" id="af-send-s">Send invite</button>
             <span class="af-status" id="af-status-s"></span>
+          </div>
+          <div class="invite-preview" id="invite-preview-s" hidden>
+            <button type="button" class="ip-toggle" id="ip-toggle-s" aria-expanded="false">Show the email they'll get</button>
+            <div class="ip-body" id="ip-body-s" hidden>
+              <div class="ip-meta">
+                <div><span class="ip-k">From</span><span class="ip-v" id="ip-from-s"></span></div>
+                <div><span class="ip-k">Replies go to</span><span class="ip-v" id="ip-replyto-s"></span></div>
+                <div><span class="ip-k">Subject</span><span class="ip-v" id="ip-subject-s"></span></div>
+              </div>
+              <pre class="ip-text" id="ip-text-s"></pre>
+              <p class="ip-note">The code shown here is a sample. Each person gets their own.</p>
+            </div>
           </div>
           <div class="table-scroll">
             <table class="team-table">

@@ -77,6 +77,17 @@
   .solo-nudge{font-size:13px;line-height:1.55;color:var(--warn);background:var(--warn-soft);border:1px solid #e8d9c4;border-left:3px solid var(--warn);border-radius:2px;padding:12px 14px;margin-bottom:14px;}
   .solo-nudge[hidden]{display:none;}
   .solo-nudge b{color:var(--ink);}
+  /* Invite preview: read the exact email before it reaches a client's staff. */
+  .invite-preview{margin:-6px 0 14px;}
+  .invite-preview[hidden]{display:none;}
+  .ip-toggle{appearance:none;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;background:none;border:none;padding:0;color:var(--accent);text-decoration:underline;}
+  .ip-body{margin-top:10px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:2px;}
+  .ip-body[hidden]{display:none;}
+  .ip-meta{display:grid;gap:4px;margin-bottom:10px;}
+  .ip-k{display:inline-block;min-width:104px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;}
+  .ip-v{font-size:13px;color:var(--ink);}
+  .ip-text{margin:0;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:2px;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;line-height:1.55;color:var(--ink);white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto;}
+  .ip-note{margin:8px 0 0;font-size:11.5px;color:var(--muted);}
   .row-actions{white-space:nowrap;text-align:right;}
   .mini{appearance:none;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;background:#fff;color:var(--accent);border:1px solid var(--accent);border-radius:2px;padding:3px 9px;margin-left:6px;}
   .mini:hover{background:var(--accent-soft);}

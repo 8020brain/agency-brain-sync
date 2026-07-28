@@ -103,6 +103,9 @@
             if(!TEAMSLUG){ if(f) f.hidden=true; if(nudge) nudge.hidden=!nudge.hidden; return; }
             if(nudge) nudge.hidden=true;
             f.hidden=!f.hidden; if(!f.hidden) $(t[2]).focus();
+            // The "show me the email first" link rides with the form.
+            var ip=$(t[1]==='add-form'?'invite-preview':'invite-preview-s');
+            if(ip) ip.hidden=f.hidden;
           }); }
         } else {
           if(ab) ab.hidden=true;
@@ -418,6 +421,41 @@
       loadRoster();
     }catch(e){ alert('Couldn’t remove: '+e.message); }
   }
+
+  // "Show the email they'll get" under each add-member form. Sending an invite
+  // into a CLIENT brain puts a message in front of the client's own staff, so
+  // the person sending it should be able to read it first, with no surprises
+  // about who it appears to come from (2026-07-28 beta report). Fetched once,
+  // lazily, from the API's own builder so it always matches what sends.
+  (function(){
+    var cache=null, inflight=null;
+    function load(){
+      if(cache) return Promise.resolve(cache);
+      if(inflight) return inflight;
+      inflight=api('/api/team-invite-preview').then(function(d){ cache=d; inflight=null; return d; });
+      return inflight;
+    }
+    [['ip-toggle','ip-body','ip-from','ip-replyto','ip-subject','ip-text','invite-preview'],
+     ['ip-toggle-s','ip-body-s','ip-from-s','ip-replyto-s','ip-subject-s','ip-text-s','invite-preview-s']].forEach(function(t){
+      var toggle=$(t[0]); if(!toggle) return;
+      toggle.addEventListener('click',function(){
+        var body=$(t[1]); if(!body) return;
+        var opening=body.hidden;
+        body.hidden=!opening;
+        toggle.setAttribute('aria-expanded', opening?'true':'false');
+        toggle.textContent=opening?'Hide the email':'Show the email they’ll get';
+        if(!opening) return;
+        $(t[5]).textContent='Loading…';
+        load().then(function(d){
+          if(!d||d.unavailable||!d.subject){ $(t[5]).textContent='Couldn’t load the preview'+(d&&d.reason?': '+d.reason:'.'); return; }
+          $(t[2]).textContent=d.fromName+' <'+d.fromEmail+'>';
+          $(t[3]).textContent=d.replyTo||d.fromEmail;
+          $(t[4]).textContent=d.subject;
+          $(t[5]).textContent=d.body;
+        }).catch(function(e){ $(t[5]).textContent='Couldn’t load the preview: '+e.message; });
+      });
+    });
+  })();
 
   // add-member form. Visible "Sending…" state + a hard timeout so a click is
   // never silent, even if the server is slow warming up.

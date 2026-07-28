@@ -705,6 +705,17 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { unavailable: true, reason: err.message });
       }
     }
+    // Exactly what the invite email will say, so nobody sends one to a client's
+    // people without having seen it first. Built by the API from the same code
+    // that sends, so the preview can't drift from the real thing.
+    if (req.method === 'GET' && p === '/api/team-invite-preview') {
+      if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 200, { unavailable: true, reason: 'not signed in to a team' });
+      try {
+        return send(res, 200, await apiCall('GET', '/api/team-brain/invite-preview?teamSlug=' + encodeURIComponent(TEAM_SLUG)));
+      } catch (err) {
+        return send(res, 200, { unavailable: true, reason: err.message });
+      }
+    }
     // Add a member: create the roster row, generate an invite, email it. Owner/scout only (enforced server-side).
     if (req.method === 'POST' && p === '/api/team-invite') {
       const body = await readBody(req);
