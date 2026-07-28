@@ -12,7 +12,9 @@ The live menu-bar app + embedded Command Centre + sync engine. One product: "Age
 
 ## CHANGELOG.md is member-facing — write it for members, not developers
 
-Members read it inside the app: the Command Centre footer's "What's new" link opens `/changelog`, which renders the CHANGELOG.md bundled into that build (`electron-builder.yml` files + asarUnpack). So every entry must read like explaining to a business owner who doesn't code: what was broken or missing for them, what's better now, in behaviour terms. No file names, no jargon, no em dashes in prose (the `## version — date` heading separator is structural and fine). One or two sentences per bullet. Credit member reports by name when one triggered the fix.
+Members read it inside the app: the Command Centre footer's "What's new" link opens `/changelog`, which renders the CHANGELOG.md bundled into that build (`electron-builder.yml` files + asarUnpack). So every entry must read like explaining to a business owner who doesn't code: what was broken or missing for them, what's better now, in behaviour terms. No file names, no jargon, no em dashes in prose (the `## version — date` heading separator is structural and fine). One or two sentences per bullet.
+
+**Never name a member, an agency, or what they were doing.** No "thanks to X at Y", no "reported by", no "X asked for this". Every agency reads this file, so a name next to a version number tells everyone else something about that customer's setup, their problems, or their account, and they never agreed to that. The rule used to say to credit reporters by name, which is how eleven such lines ended up shipped and had to be stripped out on 2026-07-29 (Mike: "you don't want Chris thinking that we're telling information about his story in a file that can be read by anyone"). Thank people privately, in the reply to them. If a thank-you ever does belong here, it is a bare thank-you with no name and no explanation of why.
 
 The page needs no separate publishing step. It ships inside each build, so updating the file before tagging IS the automation.
 

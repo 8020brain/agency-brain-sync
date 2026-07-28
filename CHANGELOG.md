@@ -8,7 +8,6 @@ What changed in each version of the Agency Brain app. You're reading the copy th
 - **The nudge to add Scouts no longer promises the wrong thing.** If you have no Scout seats yet, the card used to say that buying two would lift your free Team limit from 5 to 10. That's out of date and short of the truth: paying for any Scout seat at all makes your Team members unlimited. It says that now, along with the real €150 a seat price.
 - **Running out of seats now tells you what more seats cost.** The old message offered you a coupon toward the next package up, which no longer exists. It now says seats are €150 a year each and you can add as many as you like, and emails me to put them on your next invoice.
 
-Thanks to Chris Pittham at Jaywing, whose seat change surfaced all three.
 
 ## 1.1.7 — 2026-07-28
 
@@ -16,7 +15,6 @@ Thanks to Chris Pittham at Jaywing, whose seat change surfaced all three.
 - **When setup really can't continue, it tells you the actual reason.** The old screen made one guess and showed it to everybody. It now says what's genuinely in the way: that the account you chose is a personal one and GitHub won't let apps create repositories there, or that the install wasn't given permission to create repositories on your organisation, along with what to do about it. If you'd rather use a repository you already have, there's now a list of them to pick from.
 - **"Check now" actually retries.** It used to re-read the same answer. It now asks again from scratch, so once you've fixed whatever was in the way, one click picks it up.
 
-Thanks to Greg Dickson at Gerrards, who hit this on his first run and reported it.
 
 ## 1.1.6 — 2026-07-28
 
@@ -29,7 +27,6 @@ Thanks to Greg Dickson at Gerrards, who hit this on his first run and reported i
 - **Setting up a client brain no longer picks up a brain you already have.** If you installed on a GitHub organisation that already held a brain, setup treated that existing repository as the new one, so a client brain could end up pointing at your agency's own brain instead of getting its own. Setup now checks whether a repository already belongs to another brain and creates a separate one rather than taking it over. The setup screen also asks you to pick the client's own organisation, so their brain stays cleanly theirs.
 - **The setup screens no longer say "agency" when you're setting up a client.** Creating a brain for a client showed "Let's create your agency brain" and asked "Which agency?", which is the wrong language for a client's business and confusing if their own person ever runs the setup. Those screens now use the client's brand name and neutral wording.
 
-Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the client brain setup, who found and reported all three.
 
 ## 1.1.4 — 2026-07-25
 
@@ -37,7 +34,7 @@ Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the cli
 
 ## 1.1.3 — 2026-07-24
 
-- **Dress your Command Centre in your own agency's brand.** Owners and scouts can now pick your agency's colours and font on the new "Your Brand" page in the members portal (m.ads2ai.com/agency-brain/branding), and every seat on your team sees the new look the next time their Command Centre loads. Choose from twelve ready-made colours or enter your exact brand colour, with an instant preview on the page. Nothing to configure in the app itself. Thanks to Chris at Jaywing for asking for this.
+- **Dress your Command Centre in your own agency's brand.** Owners and scouts can now pick your agency's colours and font on the new "Your Brand" page in the members portal (m.ads2ai.com/agency-brain/branding), and every seat on your team sees the new look the next time their Command Centre loads. Choose from twelve ready-made colours or enter your exact brand colour, with an instant preview on the page. Nothing to configure in the app itself.
 
 ## 1.1.2 — 2026-07-24
 
@@ -47,7 +44,7 @@ Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the cli
 
 ## 1.1.0 — 2026-07-24
 
-- **Git now works everywhere on your machine, not just inside the app.** Before this, only the app's own syncing had reliable access to your brain's GitHub repo. Anything else that used git, like Claude working in Cursor or a command run in Terminal, borrowed an old saved credential that expired an hour after it was saved, and on some machines it could never be replaced. When that happened you'd see baffling GitHub permission errors and a macOS "enter your login keychain password" pop-up that looked like a password problem but wasn't. The app now supplies every git command on your machine with a fresh credential directly, so those failures and that pop-up are gone for good. Thanks to Pete Tyler at The Digital Stride, whose detailed report of exactly this on two of his team's machines led straight to the fix.
+- **Git now works everywhere on your machine, not just inside the app.** Before this, only the app's own syncing had reliable access to your brain's GitHub repo. Anything else that used git, like Claude working in Cursor or a command run in Terminal, borrowed an old saved credential that expired an hour after it was saved, and on some machines it could never be replaced. When that happened you'd see baffling GitHub permission errors and a macOS "enter your login keychain password" pop-up that looked like a password problem but wasn't. The app now supplies every git command on your machine with a fresh credential directly, so those failures and that pop-up are gone for good.
 - **Clear messages when something does need you.** If git can't get access because you're signed out of the app, it now says so in plain words: open the Agency Brain app and sign in again. If your internet or our server is unreachable, it tells you that instead of failing mysteriously.
 - **One-time cleanup.** On first run after this update, the app removes the old stuck credential from your Mac's keychain so it can never confuse git (or you) again. It only touches the app's own entry, never your personal passwords.
 
@@ -108,7 +105,7 @@ Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the cli
 
 ## 0.9.35 — 2026-07-04
 
-- **"Tell your brain who you are" no longer dead-ends when your login has no name.** For some members, signing in doesn't bring a name back with it, and the one-click identity setup would fail with "sign in again", which could never fix it. Now, if the app doesn't know your name, the banner simply asks you to type it, and one click finishes the job. (Thanks to Richard for the report.)
+- **"Tell your brain who you are" no longer dead-ends when your login has no name.** For some members, signing in doesn't bring a name back with it, and the one-click identity setup would fail with "sign in again", which could never fix it. Now, if the app doesn't know your name, the banner simply asks you to type it, and one click finishes the job.
 
 ## 0.9.34 — 2026-07-04
 
@@ -120,7 +117,7 @@ Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the cli
 
 ## 0.9.32 — 2026-07-02
 
-- **Fixes syncing that could get stuck offline and never come back.** In a rare case, the app could get a dead login pass frozen into its connection to GitHub, and then every attempt to sync would fail with "offline", retrying forever, even after restarting the app. This update makes the app clear out any stale pass and fetch a fresh one on every sync, so a connection that got wedged this way heals itself automatically the first time it runs. If your syncing has been sitting on "offline or fetch failed" and a restart didn't help, updating to this version brings it back on its own. (Thanks to Damien at Beacon for the detailed report.)
+- **Fixes syncing that could get stuck offline and never come back.** In a rare case, the app could get a dead login pass frozen into its connection to GitHub, and then every attempt to sync would fail with "offline", retrying forever, even after restarting the app. This update makes the app clear out any stale pass and fetch a fresh one on every sync, so a connection that got wedged this way heals itself automatically the first time it runs. If your syncing has been sitting on "offline or fetch failed" and a restart didn't help, updating to this version brings it back on its own.
 
 ## 0.9.31 — 2026-07-02
 
@@ -155,15 +152,15 @@ Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the cli
 
 ## 0.9.24 — 2026-06-19
 
-- **A "Reconnect" button when you get signed out.** If your saved sign-in ever gets cleared (it can happen while troubleshooting), syncing used to stop quietly and the app couldn't see your team, with no obvious way back. Now the app spots this straight away, tells you what happened, and puts a clear "Reconnect / sign in again" option at the top of the menu (and opens it for you on launch). Signing back in with your email code brings your team and syncing right back, using your existing brain folder, with nothing re-downloaded. (Thanks to Jonti at WHO Digital for the report.)
+- **A "Reconnect" button when you get signed out.** If your saved sign-in ever gets cleared (it can happen while troubleshooting), syncing used to stop quietly and the app couldn't see your team, with no obvious way back. Now the app spots this straight away, tells you what happened, and puts a clear "Reconnect / sign in again" option at the top of the menu (and opens it for you on launch). Signing back in with your email code brings your team and syncing right back, using your existing brain folder, with nothing re-downloaded.
 
 ## 0.9.23 — 2026-06-19
 
-- **A clearer message when your GitHub install isn't finished.** If you're an owner and you open the app before the Agency Brain GitHub App is installed on your repo, the app used to say "ask your owner to finish the install" — but you ARE the owner, so that was a dead end with nothing you could do. Now it tells you exactly what's left: install the App on your repo (with the link right there), then come back and try again. Team members still get pointed to their owner, now with what the owner actually needs to do. (Thanks to Ionut for the report.)
+- **A clearer message when your GitHub install isn't finished.** If you're an owner and you open the app before the Agency Brain GitHub App is installed on your repo, the app used to say "ask your owner to finish the install" — but you ARE the owner, so that was a dead end with nothing you could do. Now it tells you exactly what's left: install the App on your repo (with the link right there), then come back and try again. Team members still get pointed to their owner, now with what the owner actually needs to do.
 
 ## 0.9.22 — 2026-06-18
 
-- **Your team config heals itself.** Every agency brain keeps a small file listing who's on your team, and the setup steps need it. In a few setups it never got created, which could stop Claude part-way through saying it couldn't find it. The app now writes that file for you automatically on startup whenever it's missing, fills it from your live team list, and syncs it to everyone, so setup no longer gets stuck on this. (Thanks to Mathieu at Uptimize for the report.)
+- **Your team config heals itself.** Every agency brain keeps a small file listing who's on your team, and the setup steps need it. In a few setups it never got created, which could stop Claude part-way through saying it couldn't find it. The app now writes that file for you automatically on startup whenever it's missing, fills it from your live team list, and syncs it to everyone, so setup no longer gets stuck on this.
 
 ## 0.9.21 — 2026-06-16
 
@@ -190,7 +187,7 @@ Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the cli
 
 ## 0.9.15 — 2026-06-10
 
-- **Sync can no longer get permanently stuck.** If a team member edited a skill file, sync could quietly jam on that machine and stay jammed. Skills are now read-only for team roles: the edit is backed up safely, the file is restored, and the suggestion is sent to the team's scout as a skill flag instead. A sync that was already stuck clears itself on the next cycle. (Thanks to Peter Tyler for the report.)
+- **Sync can no longer get permanently stuck.** If a team member edited a skill file, sync could quietly jam on that machine and stay jammed. Skills are now read-only for team roles: the edit is backed up safely, the file is restored, and the suggestion is sent to the team's scout as a skill flag instead. A sync that was already stuck clears itself on the next cycle.
 - **The setup wizard shows who you're signed in as.** Your email, role, and app version now sit in the wizard footer, so if setup ever gets stuck, a single screenshot tells support everything they need.
 
 ## 0.9.14 — 2026-06-04
