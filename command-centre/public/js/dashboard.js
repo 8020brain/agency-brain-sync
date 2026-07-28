@@ -12,9 +12,23 @@
   // Seats = owner + scout, capped at the package's scout count + 1 (the owner's
   // free seat + N scout seats). The banner + plan card display it in scout-seat
   // terms (owner's seat unnamed): scout seats used = max(0, owner+scout - 1).
-  var NEXT_TIER={2:'5-scout',5:'10-scout'};
-  var PKG_PRICE={'Solo':799,'Solo + coaching':999,'Team of 2':1199,'Team of 5':1995,'Team of 10':2995};
-  function planLabel(t){ return ({'Team of 2':'+2 scouts','Team of 5':'+5 scouts','Team of 10':'+10 scouts'})[t]||t; }
+  // Per-seat since 2026-07-28: EUR150 per Scout seat, minimum 2, and the
+  // Owner + 2 / + 5 / + 10 packs are dead. So the plan label is derived from the
+  // SEAT COUNT we already hold, never from the stored package_tier string. That
+  // string reads 'Team of 5' on agencies who bought before the switch, 'per_seat'
+  // on anyone who buys through Stripe now, and 'N scouts' on anyone set by hand,
+  // and only the last of those is English.
+  //
+  // No yearly price is shown, deliberately. The annual figure is the member's own
+  // base (EUR499 founding / EUR649 evolution / EUR799 standard, plus grandfathered
+  // one-offs) plus EUR150 a seat, so it cannot be derived from the seat count, and
+  // any number computed here would be wrong for a good share of agencies. A wrong
+  // price on a billing card is worse than no price. The map that used to live here
+  // was showing dead pack prices to everyone still on a legacy label.
+  function planLabel(seats){
+    if(!seats) return 'Solo';
+    return seats+' Scout seat'+(seats===1?'':'s');
+  }
   function ccRole(){ var r=CCROLE; return r==='head-scout'?'scout':r; }
 
   // Dismiss is keyed on team + scout-seat count, so the banner reappears if the
@@ -75,8 +89,8 @@
   function maybeBanner(){
     var r=ccRole(), n=SCOUT_SEATS||0;
     // Scout seats used = owner+scout minus the owner's free seat. The cap is the
-    // package's N scout seats (a 2nd owner just uses one). We don't name the
-    // owner's free seat — public framing stays "Team of N = N scout seats".
+    // number of paid scout seats (a 2nd owner just uses one). We don't name the
+    // owner's free seat, so the public framing is "N seats = N Scouts".
     var used=Math.max(0, (SEATS_USED||0)-1);
     var atCap=(r==='owner'||r==='scout') && n>0 && used>=n;
     CUR_BANNER_SIG=(TEAMSLUG||'')+':'+n;
@@ -85,21 +99,26 @@
     var ob=$('upsell-banner');
     if(ob){
       if(show && r==='owner'){
-        // At-cap: nudge to the NEXT tier (5/10). No self-serve page for those yet, so email Mike.
-        var next=NEXT_TIER[n]||'next';
+        // At-cap. There is no "next tier" to step up to any more, just more seats
+        // at EUR150 each. This stays an email rather than a link because the public
+        // upgrade page still sells only the old 2 and 5 packs and tells anyone who
+        // already holds seats there is nothing left to add. Point it at
+        // ads2ai.com/agency-brain/upgrade once that page can take an existing-seat
+        // agency, and this becomes self-serve.
         $('ub-h').textContent=word+' are in use.';
-        $('ub-p').innerHTML='To add more scouts, email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for a coupon — you only pay the difference up to the '+next+' plan.';
-        $('ub-cta').href='mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20upgrade';
-        $('ub-cta').textContent='Email Mike for a coupon';
+        $('ub-p').innerHTML='Scout seats are &euro;150 a year each and you can add as many as you like. Email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> and he will add them to your next invoice.';
+        $('ub-cta').href='mailto:mike@mikerhodes.com.au?subject=Agency%20Brain%20extra%20Scout%20seats';
+        $('ub-cta').textContent='Email Mike for more seats';
         var ubxA=$('ub-x'); if(ubxA) ubxA.hidden=false;
         ob.hidden=false; wireDismiss(ubxA, ob);
       } else if(r==='owner' && !n && (SHOW_DISMISSED || !addScoutsSnoozed())){
-        // Solo owner (no scout seats yet): self-serve Team-2 upgrade on the page —
-        // direct pay, no emailing Mike. Dismissible, but the × only snoozes it for a
-        // week, then it returns. (Non-dismissible nagged; the old dismiss-forever
-        // banner got missed — owners couldn't find where to add a Scout.)
-        $('ub-h').textContent='Add Scouts to your team — €300/yr.';
-        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. It\'s +€300/yr for 2 Scout seats (pro-rated to your renewal) and lifts your free Team cap from 5 to 10.';
+        // Solo owner (no scout seats yet): the 2-seat minimum IS self-serve on the
+        // public page, so this one links straight there. Dismissible, but the ×
+        // only snoozes it for a week, then it returns. (Non-dismissible nagged; the
+        // old dismiss-forever banner got missed, and owners then could not find
+        // where to add a Scout at all.)
+        $('ub-h').textContent='Add Scouts to your team, €300/yr.';
+        $('ub-p').innerHTML='Make two of your team full members who can build and sharpen skills, not just use them. Scout seats are &euro;150 a year each with a minimum of two, so &euro;300, pro-rated to your renewal. Paying for any Scout seat also makes your free Team members unlimited.';
         $('ub-cta').href='https://ads2ai.com/agency-brain/upgrade';
         $('ub-cta').textContent='Add Scouts';
         var ubxB=$('ub-x'); if(ubxB){ ubxB.hidden=false; ubxB.title='Snooze for a week'; wireSnooze(ubxB, ob); }
@@ -110,7 +129,7 @@
     if(sb){
       if(show && r==='scout'){
         $('ub-h-s').textContent=word+' are full.';
-        $('ub-p-s').innerHTML='Want another scout on the team? Ask your owner to email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a> for an upgrade coupon — they only pay the difference.';
+        $('ub-p-s').innerHTML='Want another scout on the team? Ask your owner to email <a href="mailto:mike@mikerhodes.com.au">mike@mikerhodes.com.au</a>. Extra seats are &euro;150 a year each.';
         sb.hidden=false; wireDismiss($('ub-x-s'), sb);
       } else sb.hidden=true;
     }
@@ -234,10 +253,10 @@
     card.hidden=false;
     // Scout seats consumed = owner+scout minus the owner's free seat (a 2nd
     // owner uses a scout seat). Matches the banner's at-cap math.
-    var seats=SCOUT_SEATS||0, used=Math.max(0,(SEATS_USED||0)-1), full=seats>0 && used>=seats, price=PKG_PRICE[PACKAGE_TIER];
+    var seats=SCOUT_SEATS||0, used=Math.max(0,(SEATS_USED||0)-1), full=seats>0 && used>=seats;
     if(note) note.textContent=full?'scout seats full':'';
     var h=[];
-    h.push('<div class="bill-row"><span class="k">Plan</span><span class="v">'+esc(planLabel(PACKAGE_TIER))+(price?(' · €'+price.toLocaleString()+'/yr'):'')+'</span></div>');
+    h.push('<div class="bill-row"><span class="k">Plan</span><span class="v">'+esc(planLabel(seats))+'</span></div>');
     if(seats>0){
       h.push('<div class="bill-row"><span class="k">Scout seats</span><span class="v'+(full?' cap':'')+'">'+used+' of '+seats+' used'+(full?' · full':'')+'</span></div>');
       h.push('<div class="seatbar"><i style="width:'+Math.min(100,Math.round(used/seats*100))+'%"></i></div>');

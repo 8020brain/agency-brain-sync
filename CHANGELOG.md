@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.8 — 2026-07-29
+
+- **Your plan card shows your Scout seats, and no longer quotes a price that isn't yours.** Scout seats moved to €150 a year each (minimum two) on 28 July, and the old Owner + 2, + 5 and + 10 packages went away. The plan card hadn't caught up, so it was still showing the old package price next to your name. For some agencies that was hundreds of euros away from what they actually pay, and for anyone who bought seats after the change it showed an internal code word instead of a plan. It now simply says how many Scout seats you hold, and leaves the money to your invoice, which is the only place it was ever right. Your seat bar and everything else on the card are unchanged.
+- **The nudge to add Scouts no longer promises the wrong thing.** If you have no Scout seats yet, the card used to say that buying two would lift your free Team limit from 5 to 10. That's out of date and short of the truth: paying for any Scout seat at all makes your Team members unlimited. It says that now, along with the real €150 a seat price.
+- **Running out of seats now tells you what more seats cost.** The old message offered you a coupon toward the next package up, which no longer exists. It now says seats are €150 a year each and you can add as many as you like, and emails me to put them on your next invoice.
+
+Thanks to Chris Pittham at Jaywing, whose seat change surfaced all three.
+
 ## 1.1.7 — 2026-07-28
 
 - **Setup now creates your brain on your organisation, whatever else is already in there.** If you connected GitHub to your business organisation and that organisation already had other repositories in it, setup quietly gave up: it only ever created your brain when it could see an empty organisation. The screen sat on "creating your brain" and then told you that you'd probably picked a personal account, which wasn't true and sent you looking for a problem you didn't have. Setup now creates your brain on any organisation it's allowed to, no matter how much work is already sitting there, and you don't have to change any GitHub settings to make it happen.
