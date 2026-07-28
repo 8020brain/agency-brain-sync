@@ -1,9 +1,25 @@
 # Embedded Command Centre (member-safe)
 
-The post-onboarding home of Agency Brain. A slim, member-safe copy of the
-brain dashboard's Command Centre, bundled into the app and pointed at the
-member's own cloned brain. Ships the projects / todos / active-sessions /
-dispatch home, plus the Getting started path, Learn Cowork course, Help/FAQ, Skills browser, Google Ads connector, and team-roster views.
+The post-onboarding home of Agency Brain. Bundled into the app and pointed at
+the member's own cloned brain.
+
+**What it actually ships (the nav in `public/index.html`, and nothing else):**
+`welcome`, `path` (Getting started / scout path), `cowork` (Learn Cowork
+course), `owner` + `scout` (team roster, seats, invites), `skills` (browser),
+`gads` (Google Ads connector), `help` (FAQ / flag a skill).
+
+**It is an onboarding, team-admin and help surface. It has NO task list and NO
+click-to-dispatch.** That is the **Workbench** (`tools/dashboard`, port 3847),
+a separate Mike-only product which was renamed FROM "Command Centre" precisely
+to keep these two apart. Do not describe this surface as somewhere you click a
+task to fire off work, in docs or in any email to an agency.
+
+The engine in `lib/` and `scripts/` was ported verbatim from the brain
+dashboard, so `server.cjs` still carries `/api/spawn`, `/api/projects` and
+`/api/misc-todos`. **No shipped JS calls any of them** — they are dead weight
+from the port, not evidence of a feature. Check the nav before believing a
+route exists in the UI.
+
 It deliberately ships **none** of the Mike-only dashboard tabs (members, renewals,
 tokens, ads, portal, 8020skill).
 
@@ -16,9 +32,12 @@ process (via `process.execPath` + `ELECTRON_RUN_AS_NODE=1`) with:
   `projects/` and `todo/`)
 - `CC_PORT` = 38917 (deliberately not 3847, which is Mike's live dashboard)
 
-Then it loads `http://127.0.0.1:38917/` into the app window. Dispatch (`[▷]`)
-opens an external terminal running `claude` in the brain folder (the proven
-cross-platform spawn: Mac Terminal+tmux / Windows `wt`+PowerShell).
+Then it loads `http://127.0.0.1:38917/` into the app window.
+
+The ported `launchAgentSession()` (external terminal running `claude`; Mac
+Terminal+tmux / Windows `wt`+PowerShell) is still present in `server.cjs`, but
+the only caller is the Smart Start button. There is no `[▷]` task dispatch in
+this UI — see the note above.
 
 ## What's bundled
 
