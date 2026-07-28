@@ -248,7 +248,14 @@ async function mintGitToken() {
     throw err;
   }
   const json = await r.json();
-  return { token: json.token, expiresAt: new Date(json.expiresAt) };
+  // sections: role-scoped annex repos this member is entitled to (server-
+  // authoritative, [] for everyone else). Ridden by section-sync below; the
+  // minted token is scoped to cover exactly these repos plus the main one.
+  return {
+    token: json.token,
+    expiresAt: new Date(json.expiresAt),
+    sections: Array.isArray(json.sections) ? json.sections : [],
+  };
 }
 
 // Tell the server this member just pushed content they authored. Distinct from
@@ -920,8 +927,32 @@ if (STATE_FILE) console.log(`[${ts()}] state file: ${STATE_FILE}`);
 ensureGitIdentity();
 writeState('running', 'starting up');
 
+// Role-scoped section mounts (the leadership annex): reconciled after each
+// sync cycle by watcher/section-sync.js. The server's git-token answer names
+// which sections THIS member gets ([] for everyone else); granted mounts are
+// excluded from the shared repo, cloned, and synced with the same scoped
+// token. Agency mode only — personal brains have no token broker.
+let sectionSync = null;
+if (MODE === 'agency') {
+  try {
+    sectionSync = require('./section-sync').create({
+      repoPath: REPO,
+      getAuth: async () => {
+        const token = await getGitToken();
+        return { token, sections: (tokenCache && tokenCache.sections) || [] };
+      },
+      log: (m) => console.log(`[${ts()}] ${m}`),
+    });
+  } catch (e) {
+    console.error(`[${ts()}] section-sync failed to start: ${e.message}`);
+  }
+}
+
 chokidar.watch(REPO, {
-  ignored: (p) => /(^|[\/\\])(\.git|node_modules|\.DS_Store|\.swp|~$)/.test(p),
+  // Section mounts are their own repos on their own cadence — keep the main
+  // watcher's debounce off them.
+  ignored: (p) => /(^|[\/\\])(\.git|node_modules|\.DS_Store|\.swp|~$)/.test(p)
+    || (sectionSync !== null && sectionSync.ownsPath(p)),
   ignoreInitial: true,
   persistent: true,
   awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
@@ -943,7 +974,10 @@ if (DISPATCH_ENABLED) {
     console.error(`[${ts()}] phone-dispatch failed to start: ${e.message}`);
   }
 }
-const afterSync = () => { if (dispatchPoller) { try { dispatchPoller.check(); } catch (e) { console.error(`[${ts()}] dispatch check error: ${e.message}`); } } };
+const afterSync = () => {
+  if (sectionSync) sectionSync.tick().catch((e) => console.error(`[${ts()}] section tick error: ${e.message}`));
+  if (dispatchPoller) { try { dispatchPoller.check(); } catch (e) { console.error(`[${ts()}] dispatch check error: ${e.message}`); } }
+};
 
 setInterval(() => doSync('interval').then(afterSync).catch(() => {}), PULL_INTERVAL_MS);
 doSync('startup').then(afterSync).catch(() => {});
