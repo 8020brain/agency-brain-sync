@@ -632,6 +632,17 @@ function buildMenu() {
     items.push({ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') });
   }
 
+  // Adding a SECOND brain from a setup code (an agency owner staging a client
+  // brain, or anyone joining another team). Always visible: once a brain is set
+  // up, the only way in used to be Settings -> "Run setup again…", which nobody
+  // reads as code entry — so an owner handed a code had no visible option and
+  // had to sign out of the Command Centre to find one (2026-07-28 beta report).
+  // Wording deliberately matches the "I have a code" phrase used in the invite
+  // emails and the setup instructions.
+  if (config && config.brainPath) {
+    items.push({ label: 'I have a code (add a brain)…', click: () => showSetupWizard('join-code') });
+  }
+
   // ---- Settings: the on/off toggles + re-run setup, grouped in one home ----
   items.push({ type: 'separator' });
   items.push({

@@ -669,6 +669,34 @@
 
   function enterConnectOrg() {
     connectOrgSlug = (teamInfo && teamInfo.teamSlug) || '';
+    // ClientBrain: this same screen serves an agency owner and a client brain,
+    // so nothing on it may say "agency" when the brain being created is a
+    // client's — they should never see our product's internal words on their
+    // own infrastructure (2026-07-28 beta report). Named for the client's own
+    // brand, which teamName already carries.
+    const isClient = !!(teamInfo && teamInfo.kind === 'client');
+    const brandName = (teamInfo && teamInfo.teamName) || '';
+    const titleEl = document.getElementById('connect-org-title');
+    const ledeEl = document.getElementById('connect-org-lede');
+    const noteEl = document.getElementById('connect-org-note');
+    if (isClient) {
+      if (titleEl) titleEl.textContent = brandName ? `Let's create the ${brandName} brain.` : "Let's create the client brain.";
+      if (ledeEl) {
+        ledeEl.innerHTML = 'This brain lives in a private repository on the client\'s own GitHub organisation, so it belongs to them from day one. '
+          + 'Click below, then on GitHub <strong>choose the client\'s organisation</strong> (not your personal account, and not the org your own brain lives in) and approve. '
+          + 'I\'ll create their brain there and pull it down for you.';
+      }
+      // The trap Luke hit: picking an org that already holds another brain.
+      if (noteEl) noteEl.textContent = 'Use a separate organisation from your own brain. If the client doesn\'t have one yet, creating a free GitHub organisation for them takes a minute and keeps their brain cleanly theirs.';
+    } else {
+      if (titleEl) titleEl.textContent = "Let's create your agency brain.";
+      if (ledeEl) {
+        ledeEl.innerHTML = 'Your brain lives in a private repository on your business\'s GitHub organisation, so it stays yours and survives staff changes. '
+          + 'Click below, then on GitHub <strong>choose your business organisation</strong> (not your personal account) and approve. '
+          + 'I\'ll create your brain there and pull it down for you.';
+      }
+      if (noteEl) noteEl.textContent = 'Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.';
+    }
     const connectBtn = document.getElementById('btn-connect-org');
     const recheckBtn = document.getElementById('btn-connect-recheck');
     // Bind listeners once; they read connectOrgSlug live, so re-entry with a
@@ -1194,6 +1222,11 @@
       try { emailInput.focus(); } catch (_) {}
     } else {
       show('scene-welcome');
+      // 'join-code' comes from the tray's "I have a code" item: this machine
+      // already runs a brain and the member is adding another (an agency owner
+      // staging a client brain, say). Same screen as a fresh install, but drop
+      // the cursor in the code box so it's obvious that's the thing to do.
+      if (launchIntent === 'join-code') { try { codeInput.focus(); } catch (_) {} }
     }
     // Deep-link join (agencybrain://join?token=…): the long token resolves the
     // same way as a pasted code, so kick it off automatically.

@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.5 — 2026-07-28
+
+- **"I have a code" is now in the menu, so you can add a second brain without signing out.** Once you had one brain set up on your machine, there was no visible way to enter a new setup code. The only route was "Run setup again..." tucked inside Settings, which nobody reads as code entry, so staging a client brain meant signing out of the Command Centre and back in again to find the option. The menu now carries "I have a code (add a brain)..." at all times, and it opens straight to the code box with the cursor already in it.
+- **Setting up a client brain no longer picks up a brain you already have.** If you installed on a GitHub organisation that already held a brain, setup treated that existing repository as the new one, so a client brain could end up pointing at your agency's own brain instead of getting its own. Setup now checks whether a repository already belongs to another brain and creates a separate one rather than taking it over. The setup screen also asks you to pick the client's own organisation, so their brain stays cleanly theirs.
+- **The setup screens no longer say "agency" when you're setting up a client.** Creating a brain for a client showed "Let's create your agency brain" and asked "Which agency?", which is the wrong language for a client's business and confusing if their own person ever runs the setup. Those screens now use the client's brand name and neutral wording.
+
+Thanks to Luke Hamilton at AI Marketing Clinic, the first person through the client brain setup, who found and reported all three.
+
 ## 1.1.4 — 2026-07-25
 
 - **A tidier menu when you click the Agency Brain icon in your menu bar.** The menu had grown cluttered and its order didn't make much sense, so it's been cleaned up. Things are now grouped the way you'd expect: your brain's status at the top, then the everyday actions (Open Command Centre, open your brain folder), then syncing, the log, and updates, then a new "Settings" item that gathers the on/off options like "Start at login" in one place, and finally About and Quit. Two menu items that both opened the same log file have been merged into one. If you have more than one brain on your machine, the "Switch brain" list no longer shows duplicate entries for the same folder. A "Start sessions from your phone" toggle that was never properly explained has been removed for now, and will come back once there's a clear guide for it. Nothing about how the app syncs your work has changed, this update is only about making the menu easier to read.
