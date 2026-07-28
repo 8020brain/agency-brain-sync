@@ -75,6 +75,7 @@ jobs:
           Write-Host "CodeSignTool ready at $dir"
 
       - name: Build
+        shell: bash
         env:
           # Mac signing + notarisation. CSC_LINK is a Developer ID .p12; it must
           # NOT reach the Windows job (it would try to sign the exe with it and
@@ -93,7 +94,34 @@ jobs:
           WINDOWS_SIGN_PASSWORD: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_PASSWORD || '' }}
           WINDOWS_SIGN_TOTP_SECRET: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_TOTP_SECRET || '' }}
           WINDOWS_SIGN_CREDENTIAL_ID: ${{ matrix.artifact == 'win' && secrets.WINDOWS_SIGN_CREDENTIAL_ID || '' }}
-        run: npm run ${{ matrix.script }}
+        # Apple's notarisation service is a third party in the middle of every
+        # Mac release and it is not always well. On v1.1.7 the arm64 build
+        # notarised fine and the x64 build came back with an empty response
+        # ("Failed with unexpected result:"), which failed the job, skipped the
+        # release, and shipped nothing. Re-running the identical commit passed.
+        #
+        # So the Mac leg gets one automatic retry. Windows signing is a
+        # different service and has not shown this, so it stays single-shot —
+        # a retry there would just hide a real signing failure for longer.
+        run: |
+          # NB: Actions runs bash with -eo pipefail, so this must be a real `if`.
+          # A `[ ... ] && ATTEMPTS=2` one-liner returns 1 on the Windows leg and
+          # would kill the step before it built anything.
+          ATTEMPTS=1
+          if [ "${{ matrix.artifact }}" = "mac" ]; then
+            ATTEMPTS=2
+          fi
+          for attempt in $(seq 1 $ATTEMPTS); do
+            if npm run ${{ matrix.script }}; then
+              exit 0
+            fi
+            if [ "$attempt" -lt "$ATTEMPTS" ]; then
+              echo "::warning::Build attempt $attempt failed. On macOS this is usually Apple notarisation returning nothing. Retrying once before failing the release."
+              sleep 45
+            fi
+          done
+          echo "::error::Build failed after $ATTEMPTS attempt(s)."
+          exit 1
 
       # Hard gate: never let an unsigned (or wrongly-signed) Windows installer
       # reach the release job. electron-builder already fails if the sign hook
