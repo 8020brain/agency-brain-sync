@@ -54,9 +54,8 @@ const api = {
   // Demo-mode helper (only called when the user types the DEMO code in setup)
   seedDemoFolder: (target) => ipcRenderer.invoke('seed-demo-folder', target),
 
-  // ---- Merged-app surface (new wizard renderer; Brain 3.0 ported screens) ----
-  // Electron equivalents of Brain 3.0's Tauri commands. Additive — the old
-  // setup.html never calls these.
+  // ---- Merged-app surface (wizard renderer; Brain 3.0 ported screens) ----
+  // Electron equivalents of Brain 3.0's Tauri commands.
   detectMachine: () => ipcRenderer.invoke('detect-machine'),
   getBrainHome: () => ipcRenderer.invoke('get-brain-home'),
   cloneInto: (args) => ipcRenderer.invoke('clone-into', args),
@@ -94,6 +93,6 @@ const api = {
 };
 
 contextBridge.exposeInMainWorld('agencyBrain', api);
-// Backwards-compat alias for the brief window where the old setup.html might
-// still be cached or referenced. Safe to remove once everyone is on alpha.2+.
+// Backwards-compat alias from the old setup renderer. That file is gone, but
+// the alias is free and removing it is a separate, riskier change.
 contextBridge.exposeInMainWorld('brainSync', api);

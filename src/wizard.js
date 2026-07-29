@@ -2,7 +2,8 @@
 //
 // Combines:
 //   - Brain 3.0's screen logic (machine check, business Q&A, celebration)
-//   - the real backend wiring from setup.html (OTP auth, team lookup, clone)
+//   - the real backend wiring from the old setup.html (OTP auth, team lookup,
+//     clone); that file was deleted 2026-07-29, this is the only renderer now
 //   - a NEW solo branch: a member with no agency team clones the members brain
 //     template via clone-solo-brain (GET /api/brain/auth-token).
 //

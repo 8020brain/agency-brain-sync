@@ -65,7 +65,7 @@ The warning does NOT mean the app is unsafe; it means macOS or Windows hasn't be
 
 ## Are you a maintainer / developer?
 
-This repo is the Electron app source. The watcher engine is `watcher/team-brain-sync.js` (Node + chokidar + git via child_process). The Electron main process is `main.js`. The first-run wizard renderer is `src/wizard.html` (with `src/wizard.js` and `src/wizard.css`); `src/setup.html` is now only a fallback. The preload bridge is `preload.js`.
+This repo is the Electron app source. The watcher engine is `watcher/team-brain-sync.js` (Node + chokidar + git via child_process). The Electron main process is `main.js`. The first-run wizard renderer is `src/wizard.html` (with `src/wizard.js` and `src/wizard.css`), and it's the only one: the old `src/setup.html` was deleted on 2026-07-29. The preload bridge is `preload.js`.
 
 ### Architecture, briefly
 

@@ -878,9 +878,10 @@ function showSetupWindow() {
   // Remember where the user puts the window, so the next open restores it.
   setupWindow.on('moved', saveWindowState);
   setupWindow.on('resized', saveWindowState);
-  // Merged wizard (Brain 3.0 design + real solo/agency wiring). The previous
-  // 9-step setup.html stays in the repo as a fallback until the new wizard is
-  // proven against real auth on both OSes.
+  // Merged wizard (Brain 3.0 design + real solo/agency wiring). The 9-step
+  // setup.html it replaced was deleted 2026-07-29: nothing had loaded it for
+  // months, but it still shipped inside every bundle carrying agency-facing
+  // copy that a client brain must not contain.
   setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'));
   // External links (e.g. the Command Centre's members-portal / Circle buttons)
   // open in the user's default browser, not inside the app window.
@@ -1984,9 +1985,8 @@ ipcMain.handle('mark-install-complete', async (_evt, args) => {
 });
 
 // ===================================================================
-// Merged-app IPC (ADDITIVE — powers the new Brain 3.0-design wizard in
-// src/wizard.html). Nothing here is called until main.js loads wizard.html
-// instead of setup.html, so the shipping fallback (setup.html) is unaffected.
+// Merged-app IPC (powers the Brain 3.0-design wizard in src/wizard.html, the
+// only setup renderer there is since setup.html was deleted 2026-07-29).
 // These are the Electron equivalents of Brain 3.0's Tauri commands.
 // ===================================================================
 

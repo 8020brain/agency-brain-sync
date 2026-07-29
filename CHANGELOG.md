@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.9 — 2026-07-29
+
+- **A brain you deploy to a client now looks like theirs the whole way through, not just in its colours.** The app has always known the difference between your own brain and one you've set up for a client, but too much of what it showed on screen ignored that. On a client's machine the Skills tab and the Google Ads tab were switched on for everyone, so your client's staff could browse the full skill list and a page of links into a portal that isn't theirs. Both are now off on a client brain unless you turn them on, and you choose that per role on the Your Clients page. Skills had no such switch at all before, so there was no way to hide it even by hand.
+- **The Help tab no longer opens a door into our side of things.** Hiding a tab didn't hide the menu inside Help, so a client could still reach setup pages, update instructions and two sets of frequently asked questions written for agencies, one of which explains the whole arrangement you have with us. A client brain's Help tab is now your own contact details and the flag-a-skill form, nothing else.
+- **No prices, no seats, no mention of us anywhere a client can see.** The add-more-seats banners and the plan card are gone from a client brain. So are the version line, the What's new, Terms and Privacy links in the footer, and the release notes page behind them. The welcome page, the page title and the menu bar no longer name this product or assume the person reading is an agency, and neither does the setup screen your client sees first. Even the first entry in the brain's own history, and the note the app writes about who's using it, stay neutral inside your client's files.
+- **Sections, if you have them.** Extra folders can be shared with only the people entitled to them, kept apart from the main brain.
+- **Your Command Centre help now includes the Client Brain questions**, so what you need to answer for a client is in the app rather than only on the web.
+
 ## 1.1.8 — 2026-07-29
 
 - **Your plan card shows your Scout seats, and no longer quotes a price that isn't yours.** Scout seats moved to €150 a year each (minimum two) on 28 July, and the old Owner + 2, + 5 and + 10 packages went away. The plan card hadn't caught up, so it was still showing the old package price next to your name. For some agencies that was hundreds of euros away from what they actually pay, and for anyone who bought seats after the change it showed an internal code word instead of a plan. It now simply says how many Scout seats you hold, and leaves the money to your invoice, which is the only place it was ever right. Your seat bar and everything else on the card are unchanged.
