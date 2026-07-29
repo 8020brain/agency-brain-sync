@@ -109,12 +109,21 @@
       <section class="screen" data-step="2" id="scene-connect-org">
         <div class="eyebrow">Step 2 &middot; Connect GitHub</div>
         <h1 id="connect-org-title">Let's create your agency brain.</h1>
-        <p class="lede" id="connect-org-lede">Your brain lives in a private repository on your business's GitHub organisation, so it stays yours and survives staff changes. Click below, then on GitHub <strong>choose your business organisation</strong> (not your personal account) and approve. I'll create your brain there and pull it down for you.</p>
+        <p class="lede" id="connect-org-lede">Your brain lives in a private repository on your business's GitHub <strong>organisation</strong>, so it stays yours and survives staff changes. A personal account won't work here: GitHub only lets apps create repositories inside an organisation. Click below, then on GitHub <strong>choose your business organisation</strong> and approve. I'll create your brain there and pull it down for you.</p>
         <p style="color:#555;font-size:0.95em;" id="connect-org-note">Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.</p>
+        <p style="color:#555;font-size:0.95em;" id="connect-org-orghelp">Never used a GitHub organisation? Plenty of longtime GitHub users haven't needed one. They're free and take about a minute: <a href="#" id="link-create-org">create one on GitHub</a>, then come back and click the button.</p>
         <div class="field" style="max-width:none;">
           <button class="btn primary" id="btn-connect-org" type="button">Connect GitHub &amp; create my brain</button>
         </div>
         <p id="connect-org-status" aria-live="polite" style="min-height:1.3em;color:#555;"></p>
+        <!-- Stall hint: shown by a timer when the install still hasn't landed.
+             A personal-account install never reaches the server (no link to the
+             team), so the poll can't detect it; this is the only way that dead
+             end gets named. Peter Empson sat on "Waiting for GitHub" for two
+             hours because of it, 2026-07-30. -->
+        <div class="hidden" id="connect-org-stall" style="margin-top:0.6em;border-left:3px solid #D64C00;padding:0.2em 0 0.2em 1em;">
+          <p style="color:#333;margin:0;">Still waiting? If you finished on GitHub and nothing happened here, the app most likely got installed on a personal account. GitHub allows that install, but apps can only create repositories inside an <strong>organisation</strong>, so nothing can happen from there. <a href="#" id="link-stall-create-org">Create a free organisation</a> (it takes about a minute), then click the connect button again and pick the organisation this time.</p>
+        </div>
         <div class="field" style="max-width:none;">
           <button class="btn ghost hidden" id="btn-connect-recheck" type="button">I've finished on GitHub &mdash; check now</button>
         </div>

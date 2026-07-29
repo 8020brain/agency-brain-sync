@@ -621,8 +621,30 @@
   let connectOrgBound = false;
   let connectOrgSlug = '';
 
+  // Stall hint: a personal-account install never links to the team, so the
+  // poll sees nothing forever. After this long with no install, name that
+  // trap on screen instead of leaving "Waiting for GitHub..." unexplained.
+  // (Peter Empson lost two hours to exactly this, 2026-07-30.)
+  const CONNECT_ORG_STALL_MS = 75 * 1000;
+  let connectOrgStallTimer = null;
+
+  function hideConnectOrgStall() {
+    if (connectOrgStallTimer) { clearTimeout(connectOrgStallTimer); connectOrgStallTimer = null; }
+    const el = document.getElementById('connect-org-stall');
+    if (el) el.classList.add('hidden');
+  }
+
+  function startConnectOrgStallTimer() {
+    hideConnectOrgStall();
+    connectOrgStallTimer = setTimeout(() => {
+      const el = document.getElementById('connect-org-stall');
+      if (el) el.classList.remove('hidden');
+    }, CONNECT_ORG_STALL_MS);
+  }
+
   function stopConnectOrgPoll() {
     if (connectOrgPoll) { clearInterval(connectOrgPoll); connectOrgPoll = null; }
+    hideConnectOrgStall();
   }
 
   let connectOrgEnsureInFlight = false;  // one ensure call at a time
@@ -733,6 +755,7 @@
     // A fresh attempt gets a fresh ruling from the server.
     connectOrgEnsureDone = false;
     connectOrgEnsureInFlight = false;
+    startConnectOrgStallTimer();
     connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
   }
 
@@ -751,7 +774,8 @@
     if (isClient) {
       if (titleEl) titleEl.textContent = brandName ? `Let's create the ${brandName} brain.` : "Let's create the client brain.";
       if (ledeEl) {
-        ledeEl.innerHTML = 'This brain lives in a private repository on the client\'s own GitHub organisation, so it belongs to them from day one. '
+        ledeEl.innerHTML = 'This brain lives in a private repository on the client\'s own GitHub <strong>organisation</strong>, so it belongs to them from day one. '
+          + 'A personal account won\'t work here: GitHub only lets apps create repositories inside an organisation. '
           + 'Click below, then on GitHub <strong>choose the client\'s organisation</strong> (not your personal account, and not the org your own brain lives in) and approve. '
           + 'I\'ll create their brain there and pull it down for you.';
       }
@@ -760,8 +784,9 @@
     } else {
       if (titleEl) titleEl.textContent = "Let's create your agency brain.";
       if (ledeEl) {
-        ledeEl.innerHTML = 'Your brain lives in a private repository on your business\'s GitHub organisation, so it stays yours and survives staff changes. '
-          + 'Click below, then on GitHub <strong>choose your business organisation</strong> (not your personal account) and approve. '
+        ledeEl.innerHTML = 'Your brain lives in a private repository on your business\'s GitHub <strong>organisation</strong>, so it stays yours and survives staff changes. '
+          + 'A personal account won\'t work here: GitHub only lets apps create repositories inside an organisation. '
+          + 'Click below, then on GitHub <strong>choose your business organisation</strong> and approve. '
           + 'I\'ll create your brain there and pull it down for you.';
       }
       if (noteEl) noteEl.textContent = 'Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.';
@@ -772,6 +797,13 @@
     // different team is safe.
     if (!connectOrgBound) {
       connectOrgBound = true;
+      for (const linkId of ['link-create-org', 'link-stall-create-org']) {
+        const a = document.getElementById(linkId);
+        if (a) a.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          api.openExternalUrl('https://github.com/account/organizations/new');
+        });
+      }
       if (connectBtn) connectBtn.addEventListener('click', async () => {
         const url = `https://github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(connectOrgSlug)}`;
         try { await api.openExternalUrl(url); } catch (e) { /* ignore */ }
