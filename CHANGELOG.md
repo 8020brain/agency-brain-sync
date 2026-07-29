@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.10 — 2026-07-30
+
+- **The Connect GitHub step now explains itself, and speaks up when you're stuck.** Creating a brain needs a GitHub organisation, and that's GitHub's rule, not ours: apps are only allowed to create repositories inside an organisation, never on a personal account. The setup screen now says so upfront, and if you've never needed an organisation before, there's a link that takes you straight to creating a free one, which takes about a minute. Best of all, if you connect and nothing happens for a bit, the screen now tells you the likely cause (the app landed on your personal account) and exactly how to fix it, instead of waiting silently forever.
+
 ## 1.1.9 — 2026-07-29
 
 - **A brain you deploy to a client now looks like theirs the whole way through, not just in its colours.** The app has always known the difference between your own brain and one you've set up for a client, but too much of what it showed on screen ignored that. On a client's machine the Skills tab and the Google Ads tab were switched on for everyone, so your client's staff could browse the full skill list and a page of links into a portal that isn't theirs. Both are now off on a client brain unless you turn them on, and you choose that per role on the Your Clients page. Skills had no such switch at all before, so there was no way to hide it even by hand.
