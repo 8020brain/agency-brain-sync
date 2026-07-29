@@ -946,7 +946,10 @@ function showAbout() {
     '',
     'Keeps your brain folder in sync with GitHub. Runs quietly in the menu bar.',
     '',
-    `Mode: ${cfg?.mode || 'not configured'}`,
+    // A client brain is stored as mode:'agency' (kind is what makes it a client
+    // brain), so printing the raw mode here told the client whose app this
+    // really is. They're on a team either way, so say that.
+    `Mode: ${cfg?.kind === 'client' ? 'team' : (cfg?.mode || 'not configured')}`,
     cfg?.teamSlug ? `Team: ${cfg.teamSlug}` : null,
     `Logs: ${LOG_FILE}`,
   ].filter(Boolean).join('\n');

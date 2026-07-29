@@ -234,6 +234,19 @@ function domTests() {
   }
 
   {
+    // head-scout is a legacy alias of scout and is not a role the portal offers,
+    // so it has to read the scout toggles. Reading it literally would match no
+    // key and leave a head-scout permanently unable to be opted into anything.
+    const { document } = fixtureFromHtml();
+    const ctx = loadCommandCentreJs(document);
+    ctx.CCKIND = 'client'; ctx.CCROLE = 'head-scout';
+    ctx.CC_PAGES = { skills: { scout: true }, gads: { scout: false } };
+    ctx.applyClientTabs();
+    check(!tabHidden(ctx, 'skills'), 'a head-scout follows the scout toggles, so it can be opted in');
+    check(tabHidden(ctx, 'gads'), 'a head-scout still gets the scout opt-outs');
+  }
+
+  {
     const { document, tabViews } = fixtureFromHtml();
     const ctx = loadCommandCentreJs(document);
     ctx.CCKIND = 'agency'; ctx.CCROLE = 'owner'; ctx.CC_PAGES = null;

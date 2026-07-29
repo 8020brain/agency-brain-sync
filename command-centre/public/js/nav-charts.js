@@ -183,16 +183,24 @@
   // check at all, which is how a client's team member ended up browsing the
   // agency's skill list and six ads2ai.com links (2026-07-29).
   var CLIENT_OPT_IN_TABS=['path','cowork','skills','gads'];
+  // The portal's Customize panel offers owner / scout / team / agency. head-scout
+  // is a legacy alias of scout everywhere else (applyRoleTabs collapses it just
+  // above), so it has to collapse here too: otherwise a head-scout matches no
+  // key at all, falls through to hidden, and the agency has no way to opt them
+  // into anything. 'agency' deliberately does NOT collapse — the portal offers
+  // it as a role in its own right.
+  function pagesRole(){ return CCROLE==='head-scout' ? 'scout' : CCROLE; }
   function clientPageOn(k){
     var p=(typeof CC_PAGES!=='undefined'&&CC_PAGES)||{};
-    return !!(p[k]&&p[k][CCROLE]===true);
+    return !!(p[k]&&p[k][pagesRole()]===true);
   }
   function applyClientTabs(){
     if(CCKIND!=='client') return;
     var pages=(typeof CC_PAGES!=='undefined'&&CC_PAGES)||{};
+    var role=pagesRole();
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
     Object.keys(pages).forEach(function(k){
-      if(pages[k]&&pages[k][CCROLE]===false) setTab(k,false);
+      if(pages[k]&&pages[k][role]===false) setTab(k,false);
     });
     // CC_PAGES is null until the branding fetch lands, so the first paint hides
     // all four. Hidden-by-default is the safe direction for a white-label app.
