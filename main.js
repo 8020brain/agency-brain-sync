@@ -23,6 +23,9 @@ const { ensureCredentialHelper } = require('./lib/git-credential.cjs');
 
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
+// Last known-good copy of config.json, rewritten on every successful save. Only
+// ever read when the real file exists but won't parse — see readConfig().
+const CONFIG_BACKUP_FILE = path.join(USER_DATA, 'config.backup.json');
 // ClientBrain: a client brain shows the client's brand everywhere the app
 // speaks (tray tooltip, dialogs, window titles), never ours. brandName lands
 // in config.json at wizard setup when kind === 'client'; everyone else keeps
@@ -137,9 +140,7 @@ app.on('second-instance', (_event, argv, _cwd, additionalData) => {
   } else {
     // Re-launching an already-onboarded install should bring up the Command
     // Centre, not silently do nothing.
-    const cfg = loadConfig();
-    if (cfg && cfg.brainPath) openCommandCentre();
-    else showSetupWindow();
+    routeToSurface();
   }
 });
 
@@ -151,10 +152,35 @@ app.on('activate', () => {
   // throws. whenReady already handles the first-launch open, so bail out early.
   if (!app.isReady()) return;
   if (setupWindow && !setupWindow.isDestroyed()) { setupWindow.show(); setupWindow.focus(); return; }
-  const cfg = loadConfig();
-  if (cfg && cfg.brainPath) openCommandCentre();
-  else showSetupWindow();
+  routeToSurface();
 });
+
+// The ONE rule for which surface opens: the Command Centre when we know which
+// brain this machine looks after, the wizard only when we're confident there
+// isn't one yet. An unreadable settings file is neither of those, so it gets its
+// own honest message instead of silently showing setup to someone who has been
+// running for weeks.
+function routeToSurface() {
+  const { config, state } = readConfig({ retries: 4 });
+  if (state === 'unreadable') { showConfigUnreadable(); return; }
+  if (config && config.brainPath) openCommandCentre();
+  else showSetupWindow();
+}
+
+function showConfigUnreadable() {
+  const choice = dialog.showMessageBoxSync({
+    type: 'warning',
+    title: APP_NAME,
+    message: "I couldn't read this app's settings.",
+    detail: `The small file that records which brain this computer looks after is there, but it wouldn't open just now. Your brain folder and everything in it are untouched, and nothing has been lost.\n\nTry again first — this is usually temporary. If it keeps happening, "Set up again" will get you running, and your work is safe on GitHub either way.`,
+    buttons: ['Try again', 'Set up again', 'Open log'],
+    defaultId: 0,
+    cancelId: 0,
+  });
+  if (choice === 1) showSetupWindow();
+  else if (choice === 2) shell.openPath(LOG_FILE);
+  else routeToSurface();
+}
 
 // ---------- url scheme ----------
 if (!app.isDefaultProtocolClient('agencybrain')) {
@@ -182,12 +208,56 @@ function parseInviteUrl(s) {
 }
 
 // ---------- config ----------
-function loadConfig() {
-  try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-  } catch {
-    return null;
+// Reading config.json has THREE outcomes, and only one of them means "this is a
+// new install": the file genuinely isn't there. A file that IS there but won't
+// read or parse — a filesystem hiccup as a Mac wakes from sleep, a half-written
+// file — used to collapse into the same `null` as "absent". Every routing
+// decision is `cfg && cfg.brainPath ? CommandCentre : wizard`, so that one
+// unlucky read dropped a fully onboarded member into the setup wizard with no
+// message at all. (Reported 2026-07-29: a Mac slept overnight, the updater
+// relaunched the app, and it came back showing setup screens. A full restart
+// read the file cleanly and it started normally, which is the signature of a
+// transient read rather than a corrupt file.)
+//
+// So: retry before believing a failure, fall back to the last known-good copy,
+// and report "unreadable" separately so callers never mistake it for "new".
+function clog(line) { try { fs.appendFileSync(LOG_FILE, '[config] ' + line + '\n'); } catch {} }
+// Blocking, deliberately: readConfig must stay synchronous because loadConfig()
+// is called from ~30 places that expect a plain return value, and making it
+// async would ripple through the whole file. The cost is contained — a healthy
+// read returns on the first attempt and never sleeps at all, so this only ever
+// blocks on the failure path, where the alternative is showing someone the
+// wrong screen.
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+// retries defaults to 0 so the hot callers (updateTray every 15s, the watcher,
+// every IPC handler) stay exactly as cheap as they were. Only the routing
+// decisions — the ones that can wrongly show the wizard — pay for retries.
+function readConfig({ retries = 0, delayMs = 250 } = {}) {
+  if (!fs.existsSync(CONFIG_FILE)) return { config: null, state: 'absent' };
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return { config: JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')), state: 'ok' };
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries) sleepSync(delayMs);
+    }
   }
+  // The file is there and we still can't read it. The backup is rewritten on
+  // every successful save, so it holds the member's real settings as of their
+  // last change — far better than treating them as a brand new install.
+  try {
+    const recovered = JSON.parse(fs.readFileSync(CONFIG_BACKUP_FILE, 'utf8'));
+    if (retries > 0) clog('config.json unreadable (' + (lastErr && lastErr.message) + ') — recovered from backup');
+    return { config: recovered, state: 'recovered' };
+  } catch { /* no usable backup either */ }
+  if (retries > 0) clog('config.json unreadable and no usable backup: ' + (lastErr && lastErr.message));
+  return { config: null, state: 'unreadable' };
+}
+function loadConfig() {
+  return readConfig().config;
 }
 // ---------- brain profiles (the switcher) ----------
 // One machine can hold several brains (a scout's own agency brain + the client
@@ -230,7 +300,22 @@ function saveConfig(c) {
     brains = upsertProfile(brains, profileFromActive(merged));
   }
   if (brains.length) merged.brains = brains;
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2));
+  const json = JSON.stringify(merged, null, 2);
+  // Write via temp file + rename. A plain writeFileSync truncates the real file
+  // first, so anything that interrupts it (sleep, force quit, the updater
+  // relaunching) leaves a half-written config.json — which readConfig() would
+  // then have to recover from. rename() is atomic, so the file on disk is only
+  // ever the whole old version or the whole new one.
+  const tmp = CONFIG_FILE + '.tmp';
+  const fd = fs.openSync(tmp, 'w');
+  try {
+    fs.writeFileSync(fd, json);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.renameSync(tmp, CONFIG_FILE);
+  try { fs.writeFileSync(CONFIG_BACKUP_FILE, json); } catch { /* best effort */ }
   APP_NAME = computeAppName();
 }
 
@@ -917,6 +1002,21 @@ async function ensureCommandCentre() {
   return false;
 }
 
+// "Missing" is a big claim — it sends the member back into setup — so don't make
+// it on the strength of one stat call. A folder on a drive that hasn't finished
+// mounting after a wake, or on a volume that's a moment behind, reads as absent
+// and then reappears. Check a few times before believing it. Async on purpose:
+// the caller is already async, so waiting here costs nothing and never freezes
+// the app the way a blocking retry would.
+async function brainFolderReallyMissing(p) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (fs.existsSync(p)) return false;
+    if (attempt < 4) await new Promise((r) => setTimeout(r, 200));
+  }
+  clog('brain folder still not there after 5 checks: ' + p);
+  return true;
+}
+
 // Load the Command Centre into the app window (the post-onboarding home).
 async function openCommandCentre() {
   if (process.platform === 'darwin' && app.dock) app.dock.show();
@@ -925,7 +1025,7 @@ async function openCommandCentre() {
   // card at a time (raw ENOENT on identity, empty Skills, "no guided path").
   // Route back into setup instead, with a plain-English explanation.
   const cfg = loadConfig();
-  if (cfg && cfg.brainPath && !fs.existsSync(cfg.brainPath)) {
+  if (cfg && cfg.brainPath && await brainFolderReallyMissing(cfg.brainPath)) {
     const missingOpts = {
       type: 'warning',
       title: APP_NAME,
@@ -2144,8 +2244,13 @@ app.whenReady().then(() => {
   setTimeout(ensureAgencyRolesSeeded, 15 * 1000);
   setInterval(ensureAgencyRolesSeeded, 30 * 60 * 1000);
 
-  const config = loadConfig();
-  if (!config || !config.brainPath || pendingInviteToken) {
+  // Boot is the one read that MUST be patient: on a machine that just woke, or
+  // that the updater has this second relaunched, a first read can fail for
+  // reasons that have nothing to do with the member's setup.
+  const { config, state: configState } = readConfig({ retries: 4 });
+  if (configState === 'unreadable') {
+    showConfigUnreadable();
+  } else if (!config || !config.brainPath || pendingInviteToken) {
     showSetupWindow();
   } else if (process.env.AB_FORCE_WIZARD === '1') {
     // QA seam (off by default; never set in a real install): an already-onboarded
