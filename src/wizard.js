@@ -212,7 +212,7 @@
     const msg = (err && err.message) || '';
     if (/not found|404/i.test(msg)) return "I couldn't find that code. Check your invite email and type it exactly, or ask whoever invited you to resend it.";
     if (/expired|410/i.test(msg)) return "That code has expired. Ask whoever invited you to send a fresh one.";
-    if (/hasn'?t finished|github app|finish.*install|409/i.test(msg)) return "Your agency isn't fully set up on GitHub yet. Give it a few minutes, then try again.";
+    if (/hasn'?t finished|github app|finish.*install|409/i.test(msg)) return "This brain isn't fully set up on GitHub yet. Give it a few minutes, then try again.";
     if (/network|fetch|enotfound|econnrefused|getaddrinfo/i.test(msg)) return "I can't reach the server. Check your internet, then try again.";
     return "Something went wrong checking that code. Try again in a moment.";
   }
@@ -423,7 +423,7 @@
       else show('scene-have-brain');
     } else {
       errorIn('err-otp',
-        "This email isn't linked to a membership or an agency yet. If you just signed up or your owner just added you, give it a minute and try again, or check the exact address.");
+        "This email isn't linked to a brain yet. If you just signed up or your owner just added you, give it a minute and try again, or check the exact address.");
       verifyBtn.disabled = false;
     }
   }

@@ -337,6 +337,36 @@ function domTests() {
   }
 }
 
+// ---- G: the surfaces outside the Command Centre ------------------------------
+// The setup wizard is an Electron window and the watcher is a background
+// process, so neither shows up in a Command Centre render. Both are reached by
+// a client: the wizard IS their first screen, and the watcher's stop reason is
+// printed straight into the tray. These are the exact strings that leaked.
+function outsideCommandCentreTests() {
+  console.log('\nG) setup wizard + watcher');
+  const wizardHtml = fs.readFileSync(path.join(ROOT, 'src', 'wizard.html'), 'utf8');
+  const title = (wizardHtml.match(/<title>([^<]*)<\/title>/) || [, ''])[1];
+  check(!/Agency Brain/i.test(title),
+    'the setup window title does not name the product', title);
+
+  const eyebrow = (wizardHtml.match(/id="welcomeEyebrow"[^>]*>([^<]*)/) || [, ''])[1];
+  check(eyebrow && !/Agency Brain/i.test(eyebrow),
+    'the first setup screen does not name the product', eyebrow);
+
+  // The wizard cannot know the kind until the setup code comes back, so no
+  // screen before that may name a person or a product.
+  const firstScreen = wizardHtml.slice(0, wizardHtml.indexOf('id="scene-have-brain"'));
+  check(!/\bMike\b/.test(firstScreen),
+    'no screen before the solo fork names a person',
+    (firstScreen.match(/.{0,50}\bMike\b.{0,30}/) || [])[0]);
+
+  const watcher = fs.readFileSync(path.join(ROOT, 'watcher', 'team-brain-sync.js'), 'utf8');
+  const stopReasons = [...watcher.matchAll(/writeState\('stop',\s*('[^']*'|`[^`]*`)/g)].map((m) => m[1]);
+  check(stopReasons.length > 0 && !stopReasons.some((s) => /Agency Brain/i.test(s)),
+    'no watcher stop reason names the product (they render in the tray)',
+    stopReasons.filter((s) => /Agency Brain/i.test(s)).join(' | '));
+}
+
 // ---- A: the real server ------------------------------------------------------
 function get(port, p) {
   return new Promise((resolve, reject) => {
@@ -393,6 +423,7 @@ async function serverTests() {
 (async () => {
   console.log('client-kind tests');
   domTests();
+  outsideCommandCentreTests();
   await serverTests();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

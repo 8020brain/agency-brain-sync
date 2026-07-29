@@ -610,7 +610,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/progression/toggle') {
       const role = (MEMBER_ROLE || (TEAM_SLUG ? 'team' : 'owner')).toLowerCase();
       if (role !== 'team') {
-        return send(res, 403, { error: 'Only team members self-report here. Owners and scouts track their own progression in the members portal.' });
+        // The second sentence points at the members portal, which is the
+        // agencies' world — a client brain must never mention it.
+        return send(res, 403, { error: TEAM_KIND === 'client'
+          ? 'Only team members self-report here.'
+          : 'Only team members self-report here. Owners and scouts track their own progression in the members portal.' });
       }
       if (!MEMBER_EMAIL) return send(res, 400, { error: 'No member identity yet — sign in first.' });
       const b = await readBody(req);

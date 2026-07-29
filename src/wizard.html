@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agency Brain</title>
+<!-- Neutral on purpose. This window opens before the app knows whether it's
+     setting up an agency brain or a white-label client brain (the kind only
+     arrives with the setup code), so it can't name a product yet. -->
+<title>Brain setup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +23,9 @@
     <div class="body">
       <!-- 1 welcome / invite code -->
       <section class="screen active" data-step="1" id="scene-welcome">
-        <div class="eyebrow">Agency Brain</div>
+        <!-- Same reason as the page title: this is the first screen, shown
+             before the setup code tells us which kind of brain this is. -->
+        <div class="eyebrow" id="welcomeEyebrow">Brain setup</div>
         <h1>Welcome. Let's get you connected.</h1>
         <p class="lede">Your team shares a brain: the files everyone works on with Claude, kept in sync on your computer automatically. Paste the invite code from your email to join. No terminal, no GitHub account.</p>
         <div class="field">
@@ -207,7 +212,7 @@
         <p class="lede">Your brain is just files, so you can open it in whatever suits you, and use more than one. There's nothing to choose here, this is just so you know your options. Most people start in the Claude desktop app.</p>
         <div class="surfaces">
           <div class="surface-card">
-            <div class="surface-head"><h3>A terminal</h3><span class="surface-tag">What Mike uses</span></div>
+            <div class="surface-head"><h3>A terminal</h3><span class="surface-tag">Most control</span></div>
             <p>Run your brain from a plain Terminal, or a terminal inside an editor like Cursor so you get your file list down the side.</p>
           </div>
           <div class="surface-card">

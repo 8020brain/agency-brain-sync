@@ -862,7 +862,10 @@ async function doSync(trigger) {
       // Distinct from a generic sync error: the session is dead and only signing
       // in again fixes it. Flag it so main.js prompts the member (desktop
       // notification + tray "Reconnect / sign in again…") instead of failing mutely.
-      writeState('stop', 'Your sign-in has expired — open Agency Brain and choose "Reconnect / sign in again"', { authExpired: true });
+      // This reason is rendered straight into the tray status line and tooltip,
+      // which are otherwise branded from the app's own name. Naming the product
+      // here was the one string that put "Agency Brain" in a client's menu bar.
+      writeState('stop', 'Your sign-in has expired — open the app in your menu bar and choose "Reconnect / sign in again"', { authExpired: true });
     } else {
       writeState('stop', `error: ${err.message}`);
     }
