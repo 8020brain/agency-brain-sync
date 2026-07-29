@@ -754,7 +754,7 @@
           + 'Click below, then on GitHub <strong>choose the client\'s organisation</strong> (not your personal account, and not the org your own brain lives in) and approve. '
           + 'I\'ll create their brain there and pull it down for you.';
       }
-      // The trap Luke hit: picking an org that already holds another brain.
+      // The trap seen in testing: picking an org that already holds another brain.
       if (noteEl) noteEl.textContent = 'Use a separate organisation from your own brain. If the client doesn\'t have one yet, creating a free GitHub organisation for them takes a minute and keeps their brain cleanly theirs.';
     } else {
       if (titleEl) titleEl.textContent = "Let's create your agency brain.";

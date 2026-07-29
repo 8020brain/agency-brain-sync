@@ -351,7 +351,7 @@ function brainLabel(p) {
 }
 
 // Agency mode but the saved sign-in token is gone — e.g. config.json was cleared
-// while troubleshooting (Jonti at WHO Digital, 2026-06-19). The watcher and the
+// while troubleshooting (seen in the field, 2026-06-19). The watcher and the
 // Command Centre both need that token, so syncing is paused until the member signs
 // in again. Re-signing in (the wizard) re-mints the token, adopts the existing
 // brain folder in place (no re-clone), and restarts the watcher. There is NO
