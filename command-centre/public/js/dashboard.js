@@ -5,6 +5,10 @@
   // package, so the banner + plan card stay hidden until then. SCOUT_COUNT + ROSTER
   // are the live server roster. ME / ME_NAME identify the signed-in member.
   var CCROLE='', CCKIND='agency', SCOUT_SEATS=0, SCOUT_COUNT=0, SEATS_USED=0, PACKAGE_TIER=null, RENEWAL=null;
+  // Per-role page visibility from the portal's Customize panel, cached by
+  // applyBranding so the tab gating can re-apply it without re-fetching.
+  // Null until that fetch lands — client brains treat null as "hide".
+  var CC_PAGES=null;
   var ME='', ME_NAME='', ROSTER=null, ROSTER_REQ=null, TEAMSLUG='', CUR_BANNER_SIG='';
   // Session-only reveal: the "Show dismissed cards" link sets this true so the
   // dismissed/snoozed banners reappear until the next refresh (or until re-dismissed).
@@ -30,6 +34,22 @@
     return seats+' Scout seat'+(seats===1?'':'s');
   }
   function ccRole(){ var r=CCROLE; return r==='head-scout'?'scout':r; }
+
+  // Milestone and skill-integrity copy is generated server-side by lib code that
+  // is shared with other surfaces (three copies have to stay in sync), and it
+  // speaks to an agency: "your agency brain", "tailored to your agency". Rather
+  // than fork that lib, a client brain rewrites the agency-facing phrases as it
+  // renders them. Agency brains get the string back untouched.
+  function clientWords(s){
+    if(CCKIND!=='client') return s;
+    var keep=function(src,out){ return /^[A-Z]/.test(src) ? out.charAt(0).toUpperCase()+out.slice(1) : out; };
+    return String(s==null?'':s)
+      .replace(/your agency brain/gi,function(m){ return keep(m,'your brain'); })
+      .replace(/your agency's/gi,function(m){ return keep(m,'your'); })
+      .replace(/your agency/gi,function(m){ return keep(m,'your business'); })
+      .replace(/agency brain/gi,function(m){ return keep(m,'brain'); })
+      .replace(/\bagency\b/gi,function(m){ return keep(m,'business'); });
+  }
 
   // Dismiss is keyed on team + scout-seat count, so the banner reappears if the
   // plan changes (an upgrade resets it), but stays gone within the same plan.
@@ -87,6 +107,13 @@
     updateDismissedToggle();
   }
   function maybeBanner(){
+    // ClientBrain: seats and Scouts are what the AGENCY buys from us. A client
+    // brain must never show a price, a seat count, or an email address of ours,
+    // so both upsell banners are off entirely — no role, no cap state, ever.
+    if(CCKIND==='client'){
+      ['upsell-banner','upsell-banner-s'].forEach(function(id){ var el=$(id); if(el) el.hidden=true; });
+      return;
+    }
     var r=ccRole(), n=SCOUT_SEATS||0;
     // Scout seats used = owner+scout minus the owner's free seat. The cap is the
     // number of paid scout seats (a 2nd owner just uses one). We don't name the
@@ -217,13 +244,16 @@
       var state=m.done?'done':(i===nextIdx?'next':'todo');
       var mark=m.done?'✓':String(i+1);
       return '<div class="ap-step '+state+'"><span class="ap-mark">'+mark+'</span>'
-        +'<div class="ap-body"><div class="ap-label">'+esc(m.label)+'</div>'
-        +'<div class="ap-detail">'+esc(m.detail||'')+'</div></div></div>';
+        +'<div class="ap-body"><div class="ap-label">'+esc(clientWords(m.label))+'</div>'
+        +'<div class="ap-detail">'+esc(clientWords(m.detail||''))+'</div></div></div>';
     }).join('');
+    // A client brain belongs to the client, so it says "your brain", never
+    // "your agency brain", and the card is labelled by what it tracks.
+    var isClient=(CCKIND==='client');
     var next = (nextIdx>=0)
-      ? '<div class="ap-next"><strong>Next:</strong> '+esc(ms[nextIdx].action||ms[nextIdx].label)+'</div>'
-      : '<div class="ap-next all-done">All four milestones reached — your agency brain is fully up and running.</div>';
-    el.innerHTML='<div class="ap-card"><div class="ap-head"><span class="ap-eyebrow">Agency progress</span>'
+      ? '<div class="ap-next"><strong>Next:</strong> '+esc(clientWords(ms[nextIdx].action||ms[nextIdx].label))+'</div>'
+      : '<div class="ap-next all-done">All four milestones reached — your '+(isClient?'':'agency ')+'brain is fully up and running.</div>';
+    el.innerHTML='<div class="ap-card"><div class="ap-head"><span class="ap-eyebrow">'+(isClient?'Setup progress':'Agency progress')+'</span>'
       +'<span class="ap-count">'+doneCount+' of '+ms.length+'</span></div>'
       +'<div class="ap-steps">'+steps+'</div>'+next+'</div>';
   }
@@ -249,6 +279,9 @@
   function renderOwnerPlan(){
     var card=$('owner-plan-card'), box=$('owner-plan'), note=$('owner-plan-note');
     if(!card||!box) return;
+    // Same reason as maybeBanner: the plan card is our billing relationship with
+    // the agency. A client brain has no plan of ours to show.
+    if(CCKIND==='client'){ card.hidden=true; return; }
     if(!PACKAGE_TIER){ card.hidden=true; return; } // no package linked yet (null or "")
     card.hidden=false;
     // Scout seats consumed = owner+scout minus the owner's free seat (a 2nd

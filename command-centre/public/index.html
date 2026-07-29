@@ -36,7 +36,7 @@
 </script>
 </head>
 <body>
-<div id="session-expired-banner" hidden style="background:#D64C00;color:#fff;padding:11px 16px;font-weight:600;text-align:center;line-height:1.4;">Your sign-in has expired, so nothing is syncing right now. Open Agency Brain in your menu bar and choose &ldquo;Reconnect / sign in again&rdquo; to fix it, then this clears on its own.</div>
+<div id="session-expired-banner" hidden style="background:#D64C00;color:#fff;padding:11px 16px;font-weight:600;text-align:center;line-height:1.4;"><span id="session-expired-text">Your sign-in has expired, so nothing is syncing right now. Open Agency Brain in your menu bar and choose &ldquo;Reconnect / sign in again&rdquo; to fix it, then this clears on its own.</span></div>
 <div class="wrap">
 
   <div class="topbar">
@@ -65,7 +65,7 @@
 
   <!-- ============ WELCOME (team default) ============ -->
   <div class="bu-banner" id="bu-banner" hidden>
-    <div class="bu-text"><b>Agency Brain update ready:</b> <span id="bu-title"></span></div>
+    <div class="bu-text"><b id="bu-lead">Agency Brain update ready:</b> <span id="bu-title"></span></div>
     <button class="btn" id="bu-copy">Copy the update prompt</button>
   </div>
 
@@ -73,8 +73,8 @@
     <div class="welcome">
       <div class="wc-hero">
         <div class="wc-hero-main">
-          <div class="wc-eyebrow">Agency Brain</div>
-          <h1 class="wc-h">Everything your agency knows, in one place Claude can use.</h1>
+          <div class="wc-eyebrow" id="wc-eyebrow">Agency Brain</div>
+          <h1 class="wc-h" id="wc-h">Everything your agency knows, in one place Claude can use.</h1>
           <p class="wc-sub">A shared workspace your whole team runs with Claude. The skills you've built, your client context, and your live data connections all live in one folder that stays in sync automatically. You don't set it up or maintain it. You open it and get to work.</p>
           <div class="wc-stats">
             <div class="wc-stat"><span class="n" id="wc-skill-count">—</span><span class="l">skills ready to run</span></div>
@@ -84,8 +84,8 @@
         </div>
         <aside class="wc-app">
           <div class="wc-app-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg></div>
-          <div class="wc-app-h">The app in your menu bar</div>
-          <p>This is the Agency Brain app. It sits quietly up in your menu bar and keeps the shared folder in sync on your machine, automatically. Leave it running, that's all it needs. No Git, no technical setup, nothing to remember.</p>
+          <div class="wc-app-h" id="wc-app-h">The app in your menu bar</div>
+          <p id="wc-app-p">This is the Agency Brain app. It sits quietly up in your menu bar and keeps the shared folder in sync on your machine, automatically. Leave it running, that's all it needs. No Git, no technical setup, nothing to remember.</p>
         </aside>
       </div>
 
@@ -119,8 +119,8 @@
       <div class="wc-scout">
         <div class="wc-scout-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
         <div>
-          <div class="wc-scout-h">Your Scout has your back</div>
-          <p>You don't have to work any of this out on your own. Your agency's Scout installs the brain, connects Cowork, and walks you through your first run. Ask them anything, that's what they're there for.</p>
+          <div class="wc-scout-h" id="wc-scout-h">Your Scout has your back</div>
+          <p id="wc-scout-p">You don't have to work any of this out on your own. Your agency's Scout installs the brain, connects Cowork, and walks you through your first run. Ask them anything, that's what they're there for.</p>
         </div>
       </div>
     </div>
@@ -989,7 +989,7 @@ Three ways forward, cheapest first. One: use Claude Code instead. It runs fine o
 <div class="cw-overlay" id="cw-overlay" hidden>
   <div class="cw-card">
     <div class="cw-h">Copied — now paste it into Claude</div>
-    <p class="cw-p">Your agency brain is open in <b>Cowork</b> or the <b>Claude desktop app</b>. Switch to it, paste (<kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>), and press enter. Claude works right inside your brain folder — no terminal or extra tools needed.</p>
+    <p class="cw-p" id="cw-p">Your agency brain is open in <b>Cowork</b> or the <b>Claude desktop app</b>. Switch to it, paste (<kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>), and press enter. Claude works right inside your brain folder — no terminal or extra tools needed.</p>
     <div class="cw-actions">
       <button class="btn" id="cw-open">Open Claude</button>
       <button class="btn ghost" id="cw-copy">Copy again</button>

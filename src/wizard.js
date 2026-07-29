@@ -1201,10 +1201,13 @@
     show('scene-done');
     const who = authName || authEmail || '';
     const where = isSandbox ? chosenFolder : displayPath(chosenFolder);
+    // A client brain is set up with mode:'agency' as well as kind:'client', so
+    // every line on this screen has to read the kind, not the mode.
+    const doneIsClient = !!(teamInfo && teamInfo.kind === 'client');
     document.getElementById('doneSummary').innerHTML = `
       <div class="stat-line"><span class="k">Your brain</span><span class="v">${escapeHtml(where)}</span></div>
       <div class="stat-line"><span class="k">Signed in as</span><span class="v">${escapeHtml(who)}</span></div>
-      <div class="stat-line"><span class="k">Mode</span><span class="v">${mode === 'agency' ? escapeHtml(teamInfo.teamName || 'Agency') : 'Solo'}</span></div>
+      <div class="stat-line"><span class="k">Mode</span><span class="v">${mode === 'agency' ? escapeHtml(teamInfo.teamName || (doneIsClient ? 'Your brain' : 'Agency')) : 'Solo'}</span></div>
       <div class="stat-line"><span class="k">Status</span><span class="v" style="color: var(--ok);">● Watching</span></div>
     `;
     // Path B (start fresh): the member had a personal brain, but this app now
@@ -1215,7 +1218,11 @@
     if (note) {
       const switchedAway = mode === 'agency' && !flipped && priorBrainPath && priorBrainPath !== chosenFolder;
       if (switchedAway) {
-        note.textContent = 'Agency Brain now watches your new agency brain. Your old personal brain at '
+        // A client brain also carries mode:'agency', so this line has to check
+        // kind or it names the product on a white-label setup screen.
+        note.textContent = (doneIsClient
+          ? 'This app now watches your new brain. Your old personal brain at '
+          : 'Agency Brain now watches your new agency brain. Your old personal brain at ')
           + displayPath(priorBrainPath) + ' is left exactly as it was, and is no longer synced by this app.';
         note.hidden = false;
       } else {

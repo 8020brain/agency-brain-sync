@@ -152,6 +152,10 @@
     setHelpNav('flag', true);                // everyone gets the flag-a-skill docs + form; the scout also has the live inbox on their Dashboard
     setHelpNav('faq', true);
     setHelpSection(isTeam ? 'faq' : 'setup');
+    // Client brains override the tab + help decisions above. This runs LAST so
+    // its hiding always wins, and it runs on every applyRoleTabs call (including
+    // the re-run loadRoster fires on a role change), so nothing can creep back.
+    applyClientTabs();
     // Getting started must track the effective role too, or a VIEW AS flip keeps
     // showing the previous role's path (no-ops unless the role actually changed).
     if(typeof tpApplyRole==='function') tpApplyRole();
@@ -166,6 +170,57 @@
     gadsProxyInit(role);
     activateView(isTeam?'welcome':(isScout?'scout':'owner'));
   }
+  // ---- ClientBrain tab + help gating ----------------------------------------
+  //
+  // Four tabs carry agency-facing content or links into our world: Getting
+  // started and Learn Cowork (portal links, our courses), Skills (the agency's
+  // own toolkit) and Google Ads (six links to the members portal). In a client
+  // brain all four are OPT-IN: hidden unless the agency has explicitly switched
+  // that tab on for this role in the portal's Customize panel. Every other tab
+  // keeps the normal opt-out behaviour (`=== false` hides it).
+  //
+  // Skills and Google Ads used to be hard-wired on for every role with no kind
+  // check at all, which is how a client's team member ended up browsing the
+  // agency's skill list and six ads2ai.com links (2026-07-29).
+  var CLIENT_OPT_IN_TABS=['path','cowork','skills','gads'];
+  function clientPageOn(k){
+    var p=(typeof CC_PAGES!=='undefined'&&CC_PAGES)||{};
+    return !!(p[k]&&p[k][CCROLE]===true);
+  }
+  function applyClientTabs(){
+    if(CCKIND!=='client') return;
+    var pages=(typeof CC_PAGES!=='undefined'&&CC_PAGES)||{};
+    var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
+    Object.keys(pages).forEach(function(k){
+      if(pages[k]&&pages[k][CCROLE]===false) setTab(k,false);
+    });
+    // CC_PAGES is null until the branding fetch lands, so the first paint hides
+    // all four. Hidden-by-default is the safe direction for a white-label app.
+    CLIENT_OPT_IN_TABS.forEach(function(k){ setTab(k, clientPageOn(k)); });
+    applyClientHelpNav();
+  }
+  // The Help sub-nav escapes the tab-level hiding above (it's a second nav
+  // inside one visible tab), so a client's owner could still walk into "Get set
+  // up" (our download page), Updates (the members portal) and both FAQs. In a
+  // client brain the only section that survives is Flag a skill; the client's
+  // real help is the agency contact block applyBranding injects into this pane.
+  function applyClientHelpNav(){
+    if(CCKIND!=='client') return;
+    var show={setup:false, how:false, updates:false, cowork:clientPageOn('cowork'), flag:true, faq:false};
+    Object.keys(show).forEach(function(n){
+      var b=document.querySelector('.help-navi[data-help="'+n+'"]');
+      if(b) b.hidden=!show[n];
+      if(!show[n]){ var s=$('help-'+n); if(s) s.hidden=true; }
+    });
+    // Remove the FAQ blocks outright rather than hiding them. faq-live.js
+    // rebuilds #help-os / #help-team from Firestore and appends the Client Brain
+    // reseller FAQ into #help-os; with the nodes gone it has nothing to write
+    // into even if its fetch wins the race against this.
+    ['help-os','help-team','help-team-note','help-clientbrain'].forEach(function(id){ var el=$(id); if(el) el.remove(); });
+    var srch=$('help-search'); if(srch) srch.hidden=true;
+    setHelpSection(show.cowork?'cowork':'flag');
+  }
+
   // Footer role switcher. Visible to the two super-admin emails on every build (see the
   // gate in loadHealth), plus preview/dev builds; lets Mike flip owner/scout/team without
   // the ?as= URL trick. Regular members never see it, and it only changes the view —

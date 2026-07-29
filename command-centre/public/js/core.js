@@ -51,7 +51,7 @@
       }
       cta.disabled=true; cta.textContent='Setting up…';
       api('/api/write-identity',opts).then(function(r){
-        $('identity-p').textContent='Done. Your Claude now knows you\'re '+(r.name||'you')+', '+(r.role||'')+' at '+(r.agency||'your agency')+'.';
+        $('identity-p').textContent='Done. Your Claude now knows you\'re '+(r.name||'you')+', '+(r.role||'')+' at '+(r.agency||(CCKIND==='client'?'your business':'your agency'))+'.';
         cta.remove();
         setTimeout(function(){ b.hidden=true; loadHealth(); }, 2500);
       }).catch(function(e){
@@ -78,7 +78,11 @@
     try{
       var h=await api('/api/health');
       TEAMSLUG=h.teamSlug||'';
-      $('brand-team').textContent=(h.teamSlug||'Your agency');
+      // Read the kind straight off the payload rather than the CCKIND global,
+      // which isn't assigned until further down. Everything painted in this
+      // function has to be client-safe on the very first render.
+      var kind=(h.teamKind||'agency');
+      $('brand-team').textContent=(h.teamSlug||(kind==='client'?'':'Your agency'));
       var role=uiRole((h.memberRole||'').toLowerCase());
       $('who-role').textContent=(role?cap(role):'No role')+' view';
       // Owners and scouts can add members right here (server-side invite via the
@@ -124,13 +128,22 @@
         $('who-email').textContent=h.memberEmail||'';
       }
       $('brand-ver').textContent=h.version?('v'+h.version):'';
-      $('ft-ver').textContent='Agency Brain'+(h.version?(' v'+h.version):'');
+      // A client brain never names this product in its footer. applyBranding
+      // replaces this with the client's own brand once /api/branding lands;
+      // until then, and if that record has no name, it shows the bare version
+      // rather than falling back to ours.
+      var verTxt=h.version?('v'+h.version):'';
+      $('ft-ver').textContent=(kind==='client')?verTxt:('Agency Brain'+(verTxt?' '+verTxt:''));
       $('ft-path').textContent=h.brainRoot||'';
-      applyRoleTabs(h.memberRole);
-      applyBranding(h);
-      CCROLE=role; CCKIND=((h&&h.teamKind)||'agency'); ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
+      // CCROLE + CCKIND must be assigned BEFORE applyRoleTabs — the client-brain
+      // tab gating inside it reads both. They used to be set after, which is why
+      // every kind check in the tab code was dead.
+      CCROLE=role; CCKIND=kind; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
       if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
       if(h.packageTier) PACKAGE_TIER=h.packageTier;
+      applyClientChrome(kind);
+      applyRoleTabs(h.memberRole);
+      applyBranding(h);
       maybeBanner(); maybePortalNudge(); maybeIdentity(h);
       var sw=$('dev-switch');
       if(sw){
@@ -160,6 +173,43 @@
     var r=Math.round(((n>>16)&255)*f), g=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
     return '#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
   }
+  // ClientBrain chrome. The copy baked into index.html assumes an agency is
+  // reading it — the product name, "your agency", "your agency's Scout", plus
+  // footer links to our public site. A client brain is white-label: the client
+  // bought from their agency and has no idea we exist, so all of it is swapped
+  // for neutral wording and the outward links are dropped. Called once before
+  // applyRoleTabs (so nothing agency-facing paints) and again from applyBranding
+  // with the brand name, which becomes the Welcome eyebrow when it's known.
+  var CLIENT_TEXT={
+    'wc-eyebrow':'Your business brain',
+    'wc-h':'Everything your business knows, in one place Claude can use.',
+    'wc-app-p':'This app sits quietly up in your menu bar and keeps the shared folder in sync on your machine, automatically. Leave it running, that’s all it needs. No Git, no technical setup, nothing to remember.',
+    'wc-scout-h':'You’ve got support',
+    'wc-scout-p':'You don’t have to work any of this out on your own. Whoever set this brain up for you gets you connected and walks you through your first run. Ask them anything, that’s what they’re there for.',
+    'session-expired-text':'Your sign-in has expired, so nothing is syncing right now. Open the app in your menu bar and choose “Reconnect / sign in again” to fix it, then this clears on its own.',
+    'bu-lead':'Update ready:'
+  };
+  var CLIENT_HTML={
+    'cw-p':'Your brain is open in <b>Cowork</b> or the <b>Claude desktop app</b>. Switch to it, paste (<kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>), and press enter. Claude works right inside your brain folder — no terminal or extra tools needed.'
+  };
+  function applyClientChrome(kind, brandName){
+    if(kind!=='client') return;
+    Object.keys(CLIENT_TEXT).forEach(function(id){ var el=$(id); if(el) el.textContent=CLIENT_TEXT[id]; });
+    Object.keys(CLIENT_HTML).forEach(function(id){ var el=$(id); if(el) el.innerHTML=CLIENT_HTML[id]; });
+    if(brandName){ var eb=$('wc-eyebrow'); if(eb) eb.textContent=brandName; }
+    // The page title and the "· Agency Brain" suffix have to be right even when
+    // the branding fetch never lands (offline, or no brand record saved yet).
+    // applyBranding sets both from the real brand when it can, but it bails
+    // inside a try/catch, so this is the copy that always runs.
+    document.title=brandName?(brandName+' · Command Centre'):'Command Centre';
+    var suffix=document.querySelector('.brand .agency');
+    if(suffix) suffix.textContent=brandName?('· '+brandName):'';
+    // What's new, Terms and Privacy all resolve to our changelog or our public
+    // site, so a client brain drops the three of them outright.
+    var f=document.querySelectorAll('footer .foot-link');
+    for(var i=0;i<f.length;i++) f[i].hidden=true;
+  }
+
   async function applyBranding(h){
     var kind=(h&&h.teamKind)||'agency';
     // Client brains wear their client's brand; agency brains can wear their
@@ -172,11 +222,19 @@
       // An agency that never saved a brand runs stock — drop any old cache.
       if(kind==='agency'&&!(b&&b.config)){ try{localStorage.removeItem('cc-branding');}catch(e){} return; }
       var name=(b&&b.brandName)||'';
+      var suffix=document.querySelector('.brand .agency');
       if(name){
         document.title=name+' · Command Centre';
-        var suffix=document.querySelector('.brand .agency'); if(suffix) suffix.textContent='· '+name;
+        if(suffix) suffix.textContent='· '+name;
         $('ft-ver').textContent=name+(h.version?(' v'+h.version):'');
+      } else if(kind==='client'){
+        // A client brain whose brand record is empty or unreachable. Showing
+        // nothing beats falling back to the stock "· Agency Brain" suffix and
+        // page title, which is exactly what a white-label install must not say.
+        document.title='Command Centre';
+        if(suffix) suffix.textContent='';
       }
+      applyClientChrome(kind, name);
       var col=((b&&b.config)||{}).colours||{};
       var hov=hoverShade(col.accentDeep)||col.accentDeep||'';
       if(col.accentDeep) document.documentElement.style.setProperty('--accent',col.accentDeep);
@@ -199,27 +257,12 @@
       // is CLIENT-brain-only — an agency brain keeps all its own tabs.
       if(kind!=='client') return;
       // Page-visibility toggles (2026-07-23: portal saves them, we now honour
-      // them). pages[viewKey][role] === false hides that tab for that role;
-      // anything else leaves it as applyRoleTabs decided. Runs after
-      // applyRoleTabs (call order in loadHealth), so hide wins.
-      var pages=((b&&b.config)||{}).pages||{};
-      var myRole=uiRole(((h&&h.memberRole)||'').toLowerCase())||'';
-      Object.keys(pages).forEach(function(k){
-        if(pages[k]&&pages[k][myRole]===false){
-          var t=document.querySelector('.tab[data-view="'+k+'"]');
-          if(t) t.hidden=true;
-        }
-      });
-      // Getting started + Learn Cowork carry agency-facing content and portal
-      // links, so client brains hide them UNLESS the agency explicitly turned
-      // them on for this role (2026-07-23: nothing in ClientBrain points at
-      // the members portal).
-      ['path','cowork'].forEach(function(k){
-        if(!(pages[k]&&pages[k][myRole]===true)){
-          var t=document.querySelector('.tab[data-view="'+k+'"]');
-          if(t) t.hidden=true;
-        }
-      });
+      // them). Cached into CC_PAGES rather than applied inline, because
+      // applyRoleTabs re-runs on a role change (from loadRoster) without this
+      // fetch — without the cache, that re-run silently un-hid every tab the
+      // agency had opted out of. applyClientTabs is the one place that decides.
+      CC_PAGES=((b&&b.config)||{}).pages||{};
+      applyClientTabs();
       // Help contacts (2026-07-23): a client's Help tab leads with THEIR
       // agency's contact details, injected above the stock content.
       var help=((b&&b.config)||{}).help||[];
@@ -250,7 +293,8 @@
   function buildIntegrity(d){
     var s=d.summary;
     if(s.hasDrift) return '<strong style="color:var(--ink);margin:0 2px">'+s.driftCount+' of '+s.totalSkills+' skill'+(s.totalSkills===1?'':'s')+' differ</strong> from the team’s canonical version — ask Claude to review what changed.';
-    return s.totalSkills+' skills, no canonical baseline set yet. Ask Claude in your agency brain to lock one in, so any future drift gets flagged here.';
+    // clientWords() drops the "agency" out of this for a client brain.
+    return clientWords(s.totalSkills+' skills, no canonical baseline set yet. Ask Claude in your agency brain to lock one in, so any future drift gets flagged here.');
   }
 
   var ORDER={draft:0,live:1,trusted:2};

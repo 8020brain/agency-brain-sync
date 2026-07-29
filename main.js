@@ -615,9 +615,15 @@ function buildMenu() {
   const config = loadConfig();
   const folder = config && config.brainPath ? config.brainPath : '(not set)';
   const homeRel = folder.startsWith(app.getPath('home')) ? '~' + folder.slice(app.getPath('home').length) : folder;
-  const modeBadge = config && config.mode === 'agency'
-    ? `Agency: ${config.teamSlug || 'unknown'} (${config.memberRole || 'team'})`
-    : config && config.mode === 'personal' ? 'Personal sync' : '';
+  // The wizard writes mode:'agency' even for a client brain, so kind is the only
+  // discriminator here. Branching on mode alone put "Agency: acme-corp-brain"
+  // in a client's menu bar, which named the relationship they're not meant to
+  // see. A client brain shows the brain and the seat, with no "Agency:" label.
+  const modeBadge = config && config.kind === 'client'
+    ? `${config.teamSlug || 'unknown'} (${config.memberRole || 'team'})`
+    : config && config.mode === 'agency'
+      ? `Agency: ${config.teamSlug || 'unknown'} (${config.memberRole || 'team'})`
+      : config && config.mode === 'personal' ? 'Personal sync' : '';
 
   // A client brain shows the client's brand as the menu headline even before
   // the next app restart re-derives APP_NAME from config.
@@ -1304,7 +1310,7 @@ ipcMain.handle('flip-to-agency', async (_evt, args) => {
   if (origin && normRepo(origin) !== normRepo(team.repoUrl)) {
     return {
       ok: false, mismatch: true, origin, repoUrl: team.repoUrl,
-      error: `This folder syncs to ${origin}, but your agency repo is ${team.repoUrl}. If you started fresh, point Agency Brain at your new agency brain folder instead of flipping this one.`,
+      error: `This folder syncs to ${origin}, but your team repo is ${team.repoUrl}. If you started fresh, point ${APP_NAME} at your new brain folder instead of flipping this one.`,
     };
   }
 
@@ -1472,7 +1478,7 @@ async function checkForUpdatesManually() {
   }
   // Already downloaded and waiting? Offer the relaunch now.
   if (updateInfo && updateInfo.version) {
-    const c = dialog.showMessageBoxSync({ type: 'info', title: APP_NAME, message: `Version ${updateInfo.version} is ready to install.`, detail: 'Agency Brain will relaunch to finish updating.', buttons: ['Relaunch now', 'Later'], defaultId: 0, cancelId: 1 });
+    const c = dialog.showMessageBoxSync({ type: 'info', title: APP_NAME, message: `Version ${updateInfo.version} is ready to install.`, detail: `${APP_NAME} will relaunch to finish updating.`, buttons: ['Relaunch now', 'Later'], defaultId: 0, cancelId: 1 });
     if (c === 0) {
       isQuitting = true;
       try { require('electron-updater').autoUpdater.quitAndInstall(); }
@@ -1757,10 +1763,15 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
   // which the wizard's configure-identity step sets separately) and push it as
   // the repo's first content on main.
   await runGit(['-C', targetFolder, 'add', '-A']);
+  // The seed commit's author lands in the repo's git history for good. In a
+  // client brain that repo belongs to the client, so the author stays neutral
+  // rather than naming the product their agency bought.
+  const seedAuthor = teamKind === 'client'
+    ? ['-c', 'user.email=setup@brain.local', '-c', 'user.name=Brain Setup']
+    : ['-c', 'user.email=app@agencybrain', '-c', 'user.name=Agency Brain'];
   await runGit([
     '-C', targetFolder,
-    '-c', 'user.email=app@agencybrain',
-    '-c', 'user.name=Agency Brain',
+    ...seedAuthor,
     'commit', '-m', 'Set up your brain from template',
   ]);
   await runGit(['-C', targetFolder, 'branch', '-M', 'main']);
@@ -1797,7 +1808,7 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
     `https://x-access-token:${token}@`
   );
   if (!cloneUrl.startsWith('https://x-access-token:')) {
-    throw new Error("Your agency's one-time setup isn't finished yet. The owner or a scout needs to finish setting up your agency brain in the Agency Brain app first. Once that's done, sign in here again.");
+    throw new Error(`Your brain's one-time setup isn't finished yet. The owner or a scout needs to finish setting it up in the ${APP_NAME} app first. Once that's done, sign in here again.`);
   }
   // Make sure the target's parent exists
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
@@ -2211,8 +2222,8 @@ async function ensureGitAvailable() {
   } catch (e) {
     throw new Error(
       process.platform === 'win32'
-        ? "Git isn't installed yet. Install it from https://git-scm.com/download/win (keep the default options), then fully quit and reopen Agency Brain and try again."
-        : "Git isn't available. Open Terminal and run `git --version` — if it offers to install the command line developer tools, accept, then reopen Agency Brain and try again."
+        ? `Git isn't installed yet. Install it from https://git-scm.com/download/win (keep the default options), then fully quit and reopen ${APP_NAME} and try again.`
+        : `Git isn't available. Open Terminal and run \`git --version\` — if it offers to install the command line developer tools, accept, then reopen ${APP_NAME} and try again.`
     );
   }
 }

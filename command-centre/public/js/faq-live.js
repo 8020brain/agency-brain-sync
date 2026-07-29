@@ -110,6 +110,22 @@
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadLiveFaq);
-  else loadLiveFaq();
+  // Neither doc belongs in a client brain. The agency FAQ is written to an
+  // agency ("your agency hosts its own brain", our download and portal links)
+  // and the Client Brain FAQ is the reseller pitch — it says the client never
+  // sees the Ads to AI name and that the agency keeps what it charges. A
+  // client's own owner was being shown both, because the only gate was role.
+  //
+  // This asks the local server directly rather than reading the CCKIND global:
+  // that global isn't assigned until /api/health resolves in core.js, and this
+  // file's Firestore fetch races it. One extra loopback request, no race.
+  function start() {
+    fetch('/api/health')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (h) { if (!h || h.teamKind !== 'client') loadLiveFaq(); })
+      .catch(function () { /* health unreachable → leave the baked fallback alone */ });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();

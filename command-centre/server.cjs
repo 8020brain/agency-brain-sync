@@ -295,7 +295,7 @@ function agencyName() {
     if (roles.team_name) return roles.team_name;
   } catch { /* no roster on disk */ }
   if (TEAM_SLUG) return TEAM_SLUG.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  return 'your agency';
+  return TEAM_KIND === 'client' ? 'your business' : 'your agency';
 }
 // Point the shared CLAUDE.md at the local file, once. Idempotent + safe: it's
 // the same line for everyone and is meant to sync.
@@ -314,8 +314,11 @@ function writeLocalIdentity(nameOverride) {
   const who = (nameOverride || MEMBER_NAME || '').trim();
   const role = (MEMBER_ROLE || 'owner').toLowerCase();
   const agency = agencyName();
+  // A client brain is white-label: this file lands in the CLIENT's repo, where
+  // naming the product would tell them who their agency buys from.
+  const instance = TEAM_KIND === 'client' ? 'brain instance' : 'Agency Brain instance';
   const body = '# CLAUDE.local.md — local identity (per-person, never synced)\n\n'
-    + `You are the Agency Brain instance for **${who}**, a **${role}** at **${agency}**.\n\n`
+    + `You are the ${instance} for **${who}**, a **${role}** at **${agency}**.\n\n`
     + 'This file is local to this machine and is never synced to the team.\n';
   ensureIdentityPointer();
   ensureGitignored('CLAUDE.local.md');
@@ -443,6 +446,11 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8'), true);
     }
     if (req.method === 'GET' && p === '/changelog') {
+      // The changelog is this product's release history: it names the product
+      // and discusses seats and prices the agency pays us. The footer link is
+      // hidden in a client brain, and the route refuses too, so a typed URL or
+      // a stale bookmark can't reach it either.
+      if (TEAM_KIND === 'client') return send(res, 404, 'Not found', false);
       return send(res, 200, renderChangelogPage(), true);
     }
     if (req.method === 'GET' && p === '/api/health') {
