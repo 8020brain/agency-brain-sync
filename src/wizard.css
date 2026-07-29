@@ -184,6 +184,7 @@ h1 { font-family: var(--oxanium); font-size: 27px; font-weight: 700; line-height
 .folder-pick .path { flex: 1; }
 .folder-pick .path .label { font-family: var(--oxanium); font-size: 11px; color: var(--ink-3); display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: .06em; }
 .folder-pick .path .value { font-weight: 600; font-size: 13px; font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+.folder-note { max-width: 560px; margin: 0 0 4px; font-size: 13px; color: var(--ink-3); }
 
 /* ---------- clone log ---------- */
 .log {

@@ -1085,7 +1085,10 @@
     // The folder is ALWAYS changeable — there must always be a recovery path if
     // the default already exists or the member wants it elsewhere.
     pickBtn.classList.remove('hidden');
-    document.getElementById('folderPath').textContent = displayPath(chosenFolder);
+    // Full path, not the ~ short form. This is the screen where files get
+    // created, so "~/acme-brain" leaves people guessing where that really is
+    // (reported 2026-07-29). Everywhere else keeps displayPath().
+    document.getElementById('folderPath').textContent = chosenFolder;
     document.getElementById('cloneLog').textContent = '';
     clearError('err-clone');
   }
@@ -1095,7 +1098,7 @@
     // Full freedom for everyone (incl. agency owners): the folder they pick or
     // create in the OS dialog is used exactly as chosen — any name, anywhere.
     chosenFolder = picked;
-    document.getElementById('folderPath').textContent = displayPath(chosenFolder);
+    document.getElementById('folderPath').textContent = chosenFolder;
   });
   document.getElementById('btn-clone').addEventListener('click', doClone);
 
