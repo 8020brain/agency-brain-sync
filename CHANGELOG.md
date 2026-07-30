@@ -2,6 +2,12 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.11 — 2026-07-30
+
+- **The Connect GitHub step now checks your organisation before you go anywhere.** Setting up a brain used to end with one button that sent you to GitHub's "where do you want to install this?" list, and that list is where people got stuck: it gives no clue which rows are personal accounts (where GitHub won't let the app create anything) and which organisations already have the app (where nothing you click can finish the job). The step is now three ordered blocks: create a free organisation, tell the app its name, then connect. The app checks the name with GitHub while you're still in the app, and tells you in plain words if it's a personal account, misspelt, or doesn't exist yet. Once the name passes, the connect button takes you straight to that one organisation, so the confusing list never appears at all.
+- **Each brain needs its own organisation, and the setup screen now says so upfront.** A client brain gets an organisation of its own, separate from your agency's and from every other client's. That's what makes handing the whole thing over to the client possible later, and GitHub won't put a second brain into an organisation that already has one.
+- **The "still waiting" message stopped guessing.** If nothing happens after you approve on GitHub, the screen used to guess you'd picked a personal account, which was often wrong. It now names the organisation you gave it and the one thing that can still be in the way, which is that the app is already installed there.
+
 ## 1.1.10 — 2026-07-30
 
 - **The Connect GitHub step now explains itself, and speaks up when you're stuck.** Creating a brain needs a GitHub organisation, and that's GitHub's rule, not ours: apps are only allowed to create repositories inside an organisation, never on a personal account. The setup screen now says so upfront, and if you've never needed an organisation before, there's a link that takes you straight to creating a free one, which takes about a minute. Best of all, if you connect and nothing happens for a bit, the screen now tells you the likely cause (the app landed on your personal account) and exactly how to fix it, instead of waiting silently forever.
