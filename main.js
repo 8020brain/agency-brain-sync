@@ -1034,6 +1034,28 @@ async function ccAnswering() {
   catch { return false; }
 }
 
+// PIDs LISTENING on the Command Centre port. Last resort only: servers older
+// than 1.1.13 have no /api/shutdown, so an orphan from before an update can't
+// be ASKED to leave — it must be terminated, or the new server EADDRINUSEs and
+// the Command Centre is dead until a reboot (Mike's machine, first 1.1.13
+// update, 2026-07-31: a 1.1.12 orphan from switch-testing held the port).
+function pidsOnCcPort() {
+  const { execSync } = require('child_process');
+  try {
+    if (process.platform === 'win32') {
+      const out = execSync('netstat -ano -p tcp', { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+      const pids = new Set();
+      for (const line of out.split(/\r?\n/)) {
+        const m = line.match(/TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)/i);
+        if (m && Number(m[1]) === CC_PORT) pids.add(Number(m[2]));
+      }
+      return [...pids];
+    }
+    const out = execSync(`lsof -nP -tiTCP:${CC_PORT} -sTCP:LISTEN`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+    return out.split(/\s+/).filter(Boolean).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+  } catch (e) { return []; } // lsof exits non-zero when nothing is listening
+}
+
 async function ensureCommandCentre() {
   if (!(await ccHealthy())) {
     // Clear the port before spawning: kill our own child if we have one, ask
@@ -1045,6 +1067,26 @@ async function ensureCommandCentre() {
     try { await fetch(`http://127.0.0.1:${CC_PORT}/api/shutdown`, { method: 'POST' }); } catch (e) { /* nothing listening */ }
     for (let i = 0; i < 20 && await ccAnswering(); i++) {
       await new Promise((r) => setTimeout(r, 150));
+    }
+    if (await ccAnswering()) {
+      // Still held: a pre-1.1.13 server that doesn't understand the shutdown
+      // request. Confirm the holder really is a Command Centre server (its
+      // /api/health has our shape) — never blind-kill a stranger's process —
+      // then terminate it by PID and wait for the port to free.
+      let isCc = false;
+      try {
+        const h = await (await fetch(`http://127.0.0.1:${CC_PORT}/api/health`)).json();
+        isCc = !!(h && typeof h === 'object' && 'brainRoot' in h);
+      } catch (e) { /* stopped answering after all */ }
+      if (isCc) {
+        for (const pid of pidsOnCcPort()) {
+          try { process.kill(pid); clog('evicted stale Command Centre server (pid ' + pid + ')'); }
+          catch (e) { /* already gone */ }
+        }
+        for (let i = 0; i < 20 && await ccAnswering(); i++) {
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      }
     }
     startCommandCentre();
   }

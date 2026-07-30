@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.14 — 2026-07-31
+
+- **Updating from an older version can no longer leave the Command Centre unable to start.** If a window server left behind by a previous version was still holding the Command Centre's port when you updated, the new app couldn't start its own and showed "Could not start the Command Centre" until a restart of your computer. The app now clears the port itself, whatever version left the blockage behind, before starting fresh.
+
 ## 1.1.13 — 2026-07-31
 
 - **The Command Centre window now always shows the brain you're on.** Switching brains, adding a new one, or quitting and relaunching could leave the window showing the previous brain's name, roster and stats even though the sync underneath had switched correctly. The window's background server is now checked against the brain you actually picked and replaced when it doesn't match, and the cached window title can no longer outlive a switch.
