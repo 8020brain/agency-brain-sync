@@ -41,7 +41,7 @@
     var name=b.getAttribute('data-name')||'', role=b.getAttribute('data-role')||''; if(!email) return;
     var orig=b.textContent; b.disabled=true; b.textContent='Sending…';
     api('/api/team-resend-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,memberSlug:slug,name:name,role:role})})
-      .then(function(){ b.textContent='Invite resent'; })
+      .then(function(d){ b.textContent=(d&&d.code)?('Resent · code '+d.code):'Invite resent'; })
       .catch(function(e){ b.disabled=false; b.textContent=orig; alert('Couldn’t resend: '+e.message); });
   });
 

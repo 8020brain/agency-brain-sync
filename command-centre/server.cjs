@@ -745,11 +745,18 @@ const server = http.createServer(async (req, res) => {
         ['send-invite', { teamSlug: TEAM_SLUG, memberEmail: email }],
       ];
       try {
+        // Surface the invite code to the UI: the email is the only carrier of
+        // the code otherwise, and a spam filter turns "Invite sent" into a
+        // silent dead end (Rok Systems, 2026-07-30).
+        let code = '';
         for (const [step, payload] of steps) {
-          try { await apiCall('POST', '/api/team-brain/' + step, payload); }
+          try {
+            const r = await apiCall('POST', '/api/team-brain/' + step, payload);
+            if (step === 'invite-token') code = (r && r.shortCodeDisplay) || '';
+          }
           catch (e) { e.message = step + ': ' + e.message; throw e; }
         }
-        return send(res, 200, { ok: true, email });
+        return send(res, 200, { ok: true, email, code });
       } catch (err) {
         return send(res, err.statusCode || 500, { error: err.message });
       }
@@ -796,9 +803,9 @@ const server = http.createServer(async (req, res) => {
       if (!MEMBER_TOKEN || !TEAM_SLUG) return send(res, 400, { error: 'not signed in to a team' });
       try {
         await apiCall('GET', '/api/team-dashboard/version', null, 1).catch(() => {});
-        await apiCall('POST', '/api/team-brain/invite-token', { teamSlug: TEAM_SLUG, memberEmail: email, memberName: name, memberRole: role });
+        const tok = await apiCall('POST', '/api/team-brain/invite-token', { teamSlug: TEAM_SLUG, memberEmail: email, memberName: name, memberRole: role });
         await apiCall('POST', '/api/team-brain/send-invite', { teamSlug: TEAM_SLUG, memberEmail: email });
-        return send(res, 200, { ok: true, email });
+        return send(res, 200, { ok: true, email, code: (tok && tok.shortCodeDisplay) || '' });
       } catch (err) {
         return send(res, err.statusCode || 500, { error: err.message });
       }

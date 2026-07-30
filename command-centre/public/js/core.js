@@ -514,7 +514,13 @@
         st.textContent='Warming up the server and sending the invite, this can take a few seconds…';
         var ctrl=new AbortController(), to=setTimeout(function(){ctrl.abort();},30000);
         api('/api/team-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,role:role}),signal:ctrl.signal})
-          .then(function(){ st.textContent='Invite sent to '+email+'.'; $(t[1]).value=''; $(t[2]).value=''; loadRoster(); setTimeout(function(){ $(t[5]).hidden=true; st.textContent=''; },1800); })
+          .then(function(d){
+            $(t[1]).value=''; $(t[2]).value=''; loadRoster();
+            // With a code to read, the message stays up: the email is the only
+            // other carrier of the code, and spam filters eat it (2026-07-30).
+            if(d&&d.code){ st.textContent='Invite emailed to '+email+'. Their code is '+d.code+'; if the email lands in spam, you can send them the code yourself.'; }
+            else { st.textContent='Invite sent to '+email+'.'; setTimeout(function(){ $(t[5]).hidden=true; st.textContent=''; },1800); }
+          })
           .catch(function(e){ st.textContent='Failed: '+(e.name==='AbortError'?'timed out — try again':e.message); })
           .then(function(){ clearTimeout(to); send.disabled=false; send.textContent='Send invite'; });
       });
