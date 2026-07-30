@@ -2,6 +2,13 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.13 — 2026-07-31
+
+- **The Command Centre window now always shows the brain you're on.** Switching brains, adding a new one, or quitting and relaunching could leave the window showing the previous brain's name, roster and stats even though the sync underneath had switched correctly. The window's background server is now checked against the brain you actually picked and replaced when it doesn't match, and the cached window title can no longer outlive a switch.
+- **Organisations that already have the GitHub app connect instantly.** If the app was already installed on your organisation (typical when your agency's own brain lives there), GitHub showed a "Configure" page that never reported back, and setup waited forever. The app now links an existing install directly the moment your organisation name checks out, so that GitHub step disappears entirely in the common case.
+- **Your brain knows who you are from the moment you join.** The private identity note (your name, role and team) is written automatically when a brain is set up, and existing brains write it the next time the Command Centre opens. Your role comes from the live team roster, a name you type always wins over the stored one, and the old "Tell your brain who you are" banner only appears if your login carried no name at all.
+- **Invites show their code, and getting started starts with a prompt.** After adding a team member (or clicking Resend), the 6-character invite code is shown on screen, so a spam filter can never strand an invite; you can simply send the person the code yourself. And the Getting started tab has a "Copy the start prompt" button whose prompt works in both Claude Code and Cowork.
+
 ## 1.1.12 — 2026-07-30
 
 - **Switching brains now shows the brain you switched to.** If you run more than one brain on your machine, switching had three rough edges, all found on the first real client-brain install this morning. Finishing setup for a new brain could leave the previous brain's Command Centre on screen, picking a brain from "Switch brain" looked like it did nothing because the window never refreshed, and the menu could show a brain under an old name or mark the wrong one as active. All three are fixed: the Command Centre now follows the brain you chose, immediately.
