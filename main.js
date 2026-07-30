@@ -343,12 +343,18 @@ function switchBrain(key) {
     startWatcher();
   }
   updateTray();
+  // Show the brain you just switched to. Bouncing the server without touching
+  // the window left the OLD brain's Command Centre on screen, so switching
+  // looked like it did nothing (Mike, first client-brain install, 2026-07-30).
+  openCommandCentre();
 }
 function brainLabel(p) {
   const name = (p && p.kind === 'client' && p.brandName) ? p.brandName
     : (p && p.teamSlug) ? p.teamSlug
     : (p && p.brainPath) ? path.basename(p.brainPath) : '(unknown)';
-  return (p && p.kind === 'client' ? '◆ ' : '') + name;
+  // Say "client brain" in words. The bare ◆ marker meant nothing to the first
+  // person who met it (Mike: "I have no idea what that is").
+  return p && p.kind === 'client' ? `${name} (client brain)` : name;
 }
 
 // Agency mode but the saved sign-in token is gone — e.g. config.json was cleared
@@ -683,14 +689,20 @@ function buildMenu() {
 
   // ---- Brain switcher: only when this machine has more than one DISTINCT brain
   // FOLDER. Deduped by folder, so a brain re-tagged during testing (one folder
-  // saved under several identities) never shows phantom/duplicate entries. ----
-  const seenFolders = new Set();
-  const realBrains = ((config && Array.isArray(config.brains)) ? config.brains : []).filter((b) => {
-    if (!b || !b.brainPath) return false;
-    if (seenFolders.has(b.brainPath)) return false;
-    seenFolders.add(b.brainPath);
-    return true;
-  });
+  // saved under several identities) never shows phantom/duplicate entries.
+  // When one folder IS saved under several identities, keep the profile that
+  // matches the ACTIVE config: keeping "first in the array" meant the menu
+  // could show a stale identity for that folder, mark the active brain as
+  // clickable, and change its label between openings as the array reordered
+  // (all three seen on the first client-brain install, 2026-07-30). ----
+  const activeKey = brainKey(config);
+  const byFolder = new Map();
+  for (const b of (config && Array.isArray(config.brains)) ? config.brains : []) {
+    if (!b || !b.brainPath) continue;
+    const existing = byFolder.get(b.brainPath);
+    if (!existing || brainKey(b) === activeKey) byFolder.set(b.brainPath, b);
+  }
+  const realBrains = [...byFolder.values()];
   if (realBrains.length > 1) {
     items.push({ type: 'separator' });
     items.push({
@@ -1117,13 +1129,26 @@ async function runE2E(mode) {
 ipcMain.handle('get-config', () => loadConfig() || {});
 
 ipcMain.handle('save-config', async (_evt, config) => {
+  const prevKey = brainKey(loadConfig());
   saveConfig(config);
+  // If this save changed the ACTIVE brain (the add-a-brain wizard finishing is
+  // the main case), the running Command Centre is still the old brain's: its
+  // folder, identity and branding are baked into its env at spawn. Bounce it
+  // exactly like switchBrain does, or "Open Command Centre" straight after
+  // setup reuses the healthy old server and shows the previous brain (Mike hit
+  // this on the first real client-brain install, 2026-07-30). The next open
+  // starts it fresh against the new brain.
+  if (ccProcess && brainKey(loadConfig()) !== prevKey) {
+    ccProcess.kill();
+    ccProcess = null;
+  }
   if (watcherProcess) {
     watcherProcess.once('exit', () => startWatcher());
     watcherProcess.kill('SIGINT');
   } else {
     startWatcher();
   }
+  updateTray(); // the Switch-brain list gains the new brain right away
   return true;
 });
 
