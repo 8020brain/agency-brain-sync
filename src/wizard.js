@@ -661,7 +661,7 @@
         const a = document.getElementById('link-stall-create-org');
         if (a) a.addEventListener('click', (ev) => {
           ev.preventDefault();
-          api.openExternalUrl('https://github.com/account/organizations/new');
+          api.openExternalUrl('https://github.com/account/organizations/new?plan=free');
         });
       }
       if (el) el.classList.remove('hidden');
@@ -913,8 +913,15 @@
           + 'in an organisation that already has one.';
       }
       if (step1Caption) {
-        step1Caption.textContent = 'Choose the free plan, name it after the client, and skip the invite-people step. '
-          + 'It takes about a minute. If they already have an organisation of their own, go straight to step 2.';
+        // GitHub's own funnel asks three things that stall people (all three
+        // stalled the first real install, 2026-07-30): a plan page pushing the
+        // $4 Team plan, a "belongs to" question, and an invite screen. Answer
+        // all three before they meet them.
+        step1Caption.innerHTML = 'The <strong>Free plan is all this needs, never pay</strong>; the paid plans add '
+          + 'nothing here. Name it after the client. If GitHub asks who the organisation belongs to, '
+          + '"My personal account" is fine, and it has no effect on handing it to the client later. On the '
+          + '"Start collaborating" screen, click "Skip this step". About a minute all up. If they already '
+          + 'have an organisation of their own, go straight to step 2.';
       }
       if (step2Text) {
         step2Text.textContent = 'Type the organisation name exactly as GitHub shows it. I\'ll check it with GitHub before you go anywhere, '
@@ -936,8 +943,10 @@
           + 'never needed one, and they are free.';
       }
       if (step1Caption) {
-        step1Caption.textContent = 'Choose the free plan, name it after your business, and skip the invite-people step. '
-          + 'It takes about a minute. If you already have one for the business, go straight to step 2.';
+        step1Caption.innerHTML = 'The <strong>Free plan is all this needs, never pay</strong>; the paid plans add '
+          + 'nothing here. Name it after your business. If GitHub asks who the organisation belongs to, '
+          + '"My personal account" is fine. On the "Start collaborating" screen, click "Skip this step". '
+          + 'About a minute all up. If you already have one for the business, go straight to step 2.';
       }
       if (step2Text) {
         step2Text.textContent = 'Type the organisation name exactly as GitHub shows it. I\'ll check it with GitHub before you go anywhere, '
@@ -954,7 +963,7 @@
     if (!connectOrgBound) {
       connectOrgBound = true;
       if (createBtn) createBtn.addEventListener('click', () => {
-        api.openExternalUrl('https://github.com/account/organizations/new');
+        api.openExternalUrl('https://github.com/account/organizations/new?plan=free');
       });
       // Check on Enter as well as on the button — this is a one-field form.
       if (orgInput) {

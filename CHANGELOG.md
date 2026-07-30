@@ -2,6 +2,12 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.12 — 2026-07-30
+
+- **Switching brains now shows the brain you switched to.** If you run more than one brain on your machine, switching had three rough edges, all found on the first real client-brain install this morning. Finishing setup for a new brain could leave the previous brain's Command Centre on screen, picking a brain from "Switch brain" looked like it did nothing because the window never refreshed, and the menu could show a brain under an old name or mark the wrong one as active. All three are fixed: the Command Centre now follows the brain you chose, immediately.
+- **Client brains are labelled in words.** The Switch brain menu marked a client's brain with a small diamond symbol that meant nothing to anyone. It now says "(client brain)" next to the name.
+- **Creating the GitHub organisation skips the payment page.** The create-an-organisation button now lands you straight on the free set-up form, instead of GitHub's plan page that pushes a $4 a month option this never needs. The setup screen also answers the two questions GitHub asks that stall people: "who does this organisation belong to" (your personal account is fine, and it doesn't affect handing a client brain over later) and the "Start collaborating" invite screen (skip it).
+
 ## 1.1.11 — 2026-07-30
 
 - **The Connect GitHub step now checks your organisation before you go anywhere.** Setting up a brain used to end with one button that sent you to GitHub's "where do you want to install this?" list, and that list is where people got stuck: it gives no clue which rows are personal accounts (where GitHub won't let the app create anything) and which organisations already have the app (where nothing you click can finish the job). The step is now three ordered blocks: create a free organisation, tell the app its name, then connect. The app checks the name with GitHub while you're still in the app, and tells you in plain words if it's a personal account, misspelt, or doesn't exist yet. Once the name passes, the connect button takes you straight to that one organisation, so the confusing list never appears at all.
