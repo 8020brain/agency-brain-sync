@@ -132,7 +132,7 @@ check(/lockConnectStep\(\)/.test(WIZ_JS) && /unlockConnectStep\(/.test(WIZ_JS),
 
 // Editing the name must invalidate a previous pass, or someone could check a
 // good org, retype a bad one, and still be deep-linked to the good one.
-const inputHandler = WIZ_JS.match(/orgInput\.addEventListener\('input'[\s\S]{0,400}?\}\);/);
+const inputHandler = WIZ_JS.match(/orgInput\.addEventListener\('input'[\s\S]{0,800}?\}\);/);
 check(!!inputHandler && /lockConnectStep\(\)/.test(inputHandler[0]),
   're-typing the name re-locks the connect step');
 

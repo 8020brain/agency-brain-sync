@@ -623,6 +623,10 @@
   // The organisation the user named and GitHub confirmed, held so the connect
   // button can deep-link straight to it and every message can name it.
   let verifiedOrg = null;   // { login, id }
+  // Sequence number for the org-name checks. Bumped on every new check AND by
+  // lockConnectStep (which every edit runs through), so a lookup that resolves
+  // late for a superseded name is ignored instead of unlocking step 3.
+  let orgCheckSeq = 0;
 
   // Stall hint: an install that never links to the team leaves the poll seeing
   // nothing forever. After this long, say what's actually still possible
@@ -674,8 +678,11 @@
   }
 
   // Step 3 is inert until GitHub has confirmed the name is a real organisation.
+  // Locking also invalidates any lookup still in flight (see orgCheckSeq), so a
+  // slow answer for the OLD name can't unlock step 3 after the box was edited.
   function lockConnectStep() {
     verifiedOrg = null;
+    orgCheckSeq++;
     const step3 = document.getElementById('org-step-3');
     const btn = document.getElementById('btn-connect-org');
     if (step3) step3.classList.add('locked');
@@ -702,6 +709,7 @@
     const typed = input ? input.value.trim() : '';
     if (!typed) return;
     lockConnectStep();
+    const seq = ++orgCheckSeq;
     if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
     setOrgCheckStatus('Asking GitHub…', '');
     let res;
@@ -710,6 +718,7 @@
     } catch (err) {
       res = { ok: false, reason: 'offline', detail: err && err.message };
     }
+    if (seq !== orgCheckSeq) return; // a newer check (or an edit) superseded this one
     if (btn) { btn.disabled = false; btn.textContent = 'Check it'; }
     const shown = (res && res.login) || typed;
     if (res && res.ok) {
@@ -951,8 +960,14 @@
       if (orgInput) {
         orgInput.addEventListener('input', () => {
           const checkBtn = document.getElementById('btn-check-org');
-          if (checkBtn) checkBtn.disabled = !orgInput.value.trim();
-          // Editing the name invalidates the previous answer.
+          // Editing the name invalidates the previous answer AND any check still
+          // in flight (lockConnectStep bumps orgCheckSeq), so put the button back
+          // to its resting state here rather than letting a superseded check
+          // leave it saying "Checking…".
+          if (checkBtn) {
+            checkBtn.disabled = !orgInput.value.trim();
+            checkBtn.textContent = 'Check it';
+          }
           lockConnectStep();
           setOrgCheckStatus('', '');
         });
