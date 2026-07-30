@@ -55,10 +55,12 @@
     </div>
   </div>
 
-  <!-- Per-person identity nudge — shows app-wide until CLAUDE.local.md exists -->
+  <!-- Per-person identity nudge. Identity is written automatically at join and
+       self-healed at server start, so this shows only in the rare case where
+       the login carried no name (the app can't write the file without one). -->
   <div class="upsell-banner" id="identity-nudge" hidden>
     <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-    <div class="ub-text"><div class="ub-h">Tell your brain who you are</div><div class="ub-p" id="identity-p">Your Claude doesn't know who it's working with yet. One click writes a private note naming you, so it does better work for you. It stays on your machine and never syncs.</div></div>
+    <div class="ub-text"><div class="ub-h">Add your name</div><div class="ub-p" id="identity-p">Your login didn't include a name, so your brain doesn't know who it's working with yet. One click fixes that; the note stays on your machine and never syncs.</div></div>
     <button class="ub-cta" id="identity-cta" style="appearance:none;border:none;cursor:pointer;">Set it up</button>
     <button class="ub-x" id="identity-x" title="Dismiss" aria-label="Dismiss">&times;</button>
   </div>
@@ -129,6 +131,14 @@
   <!-- ============ GETTING STARTED (team path) ============ -->
   <section class="view" id="view-path">
     <div id="prog-self-root"></div>
+    <!-- Typing /start works in Claude Code but not in Cowork (repo skills
+         aren't registered as commands there), and it's the first thing a new
+         person tries (Peter, 2026-07-30). A pasted prompt that names the
+         skill file works on every surface. Copy handler: boot.js data-spawn. -->
+    <div class="card" id="tp-start-prompt" style="display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px">
+      <p style="margin:0">New here, or not sure what to do next? Copy this prompt and paste it into Claude — it walks you through getting started.</p>
+      <button class="btn" data-spawn="Read the file .claude/skills/start/SKILL.md in this folder and follow it exactly: walk me through getting started, one step at a time.">Copy the start prompt</button>
+    </div>
     <div id="tp-root"><div class="card"><p class="tp-loading">Loading your path…</p></div></div>
   </section>
 

@@ -35,6 +35,9 @@ const api = {
   // Verify a GitHub organisation name before sending anyone to GitHub. Returns
   // { ok, reason, login, id, type } — see the handler in main.js.
   lookupGithubAccount: (login) => ipcRenderer.invoke('github-account-lookup', login),
+  // Link an installation that already exists on the named org (the "Configure,
+  // never reports back" dead end) — see the handler in main.js.
+  adoptOrgInstallation: (args) => ipcRenderer.invoke('adopt-org-installation', args),
   setTeamRepoUrl: (token, teamSlug, repoUrl) => ipcRenderer.invoke('set-team-repo-url', token, teamSlug, repoUrl),
 
   // Email + OTP first-run: enter email -> request code -> verify -> look up

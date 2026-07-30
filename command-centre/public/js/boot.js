@@ -54,7 +54,10 @@
   // and stopped the (per-hour-billed) database ever sleeping. 5 minutes is plenty; the
   // API also busts its cache the moment a roster actually changes. (2026-07-14)
   setInterval(loadObservability, 30000);
-  setInterval(loadRoster, 5 * 60 * 1000);
+  // loadHealth repaints team identity + branding; polling it alongside the
+  // roster means a window left open across a brain switch corrects itself
+  // instead of wearing the old identity until a manual reload.
+  setInterval(function(){ loadHealth(); loadRoster(); }, 5 * 60 * 1000);
 
   // ===== Get set up page + team-only Start here strip + scout Feedback inbox (2026-05-25) =====
   // NOTE: these MUST stay inside the IIFE — they call esc/ago/$/api/activateView/OBS/CCROLE,

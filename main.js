@@ -1009,15 +1009,45 @@ function startCommandCentre() {
   ccProcess.on('exit', () => { ccProcess = null; });
 }
 
+// Liveness alone is not health. The server's brain identity is baked into its
+// env at spawn, so after a switch the OLD server — still dying from kill(), or
+// orphaned entirely by a force-quit — answers on the port and used to pass this
+// check, which is exactly how the window kept showing the previous brain
+// (Peter, three ways, 2026-07-30). Healthy = answering AND serving the brain
+// config.json currently points at.
 async function ccHealthy() {
   try {
     const r = await fetch(`http://127.0.0.1:${CC_PORT}/api/health`);
-    return r.ok;
+    if (!r.ok) return false;
+    const h = await r.json().catch(() => null);
+    if (!h) return false;
+    const cfg = loadConfig();
+    if (!cfg || !cfg.brainPath) return true;
+    return h.brainRoot === cfg.brainPath && String(h.teamSlug || '') === String(cfg.teamSlug || '');
   } catch { return false; }
 }
 
+// Anything answering at all — even the wrong brain's server. Distinct from
+// ccHealthy so the respawn path can tell "port still held" from "port free".
+async function ccAnswering() {
+  try { await fetch(`http://127.0.0.1:${CC_PORT}/api/health`); return true; }
+  catch { return false; }
+}
+
 async function ensureCommandCentre() {
-  if (!(await ccHealthy())) startCommandCentre();
+  if (!(await ccHealthy())) {
+    // Clear the port before spawning: kill our own child if we have one, ask
+    // any other holder (an orphan we never owned) to exit via /api/shutdown,
+    // then WAIT until the port actually frees. Spawning without the wait was
+    // the switch-brain race: the dying server answered the health probe, the
+    // fresh spawn was skipped, and the old brain stayed on screen.
+    if (ccProcess) { try { ccProcess.kill(); } catch (e) { /* already gone */ } ccProcess = null; }
+    try { await fetch(`http://127.0.0.1:${CC_PORT}/api/shutdown`, { method: 'POST' }); } catch (e) { /* nothing listening */ }
+    for (let i = 0; i < 20 && await ccAnswering(); i++) {
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    startCommandCentre();
+  }
   for (let i = 0; i < 40; i++) {
     if (await ccHealthy()) return true;
     await new Promise((r) => setTimeout(r, 150));
@@ -1711,6 +1741,25 @@ ipcMain.handle('get-install-status', async (_evt, teamSlug) => {
   return r.json();
 });
 
+// Link an installation that ALREADY exists on the named org to this team.
+// GitHub only redirects (and stamps the team row) when an installation is
+// newly created; an org that already has the app shows "Configure" and reports
+// nothing, which left the wizard polling forever. The server asks GitHub
+// directly and finishes the link + repo resolution itself.
+ipcMain.handle('adopt-org-installation', async (_evt, args) => {
+  const { memberToken, teamSlug, org } = args || {};
+  const r = await fetch(`${API_BASE}/api/team-brain/adopt-org-installation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${memberToken}` },
+    body: JSON.stringify({ teamSlug, org }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `adopt-org-installation failed (HTTP ${r.status})`);
+  }
+  return r.json(); // { adopted, installed, repoUrl } | { adopted: false, reason }
+});
+
 // Check a GitHub account name BEFORE anyone is sent to GitHub's install picker.
 // This is a public, unauthenticated endpoint, so it works before any install
 // exists and needs no token (rate limit is 60/hour per IP, far beyond what one
@@ -2003,9 +2052,29 @@ ipcMain.handle('adopt-existing-brain', async (_evt, args) => {
 });
 
 ipcMain.handle('configure-identity', async (_evt, args) => {
-  const { brainPath, memberEmail, memberName } = args;
+  const { brainPath, memberEmail, memberName, teamKind } = args;
   if (memberName) await runGit(['-C', brainPath, 'config', 'user.name', memberName]);
   if (memberEmail) await runGit(['-C', brainPath, 'config', 'user.email', memberEmail]);
+  // Write CLAUDE.local.md AT JOIN (teamed brains only — the wizard passes
+  // teamKind on that path). Leaving it to be "worked out in-session" meant a
+  // new member's first Claude session had no local identity and inherited
+  // whatever the machine's global instructions claimed — Peter's test alias
+  // opened as owner (2026-07-30). Role comes from the roles.json seeded just
+  // above in clone-agency-brain, so it's the live roster role, not a snapshot.
+  if (teamKind) {
+    try {
+      const li = require('./command-centre/lib/local-identity.cjs');
+      if (!li.hasLocalIdentity(brainPath)) {
+        li.writeLocalIdentity({
+          brainRoot: brainPath,
+          name: memberName,
+          role: li.roleFromRoster(brainPath, memberEmail) || 'team',
+          teamKind,
+          teamName: li.teamNameFromRoster(brainPath),
+        });
+      }
+    } catch (e) { clog('join-time identity write failed: ' + e.message); }
+  }
   return { ok: true };
 });
 

@@ -647,22 +647,17 @@
       const el = document.getElementById('connect-org-stall');
       const msg = document.getElementById('connect-org-stall-msg');
       // The name was checked before they left, so "you used a personal account"
-      // is no longer a possibility worth guessing at. What remains is an
-      // organisation that already has the app on it, where GitHub offers only
-      // "Configure" and completing that never reaches this app.
+      // is no longer a possibility worth guessing at. And "already installed"
+      // is no longer a dead end either — the poll now links an existing
+      // installation by itself (adopt-org-installation), so the honest advice
+      // is to approve a green Install button, or to hit "check now".
       if (msg) {
         const orgName = verifiedOrg ? verifiedOrg.login : 'that organisation';
         msg.innerHTML = 'Still waiting? Check what GitHub showed you for <strong>'
           + escapeHtml(orgName) + '</strong>. If there was a green <strong>Install</strong> button, '
           + 'approve it and this carries on by itself. If it said <strong>Configure</strong> instead, '
-          + 'the app is already on that organisation, and GitHub will not add it twice, so no brain can be '
-          + 'created there. Each brain needs its own organisation: '
-          + '<a href="#" id="link-stall-create-org">create a new one</a>, then go back to step 2 with its name.';
-        const a = document.getElementById('link-stall-create-org');
-        if (a) a.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          api.openExternalUrl('https://github.com/account/organizations/new?plan=free');
-        });
+          + 'the app is already on that organisation — you can close that GitHub tab; I link it '
+          + 'directly from here. Click <strong>I’ve finished on GitHub — check now</strong> below if nothing moves.';
       }
       if (el) el.classList.remove('hidden');
     }, CONNECT_ORG_STALL_MS);
@@ -724,6 +719,28 @@
     if (res && res.ok) {
       setOrgCheckStatus(`Found it. ${shown} is a GitHub organisation, so it can hold the brain.`, 'org-check-ok');
       unlockConnectStep({ login: res.login, id: res.id });
+      // The org may ALREADY have the app (typical when the agency's own brain
+      // lives there, or on a re-run). GitHub would show only "Configure" and
+      // never report back, so ask our server to link the existing installation
+      // now — if it can, the whole GitHub trip disappears (this is the check
+      // v1.1.11 promised: settled in the app, before GitHub ever appears).
+      if (authToken && connectOrgSlug) {
+        try {
+          const ad = await api.adoptOrgInstallation({ memberToken: authToken, teamSlug: connectOrgSlug, org: res.login });
+          if (seq !== orgCheckSeq) return; // superseded while we asked
+          if (ad && ad.installed) {
+            setOrgCheckStatus(`${shown} is already connected — no GitHub step needed. Creating your brain…`, 'org-check-ok');
+            if (ad.repoUrl) {
+              stopConnectOrgPoll();
+              if (teamInfo) teamInfo.repoUrl = ad.repoUrl;
+              enterMachine();
+              return;
+            }
+            // Linked but no repo yet — the poll's ensure branch finishes it.
+            connectOrgStartWaiting();
+          }
+        } catch (e) { /* offline or API hiccup — the normal flow still works */ }
+      }
       return;
     }
     // Every message below says what GitHub actually reported, and what to do
@@ -768,6 +785,8 @@
 
   let connectOrgEnsureInFlight = false;  // one ensure call at a time
   let connectOrgEnsureDone = false;      // stop re-asking once the server has ruled
+  let connectOrgAdoptInFlight = false;   // one adopt call at a time
+  let connectOrgTickCount = 0;           // adopt tries every 3rd poll tick (~12s)
 
   function showConnectOrgRecovery(res) {
     const wrap = document.getElementById('connect-org-recovery');
@@ -819,6 +838,32 @@
     if (!connectOrgSlug) return;
     try {
       const st = await api.getInstallStatus(connectOrgSlug);
+      // Not installed yet? The redirect-only signal never fires for an org
+      // that ALREADY has the app (GitHub shows Configure, which reports
+      // nothing), so periodically ask the server to link an existing
+      // installation directly. This is the poll's only escape from that
+      // dead end — before it, the screen waited forever (Peter, 2026-07-30).
+      if (!(st && st.installed) && verifiedOrg && authToken
+          && !connectOrgAdoptInFlight && connectOrgTickCount++ % 3 === 0) {
+        connectOrgAdoptInFlight = true;
+        try {
+          const ad = await api.adoptOrgInstallation({ memberToken: authToken, teamSlug: connectOrgSlug, org: verifiedOrg.login });
+          if (ad && ad.installed) {
+            hideConnectOrgStall();
+            const el = document.getElementById('connect-org-status');
+            if (el) el.textContent = 'Already connected to GitHub — creating your brain…';
+            if (ad.repoUrl) {
+              stopConnectOrgPoll();
+              if (teamInfo) teamInfo.repoUrl = ad.repoUrl;
+              enterMachine();
+              return;
+            }
+            // Linked, no repo yet: fall through so the ensure branch below
+            // (st.installed on the next tick) finishes the job.
+          }
+        } catch (e) { /* transient — the next eligible tick retries */ }
+        finally { connectOrgAdoptInFlight = false; }
+      }
       // Only advance once the App install has actually landed. Requiring
       // st.installed (not just st.repoUrl) matters for a team that already
       // carries a repo_url but no install: without it, the first poll tick
@@ -878,6 +923,7 @@
     // A fresh attempt gets a fresh ruling from the server.
     connectOrgEnsureDone = false;
     connectOrgEnsureInFlight = false;
+    connectOrgTickCount = 0; // first tick includes an adopt attempt
     startConnectOrgStallTimer();
     connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
   }
@@ -1003,6 +1049,7 @@
       // gets asked again rather than the screen staying stuck on it.
       if (recheckBtn) recheckBtn.addEventListener('click', () => {
         connectOrgEnsureDone = false;
+        connectOrgTickCount = 0; // this click's check includes an adopt attempt
         hideConnectOrgRecovery();
         if (!connectOrgPoll) connectOrgPoll = setInterval(connectOrgCheckOnce, 4000);
         connectOrgCheckOnce();
@@ -1345,7 +1392,8 @@
         await new Promise((r) => setTimeout(r, 600));
       } else if (mode === 'agency') {
         await api.cloneAgencyBrain({ memberToken: teamInfo.memberToken, teamSlug: teamInfo.teamSlug, repoUrl: teamInfo.repoUrl, targetFolder: chosenFolder, teamKind: teamInfo.kind || 'agency' });
-        await api.configureIdentity({ brainPath: chosenFolder, memberEmail: authEmail, memberName: authName });
+        // teamKind cues the join-time CLAUDE.local.md write (teamed brains only).
+        await api.configureIdentity({ brainPath: chosenFolder, memberEmail: authEmail, memberName: authName, teamKind: teamInfo.kind || 'agency' });
       } else {
         await api.cloneSoloBrain({ memberToken: authToken, targetFolder: chosenFolder });
         await api.configureIdentity({ brainPath: chosenFolder, memberEmail: authEmail, memberName: authName });

@@ -51,7 +51,7 @@
       }
       cta.disabled=true; cta.textContent='Setting up…';
       api('/api/write-identity',opts).then(function(r){
-        $('identity-p').textContent='Done. Your Claude now knows you\'re '+(r.name||'you')+', '+(r.role||'')+' at '+(r.agency||(CCKIND==='client'?'your business':'your agency'))+'.';
+        $('identity-p').textContent='Done. Your Claude now knows you\'re '+(r.name||'you')+', '+(r.role||'')+' at '+(r.agency||(CCKIND==='client'?'your business':'your agency'))+'. Next stop: the Getting started tab.';
         cta.remove();
         setTimeout(function(){ b.hidden=true; loadHealth(); }, 2500);
       }).catch(function(e){
@@ -217,6 +217,17 @@
     // other kind stays stock, and clears the pre-paint cache so it can't
     // go stale.
     if(kind!=='client'&&kind!=='agency'){ try{localStorage.removeItem('cc-branding');}catch(e){} return; }
+    // The pre-paint cache is shared by every brain (same 127.0.0.1 origin), so
+    // after a brain switch it paints the PREVIOUS brain's title/colours. Drop
+    // it the moment the server says we're a different team, BEFORE fetching
+    // branding — then a failed fetch can't leave the old brand on screen.
+    try{
+      var cached=JSON.parse(localStorage.getItem('cc-branding')||'null');
+      if(cached&&String(cached.teamSlug||'')!==String((h&&h.teamSlug)||'')){
+        localStorage.removeItem('cc-branding');
+        document.title='Command Centre';
+      }
+    }catch(e){}
     try{
       var b=await api('/api/branding');
       // An agency that never saved a brand runs stock — drop any old cache.
@@ -252,7 +263,7 @@
       }
       // Cache the applied brand so index.html can paint it before first
       // render on the next load — no flash of the default orange/Oxanium.
-      try{ localStorage.setItem('cc-branding', JSON.stringify({brandName:name, accentDeep:col.accentDeep||'', accentSoft:col.accentSoft||'', accentHover:hov, font:font})); }catch(e){}
+      try{ localStorage.setItem('cc-branding', JSON.stringify({teamSlug:String((h&&h.teamSlug)||''), brandName:name, accentDeep:col.accentDeep||'', accentSoft:col.accentSoft||'', accentHover:hov, font:font})); }catch(e){}
       // Everything below (page toggles, path/cowork hiding, help contacts)
       // is CLIENT-brain-only — an agency brain keeps all its own tabs.
       if(kind!=='client') return;

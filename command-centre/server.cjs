@@ -281,49 +281,36 @@ function ensureGitignored(name) {
 }
 
 // ---- Per-person local identity (CLAUDE.local.md) -------------------------
-// Tells THIS person's Claude who it's working with, written by the app from the
-// login identity (no typing). The file is git-ignored so it never syncs; the
-// shared CLAUDE.md just points at it (the one synced part, same line for
-// everyone). Drives the Welcome-view "set up your identity" nudge.
-const IDENTITY_POINTER = 'Read CLAUDE.local.md in this folder if it exists, and treat it as part of your instructions. It is a local file (never synced) that tells you who is using this copy of the brain.';
+// Shared writer in lib/local-identity.cjs (main.js writes the same file at
+// JOIN via configure-identity; here it self-heals brains from before that and
+// backs the rare type-your-name banner).
+const localIdentity = require('./lib/local-identity.cjs');
 function hasLocalIdentity() {
-  return fs.existsSync(path.join(BRAIN_ROOT, 'CLAUDE.local.md'));
+  return localIdentity.hasLocalIdentity(BRAIN_ROOT);
 }
 function agencyName() {
-  try {
-    const roles = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, '.team-config', 'roles.json'), 'utf8'));
-    if (roles.team_name) return roles.team_name;
-  } catch { /* no roster on disk */ }
+  const fromRoster = localIdentity.teamNameFromRoster(BRAIN_ROOT);
+  if (fromRoster) return fromRoster;
   if (TEAM_SLUG) return TEAM_SLUG.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return TEAM_KIND === 'client' ? 'your business' : 'your agency';
 }
-// Point the shared CLAUDE.md at the local file, once. Idempotent + safe: it's
-// the same line for everyone and is meant to sync.
-function ensureIdentityPointer() {
-  const cm = path.join(BRAIN_ROOT, 'CLAUDE.md');
-  let txt;
-  try { txt = fs.readFileSync(cm, 'utf8'); } catch { return; } // no CLAUDE.md → nothing to point from
-  if (txt.includes('CLAUDE.local.md')) return; // already points at it
-  const lines = txt.split('\n');
-  let at = 0; // after the first top-level heading, else the very top
-  for (let i = 0; i < lines.length; i++) { if (/^#\s/.test(lines[i])) { at = i + 1; break; } }
-  lines.splice(at, 0, '', IDENTITY_POINTER);
-  fs.writeFileSync(cm, lines.join('\n'));
+// The role of record: roles.json first (live, synced), then the config
+// snapshot, then a TEAMED default of 'team' — never 'owner'. The old
+// owner-default is how a team member's sessions opened assuming they ran the
+// place (Peter, 2026-07-30).
+function liveRole() {
+  return localIdentity.roleFromRoster(BRAIN_ROOT, MEMBER_EMAIL)
+    || (MEMBER_ROLE || '').toLowerCase()
+    || (TEAM_SLUG ? 'team' : 'owner');
 }
 function writeLocalIdentity(nameOverride) {
-  const who = (nameOverride || MEMBER_NAME || '').trim();
-  const role = (MEMBER_ROLE || 'owner').toLowerCase();
-  const agency = agencyName();
-  // A client brain is white-label: this file lands in the CLIENT's repo, where
-  // naming the product would tell them who their agency buys from.
-  const instance = TEAM_KIND === 'client' ? 'brain instance' : 'Agency Brain instance';
-  const body = '# CLAUDE.local.md — local identity (per-person, never synced)\n\n'
-    + `You are the ${instance} for **${who}**, a **${role}** at **${agency}**.\n\n`
-    + 'This file is local to this machine and is never synced to the team.\n';
-  ensureIdentityPointer();
-  ensureGitignored('CLAUDE.local.md');
-  fs.writeFileSync(path.join(BRAIN_ROOT, 'CLAUDE.local.md'), body);
-  return { name: who, role, agency };
+  return localIdentity.writeLocalIdentity({
+    brainRoot: BRAIN_ROOT,
+    name: (nameOverride || MEMBER_NAME || '').trim(),
+    role: liveRole(),
+    teamKind: TEAM_KIND,
+    teamName: agencyName(),
+  });
 }
 
 // ---- Changelog page -------------------------------------------------------
@@ -452,6 +439,17 @@ const server = http.createServer(async (req, res) => {
       // a stale bookmark can't reach it either.
       if (TEAM_KIND === 'client') return send(res, 404, 'Not found', false);
       return send(res, 200, renderChangelogPage(), true);
+    }
+    // The app asks a server holding the port to step aside when it isn't
+    // serving the ACTIVE brain. Identity is baked into env at spawn, so a
+    // brain switch must replace the process — and an orphan left by a
+    // force-quit can't be kill()ed by the new app instance (it never owned
+    // it). This is the orphan's only exit. Server binds 127.0.0.1 only.
+    if (req.method === 'POST' && p === '/api/shutdown') {
+      send(res, 200, { ok: true });
+      console.error(`[command-centre] shutdown requested (was serving: ${BRAIN_ROOT})`);
+      setTimeout(() => process.exit(0), 50);
+      return;
     }
     if (req.method === 'GET' && p === '/api/health') {
       // Start from the at-install snapshot (fast, local), then best-effort
@@ -699,8 +697,12 @@ const server = http.createServer(async (req, res) => {
       // The login name can be blank (the members DB holds no name for some
       // people), and "sign in again" can never fix that — so accept a typed
       // name from the banner instead of dead-ending (Richard, 2026-07-03).
+      // A TYPED name always beats the stored one: the member record's name is
+      // whatever someone typed when the seat was staged (Peter's got the brand
+      // name), and with the stored value winning there was no way to correct
+      // it from the UI (2026-07-30).
       const b = await readBody(req);
-      const who = (MEMBER_NAME || (b && b.name) || '').trim();
+      const who = ((b && b.name) || MEMBER_NAME || '').trim();
       if (!who) return send(res, 400, { needName: true, error: "I don't know your name yet — type it in and I'll set you up." });
       try {
         return send(res, 200, { ok: true, ...writeLocalIdentity(who) });
@@ -916,6 +918,25 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     return send(res, 500, { error: err.message });
   }
+});
+
+// Self-heal: write the identity file on start when it's missing and the login
+// name is known. Brains that joined before configure-identity wrote this at
+// join time otherwise depend on a manual banner click nobody found useful
+// (retired by Mike, 2026-07-31 — the banner now survives only for the rare
+// blank-name login).
+if (!hasLocalIdentity() && (MEMBER_NAME || '').trim()) {
+  try { writeLocalIdentity(); } catch (e) { console.error('[command-centre] identity self-heal failed: ' + e.message); }
+}
+
+// Without this, EADDRINUSE is an uncaught throw: the child dies silently, the
+// app nulls its handle, and whatever already holds the port keeps serving the
+// wrong brain with nothing in the log to say why.
+server.on('error', (err) => {
+  console.error('[command-centre] listen failed: ' + (err && err.code === 'EADDRINUSE'
+    ? `port ${PORT} is already in use (another Command Centre server still holds it)`
+    : (err && err.message) || String(err)));
+  process.exit(1);
 });
 
 server.listen(PORT, '127.0.0.1', () => {
