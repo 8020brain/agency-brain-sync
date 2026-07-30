@@ -112,6 +112,29 @@ h1 { font-family: var(--oxanium); font-size: 27px; font-weight: 700; line-height
 .error-banner.info { background: #FFF6F1; border-color: #f0d97a; border-left-color: var(--warn); color: var(--warn); }
 .hidden { display: none !important; }
 
+/* ---------- ordered org steps (connect-GitHub screen) ---------- */
+.org-step { display: flex; gap: 14px; margin-top: 20px; max-width: 640px; }
+.org-step-num {
+  flex: 0 0 24px; height: 24px; margin-top: 2px; background: var(--accent); color: #fff;
+  font-family: var(--oxanium); font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; border-radius: 2px;
+}
+.org-step-body { flex: 1; min-width: 0; }
+.org-step-body h2 {
+  font-family: var(--oxanium); font-size: 15px; font-weight: 700; color: var(--ink);
+  margin: 0 0 4px; letter-spacing: .01em;
+}
+.org-step-body p { font-size: 14px; color: var(--ink-2); line-height: 1.5; margin: 0; }
+.org-step-body .field { margin-top: 14px; }
+/* Step 3 stays visible but inert until the name checks out, so the whole path
+   is readable at a glance instead of appearing out of nowhere. */
+.org-step.locked { opacity: .45; }
+.org-step.locked .org-step-num { background: var(--ink-3); }
+/* Scoped to beat ".org-step-body p", which would otherwise keep the
+   check result the same grey as the body copy. */
+.org-step-body p.org-check-ok { color: var(--ok); }
+.org-step-body p.org-check-bad { color: var(--red); }
+
 /* ---------- team picker ---------- */
 .team-list { margin-top: 18px; max-width: 560px; }
 .team-option {

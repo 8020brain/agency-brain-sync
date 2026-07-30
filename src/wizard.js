@@ -620,10 +620,13 @@
   let connectOrgPoll = null;
   let connectOrgBound = false;
   let connectOrgSlug = '';
+  // The organisation the user named and GitHub confirmed, held so the connect
+  // button can deep-link straight to it and every message can name it.
+  let verifiedOrg = null;   // { login, id }
 
-  // Stall hint: a personal-account install never links to the team, so the
-  // poll sees nothing forever. After this long with no install, name that
-  // trap on screen instead of leaving "Waiting for GitHub..." unexplained.
+  // Stall hint: an install that never links to the team leaves the poll seeing
+  // nothing forever. After this long, say what's actually still possible
+  // instead of leaving "Waiting for GitHub..." unexplained.
   // (Peter Empson lost two hours to exactly this, 2026-07-30.)
   const CONNECT_ORG_STALL_MS = 75 * 1000;
   let connectOrgStallTimer = null;
@@ -638,8 +641,115 @@
     hideConnectOrgStall();
     connectOrgStallTimer = setTimeout(() => {
       const el = document.getElementById('connect-org-stall');
+      const msg = document.getElementById('connect-org-stall-msg');
+      // The name was checked before they left, so "you used a personal account"
+      // is no longer a possibility worth guessing at. What remains is an
+      // organisation that already has the app on it, where GitHub offers only
+      // "Configure" and completing that never reaches this app.
+      if (msg) {
+        const orgName = verifiedOrg ? verifiedOrg.login : 'that organisation';
+        msg.innerHTML = 'Still waiting? Check what GitHub showed you for <strong>'
+          + escapeHtml(orgName) + '</strong>. If there was a green <strong>Install</strong> button, '
+          + 'approve it and this carries on by itself. If it said <strong>Configure</strong> instead, '
+          + 'the app is already on that organisation, and GitHub will not add it twice, so no brain can be '
+          + 'created there. Each brain needs its own organisation: '
+          + '<a href="#" id="link-stall-create-org">create a new one</a>, then go back to step 2 with its name.';
+        const a = document.getElementById('link-stall-create-org');
+        if (a) a.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          api.openExternalUrl('https://github.com/account/organizations/new');
+        });
+      }
       if (el) el.classList.remove('hidden');
     }, CONNECT_ORG_STALL_MS);
+  }
+
+  // ---- step 2 of the screen: name the organisation, check it with GitHub ----
+
+  function setOrgCheckStatus(text, cls) {
+    const el = document.getElementById('org-check-status');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = cls || '';
+  }
+
+  // Step 3 is inert until GitHub has confirmed the name is a real organisation.
+  function lockConnectStep() {
+    verifiedOrg = null;
+    const step3 = document.getElementById('org-step-3');
+    const btn = document.getElementById('btn-connect-org');
+    if (step3) step3.classList.add('locked');
+    if (btn) btn.disabled = true;
+  }
+
+  function unlockConnectStep(org) {
+    verifiedOrg = org;
+    const step3 = document.getElementById('org-step-3');
+    const btn = document.getElementById('btn-connect-org');
+    const text = document.getElementById('org-step-3-text');
+    if (step3) step3.classList.remove('locked');
+    if (btn) btn.disabled = false;
+    if (text) {
+      text.innerHTML = 'This takes you straight to <strong>' + escapeHtml(org.login)
+        + '</strong> on GitHub, with no list to choose from. Approve it there and I\'ll create the brain '
+        + 'and pull it down for you.';
+    }
+  }
+
+  async function checkOrgName() {
+    const input = document.getElementById('orgNameInput');
+    const btn = document.getElementById('btn-check-org');
+    const typed = input ? input.value.trim() : '';
+    if (!typed) return;
+    lockConnectStep();
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    setOrgCheckStatus('Asking GitHub…', '');
+    let res;
+    try {
+      res = await api.lookupGithubAccount(typed);
+    } catch (err) {
+      res = { ok: false, reason: 'offline', detail: err && err.message };
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Check it'; }
+    const shown = (res && res.login) || typed;
+    if (res && res.ok) {
+      setOrgCheckStatus(`Found it. ${shown} is a GitHub organisation, so it can hold the brain.`, 'org-check-ok');
+      unlockConnectStep({ login: res.login, id: res.id });
+      return;
+    }
+    // Every message below says what GitHub actually reported, and what to do
+    // about it. No guessing.
+    const reason = res && res.reason;
+    if (reason === 'personal-account') {
+      setOrgCheckStatus(
+        `${shown} is a personal GitHub account, not an organisation. GitHub doesn't let apps create `
+        + `repositories on a personal account, so this brain can't live there. Create a free organisation `
+        + `in step 1 and use its name here.`,
+        'org-check-bad'
+      );
+    } else if (reason === 'not-found') {
+      setOrgCheckStatus(
+        `GitHub has nothing called ${shown}. If you just created it, check the spelling against the name `
+        + `GitHub shows on the organisation's page. If you haven't created it yet, do step 1 first.`,
+        'org-check-bad'
+      );
+    } else if (reason === 'invalid-name') {
+      setOrgCheckStatus(
+        `That isn't a GitHub name. I need just the organisation's name, like acme-client-co, not a full web address.`,
+        'org-check-bad'
+      );
+    } else if (reason === 'rate-limited') {
+      setOrgCheckStatus(
+        `GitHub is asking me to slow down. Wait a minute and click Check it again.`,
+        'org-check-bad'
+      );
+    } else {
+      setOrgCheckStatus(
+        `I couldn't reach GitHub to check that name${res && res.detail ? ` (${res.detail})` : ''}. `
+        + `Check your internet connection and click Check it again.`,
+        'org-check-bad'
+      );
+    }
   }
 
   function stopConnectOrgPoll() {
@@ -749,7 +859,11 @@
     const recheckBtn = document.getElementById('btn-connect-recheck');
     const statusEl = document.getElementById('connect-org-status');
     if (recheckBtn) recheckBtn.classList.remove('hidden');
-    if (statusEl) statusEl.textContent = 'Waiting for GitHub… pick your business organisation and approve. This updates on its own once you finish.';
+    if (statusEl) {
+      statusEl.textContent = verifiedOrg
+        ? `Waiting for GitHub… approve the install on ${verifiedOrg.login}. This updates on its own once you finish.`
+        : 'Waiting for GitHub… approve the install. This updates on its own once you finish.';
+    }
     stopConnectOrgPoll();
     hideConnectOrgRecovery();
     // A fresh attempt gets a fresh ruling from the server.
@@ -771,24 +885,57 @@
     const titleEl = document.getElementById('connect-org-title');
     const ledeEl = document.getElementById('connect-org-lede');
     const noteEl = document.getElementById('connect-org-note');
+    const step1Title = document.getElementById('org-step-1-title');
+    const step1Text = document.getElementById('org-step-1-text');
+    const step1Caption = document.getElementById('org-step-1-caption');
+    const step2Text = document.getElementById('org-step-2-text');
+    const createBtn = document.getElementById('btn-create-org');
+    const orgInput = document.getElementById('orgNameInput');
     if (isClient) {
       if (titleEl) titleEl.textContent = brandName ? `Let's create the ${brandName} brain.` : "Let's create the client brain.";
       if (ledeEl) {
         ledeEl.innerHTML = 'This brain lives in a private repository on the client\'s own GitHub <strong>organisation</strong>, so it belongs to them from day one. '
-          + 'A personal account won\'t work here: GitHub only lets apps create repositories inside an organisation. '
-          + 'Click below, then on GitHub <strong>choose the client\'s organisation</strong> (not your personal account, and not the org your own brain lives in) and approve. '
-          + 'I\'ll create their brain there and pull it down for you.';
+          + 'Three things, in this order.';
       }
-      // The trap seen in testing: picking an org that already holds another brain.
-      if (noteEl) noteEl.textContent = 'Use a separate organisation from your own brain. If the client doesn\'t have one yet, creating a free GitHub organisation for them takes a minute and keeps their brain cleanly theirs.';
+      if (step1Title) step1Title.textContent = brandName ? `Create a GitHub organisation for ${brandName}` : 'Create a GitHub organisation for the client';
+      if (step1Text) {
+        step1Text.innerHTML = 'This brain needs an organisation of its own, separate from yours and from every other client\'s. '
+          + 'That is what lets you hand the whole thing over to them later, and GitHub will not put a second brain '
+          + 'in an organisation that already has one.';
+      }
+      if (step1Caption) {
+        step1Caption.textContent = 'Choose the free plan, name it after the client, and skip the invite-people step. '
+          + 'It takes about a minute. If they already have an organisation of their own, go straight to step 2.';
+      }
+      if (step2Text) {
+        step2Text.textContent = 'Type the organisation name exactly as GitHub shows it. I\'ll check it with GitHub before you go anywhere, '
+          + 'so you don\'t end up on a page where nothing works.';
+      }
+      if (createBtn) createBtn.textContent = 'Create the organisation on GitHub';
+      if (orgInput) orgInput.placeholder = 'acme-client-co';
+      if (noteEl) noteEl.textContent = 'Your own brain stays exactly as it is. This is a separate brain that lives on the client\'s side.';
     } else {
       if (titleEl) titleEl.textContent = "Let's create your agency brain.";
       if (ledeEl) {
-        ledeEl.innerHTML = 'Your brain lives in a private repository on your business\'s GitHub <strong>organisation</strong>, so it stays yours and survives staff changes. '
-          + 'A personal account won\'t work here: GitHub only lets apps create repositories inside an organisation. '
-          + 'Click below, then on GitHub <strong>choose your business organisation</strong> and approve. '
-          + 'I\'ll create your brain there and pull it down for you.';
+        ledeEl.innerHTML = 'Your brain lives in a private repository on your business\'s GitHub <strong>organisation</strong>, '
+          + 'so it stays yours and survives staff changes. Three things, in this order.';
       }
+      if (step1Title) step1Title.textContent = 'Create your business\'s GitHub organisation';
+      if (step1Text) {
+        step1Text.innerHTML = 'Your brain needs a GitHub organisation to live in. A personal account will not work: '
+          + 'GitHub only lets apps create repositories inside an organisation. Plenty of longtime GitHub users have '
+          + 'never needed one, and they are free.';
+      }
+      if (step1Caption) {
+        step1Caption.textContent = 'Choose the free plan, name it after your business, and skip the invite-people step. '
+          + 'It takes about a minute. If you already have one for the business, go straight to step 2.';
+      }
+      if (step2Text) {
+        step2Text.textContent = 'Type the organisation name exactly as GitHub shows it. I\'ll check it with GitHub before you go anywhere, '
+          + 'so you don\'t end up on a page where nothing works.';
+      }
+      if (createBtn) createBtn.textContent = 'Create the organisation on GitHub';
+      if (orgInput) orgInput.placeholder = 'your-business';
       if (noteEl) noteEl.textContent = 'Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.';
     }
     const connectBtn = document.getElementById('btn-connect-org');
@@ -797,15 +944,34 @@
     // different team is safe.
     if (!connectOrgBound) {
       connectOrgBound = true;
-      for (const linkId of ['link-create-org', 'link-stall-create-org']) {
-        const a = document.getElementById(linkId);
-        if (a) a.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          api.openExternalUrl('https://github.com/account/organizations/new');
+      if (createBtn) createBtn.addEventListener('click', () => {
+        api.openExternalUrl('https://github.com/account/organizations/new');
+      });
+      // Check on Enter as well as on the button — this is a one-field form.
+      if (orgInput) {
+        orgInput.addEventListener('input', () => {
+          const checkBtn = document.getElementById('btn-check-org');
+          if (checkBtn) checkBtn.disabled = !orgInput.value.trim();
+          // Editing the name invalidates the previous answer.
+          lockConnectStep();
+          setOrgCheckStatus('', '');
+        });
+        orgInput.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' && orgInput.value.trim()) checkOrgName();
         });
       }
+      const checkBtn = document.getElementById('btn-check-org');
+      if (checkBtn) checkBtn.addEventListener('click', () => { checkOrgName(); });
       if (connectBtn) connectBtn.addEventListener('click', async () => {
-        const url = `https://github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(connectOrgSlug)}`;
+        // Deep-link to the ONE organisation they named, so GitHub's account list
+        // (where a personal account and an already-installed org look identical)
+        // never appears. Falls back to the old picker only if we somehow got
+        // here without a verified id.
+        const url = verifiedOrg && verifiedOrg.id
+          ? `https://github.com/apps/agency-brain-sync/installations/new/permissions`
+            + `?suggested_target_id=${encodeURIComponent(verifiedOrg.id)}`
+            + `&state=${encodeURIComponent(connectOrgSlug)}`
+          : `https://github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(connectOrgSlug)}`;
         try { await api.openExternalUrl(url); } catch (e) { /* ignore */ }
         connectOrgStartWaiting();
       });
@@ -842,6 +1008,13 @@
     if (statusEl) statusEl.textContent = '';
     if (recheckBtn) recheckBtn.classList.add('hidden');
     hideConnectOrgRecovery();
+    // Re-entry (a second brain, or coming back after a failed attempt) starts
+    // from a clean check rather than inheriting the last organisation's answer.
+    if (orgInput) orgInput.value = '';
+    const checkBtnReset = document.getElementById('btn-check-org');
+    if (checkBtnReset) checkBtnReset.disabled = true;
+    setOrgCheckStatus('', '');
+    lockConnectStep();
     show('scene-connect-org');
   }
 

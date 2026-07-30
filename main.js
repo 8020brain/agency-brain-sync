@@ -20,6 +20,7 @@ const { spawn, execFile, execFileSync } = require('child_process');
 const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
 const { adoptBrain } = require('./lib/adopt-brain.cjs');
 const { ensureCredentialHelper } = require('./lib/git-credential.cjs');
+const { normaliseAccountName, isValidAccountName, classifyAccount } = require('./lib/github-account.cjs');
 
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
@@ -1683,6 +1684,28 @@ ipcMain.handle('get-install-status', async (_evt, teamSlug) => {
   const r = await fetch(`${API_BASE}/api/team-brain/install-status?team=${encodeURIComponent(teamSlug)}`);
   if (!r.ok) throw new Error(`install-status failed (HTTP ${r.status})`);
   return r.json();
+});
+
+// Check a GitHub account name BEFORE anyone is sent to GitHub's install picker.
+// This is a public, unauthenticated endpoint, so it works before any install
+// exists and needs no token (rate limit is 60/hour per IP, far beyond what one
+// setup run uses). It answers the two questions that were sending people into a
+// dead end: does this name exist at all, and is it an organisation rather than a
+// personal account. It also returns the numeric account id, which lets the
+// connect button deep-link to that ONE organisation so GitHub's ambiguous
+// account list never appears.
+ipcMain.handle('github-account-lookup', async (_evt, login) => {
+  const name = normaliseAccountName(login);
+  if (!isValidAccountName(name)) return { ok: false, reason: 'invalid-name', login: name };
+  try {
+    const r = await fetch(`https://api.github.com/users/${encodeURIComponent(name)}`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'agency-brain-sync' },
+    });
+    const body = await r.json().catch(() => null);
+    return classifyAccount(r.status, body, name);
+  } catch (err) {
+    return { ok: false, reason: 'offline', login: name, detail: err && err.message };
+  }
 });
 
 // Ask the server to finish the GitHub side: create the brain repo in the org

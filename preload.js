@@ -32,6 +32,9 @@ const api = {
   // Finish setup once GitHub is connected: the server creates the brain repo
   // (or adopts the right existing one) and tells us plainly when it can't.
   ensureBrainRepo: (token, teamSlug) => ipcRenderer.invoke('ensure-brain-repo', token, teamSlug),
+  // Verify a GitHub organisation name before sending anyone to GitHub. Returns
+  // { ok, reason, login, id, type } — see the handler in main.js.
+  lookupGithubAccount: (login) => ipcRenderer.invoke('github-account-lookup', login),
   setTeamRepoUrl: (token, teamSlug, repoUrl) => ipcRenderer.invoke('set-team-repo-url', token, teamSlug, repoUrl),
 
   // Email + OTP first-run: enter email -> request code -> verify -> look up

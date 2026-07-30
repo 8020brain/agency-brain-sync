@@ -109,24 +109,70 @@
       <section class="screen" data-step="2" id="scene-connect-org">
         <div class="eyebrow">Step 2 &middot; Connect GitHub</div>
         <h1 id="connect-org-title">Let's create your agency brain.</h1>
-        <p class="lede" id="connect-org-lede">Your brain lives in a private repository on your business's GitHub <strong>organisation</strong>, so it stays yours and survives staff changes. A personal account won't work here: GitHub only lets apps create repositories inside an organisation. Click below, then on GitHub <strong>choose your business organisation</strong> and approve. I'll create your brain there and pull it down for you.</p>
+        <p class="lede" id="connect-org-lede">Your brain lives in a private repository on your business's GitHub <strong>organisation</strong>, so it stays yours and survives staff changes. A personal account won't work here: GitHub only lets apps create repositories inside an organisation.</p>
+
+        <!-- Three ordered blocks, in the order they actually have to happen.
+             Before this, the screen was one button that opened GitHub's account
+             picker, and the "you need an organisation first" part was a footnote
+             underneath it. So people clicked the button first and landed on a
+             list where nothing worked: their personal account can't hold a repo
+             the app creates, and any organisation the app is ALREADY installed
+             on offers only "Configure", which never tells this app anything. As
+             of 2026-07-30, 16 of 50 agency teams and 2 of 6 client teams had
+             never got past this screen. Making the organisation step first, and
+             checking the name against GitHub before anyone leaves the app, is
+             what removes the dead end. -->
+        <div class="org-step" id="org-step-1">
+          <div class="org-step-num">1</div>
+          <div class="org-step-body">
+            <h2 id="org-step-1-title">Create the organisation</h2>
+            <p id="org-step-1-text">Every brain needs its own GitHub organisation. Create a free one now, then come back here.</p>
+            <button class="btn small" id="btn-create-org" type="button">Create it on GitHub</button>
+            <p class="caption" id="org-step-1-caption">Choose the free plan, name it after the business, and skip the invite-people step. It takes about a minute. Already made one? Go straight to step 2.</p>
+          </div>
+        </div>
+
+        <div class="org-step" id="org-step-2">
+          <div class="org-step-num">2</div>
+          <div class="org-step-body">
+            <h2>Tell me what it's called</h2>
+            <p id="org-step-2-text">Type the organisation name exactly as GitHub shows it, and I'll check it before you go anywhere.</p>
+            <div class="field" style="margin-top:12px;">
+              <label for="orgNameInput">GitHub organisation name</label>
+              <input id="orgNameInput" type="text" placeholder="acme-client-co" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off">
+            </div>
+            <div class="field" style="max-width:none;margin-top:12px;">
+              <button class="btn" id="btn-check-org" type="button" disabled>Check it</button>
+            </div>
+            <p id="org-check-status" aria-live="polite" style="min-height:1.3em;font-size:0.95em;"></p>
+          </div>
+        </div>
+
+        <div class="org-step locked" id="org-step-3">
+          <div class="org-step-num">3</div>
+          <div class="org-step-body">
+            <h2>Connect it</h2>
+            <p id="org-step-3-text">Once the name checks out, this takes you straight to that one organisation on GitHub. Approve it there and I'll do the rest.</p>
+            <div class="field" style="max-width:none;">
+              <button class="btn primary" id="btn-connect-org" type="button" disabled>Connect GitHub &amp; create my brain</button>
+            </div>
+            <p id="connect-org-status" aria-live="polite" style="min-height:1.3em;color:#555;"></p>
+            <!-- Stall hint: shown by a timer when the install still hasn't
+                 landed. It used to guess "you probably used a personal account",
+                 which was often wrong and sent people off to create an
+                 organisation they already had. Now the name is verified before
+                 they leave, so this says the one thing still possible: the
+                 organisation already has the app on it. -->
+            <div class="hidden" id="connect-org-stall" style="margin-top:0.6em;border-left:3px solid #D64C00;padding:0.2em 0 0.2em 1em;">
+              <p style="color:#333;margin:0;" id="connect-org-stall-msg"></p>
+            </div>
+            <div class="field" style="max-width:none;">
+              <button class="btn ghost hidden" id="btn-connect-recheck" type="button">I've finished on GitHub &mdash; check now</button>
+            </div>
+          </div>
+        </div>
+
         <p style="color:#555;font-size:0.95em;" id="connect-org-note">Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.</p>
-        <p style="color:#555;font-size:0.95em;" id="connect-org-orghelp">Never used a GitHub organisation? Plenty of longtime GitHub users haven't needed one. They're free and take about a minute: <a href="#" id="link-create-org">create one on GitHub</a>, then come back and click the button.</p>
-        <div class="field" style="max-width:none;">
-          <button class="btn primary" id="btn-connect-org" type="button">Connect GitHub &amp; create my brain</button>
-        </div>
-        <p id="connect-org-status" aria-live="polite" style="min-height:1.3em;color:#555;"></p>
-        <!-- Stall hint: shown by a timer when the install still hasn't landed.
-             A personal-account install never reaches the server (no link to the
-             team), so the poll can't detect it; this is the only way that dead
-             end gets named. Peter Empson sat on "Waiting for GitHub" for two
-             hours because of it, 2026-07-30. -->
-        <div class="hidden" id="connect-org-stall" style="margin-top:0.6em;border-left:3px solid #D64C00;padding:0.2em 0 0.2em 1em;">
-          <p style="color:#333;margin:0;">Still waiting? If you finished on GitHub and nothing happened here, the app most likely got installed on a personal account. GitHub allows that install, but apps can only create repositories inside an <strong>organisation</strong>, so nothing can happen from there. <a href="#" id="link-stall-create-org">Create a free organisation</a> (it takes about a minute), then click the connect button again and pick the organisation this time.</p>
-        </div>
-        <div class="field" style="max-width:none;">
-          <button class="btn ghost hidden" id="btn-connect-recheck" type="button">I've finished on GitHub &mdash; check now</button>
-        </div>
 
         <!-- Recovery: shown only when the server tells us it genuinely can't
              create the brain itself. Never a guess. -->
