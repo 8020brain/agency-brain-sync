@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## Unreleased
+
+- **A missing Git is now caught at the start of setup, instead of blaming the folder you picked.** Git is the free program your brain uses to keep its files in sync, and on Windows it is a separate download that this app cannot install for you. When it is missing, the machine check now gives it a block of its own that names it, explains what to install and how to restart the app afterwards, and turns the button in front of you into the download. Until now it was one grey line you could click straight past, and setup then failed two screens later with a message that blamed the folder, so people changed folder after folder and never found the real cause. That later message now names the missing Git as well.
+
 ## 1.1.14 — 2026-07-31
 
 - **Updating from an older version can no longer leave the Command Centre unable to start.** If a window server left behind by a previous version was still holding the Command Centre's port when you updated, the new app couldn't start its own and showed "Could not start the Command Centre" until a restart of your computer. The app now clears the port itself, whatever version left the blockage behind, before starting fresh.

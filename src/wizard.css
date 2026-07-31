@@ -196,8 +196,17 @@ h1 { font-family: var(--oxanium); font-size: 27px; font-weight: 700; line-height
 .check-status { margin-left: auto; font-size: 12px; color: var(--ink-3); font-family: var(--oxanium); }
 .check-row.ok .check-status { color: var(--ok); }
 .check-row.missing .check-status { color: var(--warn); }
-.check-note { font-size: 12.5px; color: var(--ink-3); line-height: 1.5; padding: 12px 0 0; }
+.check-note { max-width: 520px; font-size: 12.5px; color: var(--ink-3); line-height: 1.5; padding: 12px 0 0; }
 .check-note em { font-style: normal; color: var(--warn); font-weight: 600; }
+
+/* A missing REQUIRED tool (Git) gets its own block rather than a grey footnote,
+   because the grey footnote lost every argument with the Continue button. */
+.req-block {
+  max-width: 520px; margin-top: 18px; padding: 14px 16px; border-radius: 2px;
+  background: #FFF6F1; border: 1px solid #f0d97a; border-left: 3px solid var(--warn);
+}
+.req-title { font-family: var(--oxanium); font-weight: 700; font-size: 14.5px; color: var(--warn); }
+.req-body { margin-top: 6px; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
 
 /* ---------- folder pick ---------- */
 .folder-pick {

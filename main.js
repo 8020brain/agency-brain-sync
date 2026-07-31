@@ -2232,7 +2232,10 @@ function detectMachine() {
     : ['/Applications/Claude.app', '/Applications/Cowork.app'];
   const claude = claudePaths.find((p) => p && fs.existsSync(p));
   tools.push({ key: 'cowork', label: 'Claude desktop app', present: !!claude, version: '', path: claude || '' });
-  return { tools };
+  // The platform rides along so the screen can give the right install
+  // instructions for a missing Git (a Windows download vs macOS's developer
+  // tools prompt) without the renderer having to guess from the user agent.
+  return { tools, platform: process.platform };
 }
 
 ipcMain.handle('detect-machine', () => detectMachine());

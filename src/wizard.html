@@ -231,12 +231,19 @@
       <section class="screen" data-step="3" id="scene-machine">
         <div class="eyebrow">Step 2 &middot; Your machine</div>
         <h1>Checking what you've got.</h1>
-        <p class="lede">I look at what's already installed and only set up what's missing. This is the bit that used to be ten terminal commands.</p>
+        <p class="lede">I check what's already on your machine. Anything marked as missing is a quick install you do yourself. This is the bit that used to be ten terminal commands.</p>
         <div class="checklist" id="checklist">
           <div class="check-row"><span class="check-mark spin">&#8230;</span><span class="check-label">Scanning your machine</span><span class="check-status">please wait</span></div>
         </div>
+        <div class="req-block hidden" id="gitGate">
+          <div class="req-title">Git is missing, and setup can't finish without it.</div>
+          <p class="req-body" id="gitGateBody"></p>
+          <p style="margin-top:12px;"><span class="link" id="link-recheck-git">Check again</span></p>
+        </div>
+        <div id="machineNote"></div>
         <div class="field" style="max-width:none;">
           <button class="btn primary" id="btn-machine-next" disabled>Continue</button>
+          <span class="link hidden" id="link-machine-skip" style="margin-left:16px; font-size:13px;">Carry on without it</span>
         </div>
       </section>
 

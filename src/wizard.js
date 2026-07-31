@@ -142,6 +142,12 @@
       return "Something went wrong confirming your code. Try again in a moment.";
     }
     if (context === 'clone') {
+      // Missing Git first: ensureGitAvailable() already phrases this one for the
+      // platform it happened on, so surface it verbatim. Without this line it
+      // fell through to the catch-all below, which blames the FOLDER, so people
+      // with no Git tried location after location and never learned the real
+      // cause. (2026-07-31, Sinead at Beacon burned a morning on exactly that.)
+      if (/git isn'?t (installed|available)/i.test(msg)) return msg;
       if (/already\s+exists/i.test(msg)) return "There's already a folder there. Pick a different folder, or move the existing one aside.";
       if (/permission|EACCES/i.test(msg)) return "I don't have permission to create the folder there. Pick a different location.";
       if (/not yet installed|github app|finish setup|409/i.test(msg)) {
@@ -1092,19 +1098,38 @@
   // ====================================================================
   // 3 — machine check
   // ====================================================================
+  // Git is the one tool on this screen that setup genuinely cannot finish
+  // without, so it gets its own treatment below. These track what the last scan
+  // found, for the button handlers.
+  let machineGitMissing = false;
+  let gitDownloadUrl = 'https://git-scm.com/downloads';
+
   async function enterMachine() {
     const curScene = document.querySelector('.screen.active');
     if (curScene && curScene.id && curScene.id !== 'scene-machine') machineBackTarget = curScene.id;
     show('scene-machine');
     const list = document.getElementById('checklist');
     const nextBtn = document.getElementById('btn-machine-next');
+    const gate = document.getElementById('gitGate');
+    const skip = document.getElementById('link-machine-skip');
+    const note = document.getElementById('machineNote');
     nextBtn.disabled = true;
+    gate.classList.add('hidden');
+    skip.classList.add('hidden');
+    note.className = '';
+    note.innerHTML = '';
+    machineGitMissing = false;
     try {
       const report = await api.detectMachine();
+      const isWin = report.platform === 'win32';
+      gitDownloadUrl = isWin ? 'https://git-scm.com/download/win' : 'https://git-scm.com/downloads';
       list.innerHTML = '';
-      let anyMissing = false;
+      let optionalMissing = false;
       report.tools.forEach((t) => {
-        if (!t.present) anyMissing = true;
+        if (!t.present) {
+          if (t.key === 'git') machineGitMissing = true;
+          else optionalMissing = true;
+        }
         const row = document.createElement('div');
         row.className = 'check-row ' + (t.present ? 'ok' : 'missing');
         const detail = t.present && t.version ? `<span class="check-detail">${escapeHtml(t.version)}</span>` : '';
@@ -1113,22 +1138,43 @@
           <span class="check-status">${t.present ? 'installed' : 'not found'}</span>`;
         list.appendChild(row);
       });
-      // Detection is a heads-up, never a gate — false negatives shouldn't trap
-      // anyone, so Continue is always live. If something's missing, say so
-      // plainly and let them proceed (they can install it and the watcher /
-      // Claude pick it up).
-      if (anyMissing) {
-        const note = document.createElement('div');
+      // A missing Git used to be one grey line in a footnote that also said
+      // "you can carry on now either way", so people carried on, and the clone
+      // two screens later failed with an error that blamed their FOLDER. They
+      // then tried folder after folder. Say it here instead, where it's still
+      // cheap to fix, and make installing Git the button they land on.
+      if (machineGitMissing) {
+        document.getElementById('gitGateBody').textContent = isWin
+          ? "Your brain is a set of files that Git keeps in sync, and on Windows Git is a separate free download that this app can't install for you. Install it, keep every option as it comes, then fully quit Agency Brain from the icon down by the clock (closing the window isn't enough) and open it again."
+          : "Your brain is a set of files that Git keeps in sync. Open Terminal and run git --version, and macOS offers to install the developer tools that include it. Accept that, then come back here and click Check again.";
+        gate.classList.remove('hidden');
+        nextBtn.textContent = isWin ? 'Download Git' : 'Get Git';
+        // Carrying on stays possible: detection can miss a Git installed
+        // somewhere unusual, and a wrong guess must never trap anyone.
+        skip.classList.remove('hidden');
+      } else {
+        nextBtn.textContent = 'Continue';
+      }
+      // Everything else here is genuinely optional, so it keeps the soft note.
+      // It renders BELOW the Git block, because a grey "you can carry on either
+      // way" sitting above the required one is what made people carry on.
+      if (optionalMissing) {
         note.className = 'check-note';
-        note.innerHTML = "Anything marked <em>not found</em>? Install it when you get a chance — you can carry on now either way. The check can also miss things that are installed.";
-        list.appendChild(note);
+        note.innerHTML = machineGitMissing
+          ? "Anything else marked <em>not found</em> you can install whenever suits, and it won't hold setup up. The check can also miss things that are installed."
+          : "Anything marked <em>not found</em> you can install whenever suits, and you can carry on now either way. The check can also miss things that are installed.";
       }
     } catch (e) {
       list.innerHTML = `<div class="check-row missing"><span class="check-mark">!</span><span class="check-label">Detection failed</span><span class="check-status">${escapeHtml(String(e))}</span></div>`;
     }
     nextBtn.disabled = false;
   }
-  document.getElementById('btn-machine-next').addEventListener('click', enterClone);
+  document.getElementById('btn-machine-next').addEventListener('click', () => {
+    if (machineGitMissing) { api.openExternalUrl(gitDownloadUrl); return; }
+    enterClone();
+  });
+  document.getElementById('link-machine-skip').addEventListener('click', enterClone);
+  document.getElementById('link-recheck-git').addEventListener('click', enterMachine);
 
   // ====================================================================
   // 2b/2c — adopt an existing brain (SOLO only). The fork after solo
