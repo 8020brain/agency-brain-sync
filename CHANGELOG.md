@@ -2,7 +2,13 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## Unreleased
+## 1.1.15 — 2026-07-31
+
+- **Your computer can now shut down and restart normally while the app is running.** When macOS asked every app to close at shutdown, this one refused, so you got a "failed to quit" message and had to click Try Again before your Mac would go down. It now closes properly when your computer asks. Pressing Cmd-Q still just hides the window and keeps everything syncing in the background, exactly as before.
+
+- **A brain that is signed out now says so clearly, and keeps saying it.** While you are signed out nothing syncs at all, and that could go unnoticed: the menu bar icon looked completely normal, and the Command Centre only warned you if a stored sign-in had been actively rejected, never when there was no sign-in at all. The icon now turns grey with a red cross, the words "Signed out" sit next to it in the menu bar for as long as it lasts, and the Command Centre shows a banner until you sign back in.
+
+- **When your work cannot be saved, the app now tells you why.** The old message said only that your latest changes could not be saved, and suggested quitting and reopening, which could never help because the cause sits in your brain folder rather than in the app. It now names the real reason, such as a leftover lock file, a full disk, commit signing being switched on, or no name and email set on the computer, and tells you what to do about each one. The exact technical detail goes into the log as well.
 
 - **A missing Git is now caught at the start of setup, instead of blaming the folder you picked.** Git is the free program your brain uses to keep its files in sync, and on Windows it is a separate download that this app cannot install for you. When it is missing, the machine check now gives it a block of its own that names it, explains what to install and how to restart the app afterwards, and turns the button in front of you into the download. Until now it was one grey line you could click straight past, and setup then failed two screens later with a message that blamed the folder, so people changed folder after folder and never found the real cause. That later message now names the missing Git as well.
 

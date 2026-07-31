@@ -593,6 +593,23 @@ function parseMergeBlockers(errText) {
 // Files the member's role can't push are made read-only: backed up, reverted,
 // and (for skills) flagged to the scout, so they can never wedge the next pull.
 // Returns { committed, held: [{file, why}], error }.
+// Turn git's own commit error into something a person can act on. The member
+// sees this in the notification and the tray, so it has to name the cause AND
+// the next move, in plain words. Anything unrecognised falls through to git's
+// real message, which is still far better than "commit failed".
+function explainCommitFailure(err) {
+  const e = String(err || '');
+  if (/index\.lock/i.test(e)) return "can't save: another program is holding your brain folder's git lock. Close Cowork and any open terminal, then it should clear on its own";
+  if (/no space left|disk quota|ENOSPC/i.test(e)) return "can't save: this computer has run out of disk space";
+  if (/gpg|signing failed|secret key not available/i.test(e)) return "can't save: git commit signing is switched on and failed. Turn it off with: git config --global commit.gpgsign false";
+  if (/hook declined|pre-commit|hook.*failed|cannot run .*hook/i.test(e)) return "can't save: a git hook on this computer blocked the save";
+  if (/tell me who you are|empty ident|user\.email/i.test(e)) return "can't save: git has no name or email set on this computer";
+  if (/permission denied|insufficient permission|EACCES|read-only file system|operation not permitted/i.test(e)) return "can't save: this computer can't write to your brain folder (permissions)";
+  if (/does not have a commit checked out|not a git repository|bad object|corrupt/i.test(e)) return "can't save: your brain folder's git data looks damaged, so it needs re-cloning";
+  const first = e.split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
+  return first ? `can't save your latest changes: ${first}` : "can't save your latest changes (git gave no reason)";
+}
+
 function stageAndCommit(s) {
   // s.statusLines come from porcelain output. Parse the files to consider.
   // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
@@ -645,16 +662,24 @@ function stageAndCommit(s) {
   }
 
   const commitMsg = `auto-sync: ${ts()}`;
-  let commitResult = git('commit', '-m', commitMsg);
-  if (commitResult === null) {
+  // gitTry, not git: we need git's OWN stderr to tell the member what went
+  // wrong. The old code called git(), which discards the error and returned the
+  // bare string 'commit failed' — so the notification, the tray and the log all
+  // said "can't save your latest changes" with no cause, and the only way to
+  // find out was to email Mike and wait. (Chris at Datasauce, 2026-07-31, blocked
+  // for a whole morning by exactly this.)
+  let cr = gitTry('commit', '-m', commitMsg);
+  if (!cr.ok) {
     // Most common cause: this clone has no git author identity, so its very
     // first commit fails. Self-heal the identity and retry once.
     ensureGitIdentity();
-    commitResult = git('commit', '-m', commitMsg);
+    cr = gitTry('commit', '-m', commitMsg);
   }
-  if (commitResult === null) {
+  if (!cr.ok) {
+    const raw = (cr.err || '').trim();
+    console.error(`[${ts()}]   commit failed — git said: ${raw || '(no output)'}`);
     git('reset', '-q', 'HEAD');
-    return { committed: false, held, error: 'commit failed' };
+    return { committed: false, held, error: explainCommitFailure(raw), raw };
   }
   console.log(`[${ts()}]   committed ${staged.length} file(s)${held.length ? `, held ${held.length}` : ''}`);
   return { committed: true, held };
@@ -813,7 +838,9 @@ async function doSync(trigger) {
       didContribute = r.committed === true;
       if (r.error) {
         console.log(`[${ts()}]   ${r.error}`);
-        stopStuck('can\'t save your latest changes', r.error);
+        // r.error now names the actual cause; r.raw carries git's own words for
+        // the log and the state file.
+        stopStuck(r.error, r.raw || null);
         return;
       }
     }

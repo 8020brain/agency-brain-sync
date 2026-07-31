@@ -56,6 +56,8 @@ const PACKAGE_TIER_ENV = process.env.AGENCY_PACKAGE_TIER || '';
 // The member's login token + API base — used to act AS the member for team
 // management (live roster, add member). Never grants more than the member has.
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
+// Set by the app when its own needsReconnect() says this brain is signed out.
+const NEEDS_RECONNECT = process.env.AGENCY_NEEDS_RECONNECT === '1';
 const API_BASE = (process.env.AGENCY_API_BASE || 'https://api.ads2ai.com').replace(/\/+$/, '');
 // ClientBrain: kind 'client' brands the CC from the white-label record via
 // /api/branding (live fetch, cached in .git/ for offline). Default 'agency'.
@@ -467,7 +469,10 @@ const server = http.createServer(async (req, res) => {
       // the sign-in has expired. Surfaced in the footer so the account line stops
       // pretending you're signed in while nothing syncs. Only a real 401 sets it;
       // a network error/timeout keeps the snapshot (offline is not "signed out").
-      let sessionExpired = false;
+      // No token stored at all is ALSO signed out, and it is the case a 401 can
+      // never catch (there is nothing to reject). The app passes its own
+      // needsReconnect verdict in, so both shapes light the same banner.
+      let sessionExpired = NEEDS_RECONNECT;
       if (MEMBER_TOKEN && TEAM_SLUG) {
         try {
           const r = await fetch(API_BASE + '/api/team-brain/my-teams', {

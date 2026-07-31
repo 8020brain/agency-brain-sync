@@ -186,7 +186,7 @@
     'wc-app-p':'This app sits quietly up in your menu bar and keeps the shared folder in sync on your machine, automatically. Leave it running, that’s all it needs. No Git, no technical setup, nothing to remember.',
     'wc-scout-h':'You’ve got support',
     'wc-scout-p':'You don’t have to work any of this out on your own. Whoever set this brain up for you gets you connected and walks you through your first run. Ask them anything, that’s what they’re there for.',
-    'session-expired-text':'Your sign-in has expired, so nothing is syncing right now. Open the app in your menu bar and choose “Reconnect / sign in again” to fix it, then this clears on its own.',
+    'session-expired-text':'You are signed out, so nothing is syncing right now. Open the app in your menu bar and choose “Reconnect / sign in again” to fix it, then this clears on its own.',
     'bu-lead':'Update ready:'
   };
   var CLIENT_HTML={

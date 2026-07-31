@@ -318,6 +318,9 @@ function saveConfig(c) {
   fs.renameSync(tmp, CONFIG_FILE);
   try { fs.writeFileSync(CONFIG_BACKUP_FILE, json); } catch { /* best effort */ }
   APP_NAME = computeAppName();
+  // The macOS app menu carries APP_NAME in its title and its Quit item, so a
+  // client brand set during the wizard has to rebuild it, same as updateTray().
+  applyAppMenu();
 }
 
 // Swap another stored brain into the active slot: archive-and-swap via
@@ -383,10 +386,12 @@ function startWatcher() {
     watcherState = 'attention';
     lastStopReason = 'You are signed out, so syncing is paused. Choose "Reconnect / sign in again".';
     if (!reconnectNotified) { reconnectNotified = true; notifyReconnect(); }
+    signedOut = true;
     updateTray();
     return;
   }
   reconnectNotified = false;
+  signedOut = false;
   if (watcherProcess) return;
 
   const pathExtra = process.platform === 'win32'
@@ -488,6 +493,10 @@ let lastStuckNotified = false;
 // Same idea for the "signed out, please reconnect" notification (agency mode with
 // the token missing). One per episode; re-armed once a token is present again.
 let reconnectNotified = false;
+// True while this brain is signed out and syncing nothing. Drives the menu-bar
+// title text, which is the only always-on signal: the notification fires once
+// and is off entirely for anyone with macOS notifications disabled.
+let signedOut = false;
 // Runtime auth-expired flag, driven by the watcher (a 401 minting a git token):
 // the stored token is still PRESENT but the server has rejected it as expired.
 // Distinct from needsReconnect(config), which only catches a locally-MISSING
@@ -505,9 +514,13 @@ let lastHeld = [];
 function notifyStuck(reason) {
   try {
     if (!Notification.isSupported()) return;
+    // The reason now carries its own fix wherever the watcher can identify one,
+    // so don't bolt the old generic "quit and reopen" onto it. That advice sent
+    // a scout in circles for a whole morning on a repo-level problem that
+    // restarting could never fix (2026-07-31), and it buried the real cause.
     new Notification({
       title: `${APP_NAME} needs attention`,
-      body: `${reason}. Try quitting and reopening ${APP_NAME}; if it keeps happening, reply to your setup email.`,
+      body: `${String(reason).replace(/\.\s*$/, '')}.\nClick the menu bar icon and choose "See what needs attention" for the full details.`,
     }).show();
   } catch (_) { /* notifications are best-effort */ }
 }
@@ -542,6 +555,7 @@ function applyWatcherState(payload) {
       // session can never fail silently in the background again.
       if (!authExpired) { authExpired = true; changed = true; }
       if (!reconnectNotified) { reconnectNotified = true; notifyReconnect(); }
+      signedOut = true;
     } else if (payload.stuck && !lastStuckNotified) {
       // Only the stabilised "stuck" stop (repeated failures) nudges the user; a
       // one-off transient stop stays a quiet tray colour.
@@ -559,6 +573,7 @@ function applyWatcherState(payload) {
     lastStuckNotified = false;
     authExpired = false;
     reconnectNotified = false;
+    signedOut = false;
     watcherState = 'running';
     updateTray();
   } else if (heldChanged) {
@@ -767,6 +782,57 @@ function buildMenu() {
   return Menu.buildFromTemplate(items);
 }
 
+// Hide the window and drop back to the menu bar, leaving sync running. Shared by
+// the window close handler and the macOS Cmd-Q menu item so both behave alike.
+function hideWindowToTray() {
+  if (setupWindow && !setupWindow.isDestroyed()) {
+    saveWindowState();
+    setupWindow.hide();
+  }
+  if (process.platform === 'darwin' && app.dock) app.dock.hide();
+}
+
+// Cmd-Q must hide the window rather than stop syncing, but it USED to be caught
+// in before-quit, which cannot tell a keypress apart from macOS asking every app
+// to quit at shutdown or restart. So the app refused the system too and macOS put
+// up "<app> failed to quit", blocking the shutdown until it force-killed us
+// (reported by a client-brain tester on 2026-07-31; live since v0.8.12).
+//
+// Catch Cmd-Q at the menu instead. The app only owns a menu bar while a window is
+// up (openCommandCentre calls app.dock.show(), which makes it a regular app), and
+// that is exactly when Cmd-Q can be pressed. before-quit is then left free to mean
+// what it says: a real quit, which shutdown is allowed to have.
+//
+// The Edit menu is not decoration. On macOS, copy/paste/select-all in web content
+// only work if menu items own those accelerators, so dropping roles here would
+// break text entry across the Command Centre.
+function applyAppMenu() {
+  // macOS only, deliberately. Windows keeps its default menu (and its Ctrl+Q)
+  // untouched, so this change cannot regress a platform that can't be tested
+  // from a Mac. Windows shutdown blocking is a separate fix, see before-quit.
+  if (process.platform !== 'darwin') return;
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    {
+      label: APP_NAME,
+      submenu: [
+        { label: `About ${APP_NAME}`, click: () => showAbout() },
+        { type: 'separator' },
+        // role:'hide' otherwise labels itself from the BUNDLE name, so a client
+        // brain read "About testy-cb" and "Hide Agency Brain" in the same menu.
+        // Overriding the label keeps the client's brand consistent; the bundle
+        // name is a separate, deliberately deferred change.
+        { role: 'hide', label: `Hide ${APP_NAME}` }, { role: 'hideOthers' }, { role: 'unhide' },
+        { type: 'separator' },
+        // Deliberately NOT role:'quit'. Hides and keeps syncing; the tray menu's
+        // Quit is the way out.
+        { label: `Close ${APP_NAME} Window`, accelerator: 'Command+Q', click: () => hideWindowToTray() },
+      ],
+    },
+    { role: 'editMenu' },
+    { role: 'windowMenu' },
+  ]));
+}
+
 function updateTray() {
   if (!tray) return;
   // A downloaded-but-not-yet-installed update shows on the menu-bar icon itself:
@@ -778,6 +844,14 @@ function updateTray() {
   tray.setToolTip(pending
     ? `${APP_NAME} update ready (v${updateInfo.version}). Restart to install.`
     : `${APP_NAME} — ${statusLabel()}`);
+  // Signed out means nothing is syncing, and until now that was effectively
+  // invisible: the attention ICON was missing from assets/ so it silently fell
+  // back to the healthy one, and the notification fires once (and never at all
+  // for anyone with macOS notifications off). macOS can put real words next to
+  // the icon, so use them. Cleared the moment sync is healthy again.
+  if (process.platform === 'darwin' && typeof tray.setTitle === 'function') {
+    tray.setTitle(signedOut ? ' Signed out' : '');
+  }
   tray.setContextMenu(buildMenu());
 }
 
@@ -1002,6 +1076,11 @@ function startCommandCentre() {
       // never with more access than they have (agent-permissions principle).
       AGENCY_MEMBER_TOKEN: config.memberToken || '',
       AGENCY_API_BASE: API_BASE,
+      // The app is the authority on "signed out"; the Command Centre used to
+      // infer it from a 401, which it can only get if a token EXISTS. With no
+      // token stored there was nothing to reject, so the banner stayed hidden
+      // while syncing was stopped. Tell it outright instead of re-deriving.
+      AGENCY_NEEDS_RECONNECT: needsReconnect(config) ? '1' : '',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
   });
@@ -2408,6 +2487,7 @@ app.whenReady().then(() => {
   }
 
   if (process.platform === 'darwin' && app.dock) app.dock.hide();
+  applyAppMenu();
 
   tray = new Tray(makeTrayIcon('stopped'));
   tray.setToolTip(APP_NAME);
@@ -2454,15 +2534,26 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', (e) => { e.preventDefault(); });
 app.on('before-quit', (e) => {
-  // Cmd-Q / app-level quit while running in the background must NOT kill the
-  // tray process — it hides the window and keeps syncing. Only the tray "Quit"
-  // (or an update relaunch / E2E) sets isQuitting and is allowed through.
-  if (!isQuitting) {
+  // On macOS every quit reaching here is a real one: the tray "Quit", an update
+  // relaunch, E2E, or the system asking at shutdown, restart or log out. Cmd-Q
+  // is caught by the app menu instead (applyAppMenu), so nothing needs refusing
+  // and the Mac is never blocked from shutting down.
+  //
+  // Windows/Linux keep the old guard: their default menu still owns Ctrl+Q, so
+  // letting quits through would silently stop someone's sync. Their shutdown
+  // path needs the same treatment, but that wants a Windows machine to verify
+  // and is deliberately left for a follow-up.
+  if (process.platform !== 'darwin' && !isQuitting) {
     e.preventDefault();
     if (setupWindow && !setupWindow.isDestroyed()) setupWindow.hide();
-    if (process.platform === 'darwin' && app.dock) app.dock.hide();
     return;
   }
+  // Load-bearing, despite looking redundant. Electron closes every window after
+  // this handler, and the window 'close' handler refuses while isQuitting is
+  // false, which aborts the quit we just allowed and puts the bug back one step
+  // further down. Verified: with this line removed, a shutdown request logs
+  // "window close REFUSED" and the app survives.
+  isQuitting = true;
   if (watcherProcess) watcherProcess.kill('SIGINT');
   if (ccProcess) ccProcess.kill();
 });
