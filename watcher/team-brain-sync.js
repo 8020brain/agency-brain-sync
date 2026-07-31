@@ -162,16 +162,37 @@ function gitTry(...args) {
 // the clone wedges — the "behind N; merging" loop that never advances. git holds
 // this lock for a fraction of a second, so one older than LOCK_STALE_MS is
 // certainly abandoned and safe to remove. Returns true if it cleared one.
+// index.lock is not the only one. A commit takes THREE locks: the index, HEAD,
+// and the branch ref. Only index.lock was ever cleared here, so a git killed
+// part-way through a commit left HEAD.lock behind and every later commit failed
+// with "cannot lock ref 'HEAD'" forever, with nothing to self-heal it. That is
+// exactly what happened to a scout on 2026-07-31, who lost a morning to it and
+// had to be talked through deleting a file by hand.
+//
+// Where the dead git came from matters too: until v1.1.15 the app refused the
+// quit macOS sends at shutdown, so macOS force-killed it, mid-git, on every
+// restart for ten weeks. That was the open question after v1.1.15 and this is
+// the answer to it.
+function staleGitLocks() {
+  const branch = gitProbe('rev-parse', '--abbrev-ref', 'HEAD');
+  const rels = ['index.lock', 'HEAD.lock', 'config.lock'];
+  if (branch && branch !== 'HEAD') rels.push(path.join('refs', 'heads', `${branch}.lock`));
+  return rels.map((r) => path.join(REPO, '.git', r));
+}
+
 function clearStaleIndexLock() {
-  const lock = path.join(REPO, '.git', 'index.lock');
-  let st;
-  try { st = fs.statSync(lock); } catch { return false; } // no lock present
-  if (Date.now() - st.mtimeMs < LOCK_STALE_MS) return false; // a live git op may hold it
-  try {
-    fs.unlinkSync(lock);
-    console.log(`[${ts()}] cleared stale .git/index.lock (${Math.round((Date.now() - st.mtimeMs) / 1000)}s old)`);
-    return true;
-  } catch (_) { return false; }
+  let cleared = false;
+  for (const lock of staleGitLocks()) {
+    let st;
+    try { st = fs.statSync(lock); } catch { continue; } // not present
+    if (Date.now() - st.mtimeMs < LOCK_STALE_MS) continue; // a live git op may hold it
+    try {
+      fs.unlinkSync(lock);
+      console.log(`[${ts()}] cleared stale ${path.relative(REPO, lock)} (${Math.round((Date.now() - st.mtimeMs) / 1000)}s old)`);
+      cleared = true;
+    } catch (_) { /* best-effort */ }
+  }
+  return cleared;
 }
 
 // ───── Observable state for the tray ─────
@@ -194,6 +215,41 @@ function writeState(state, reason, extra) {
     fs.writeFileSync(tmp, JSON.stringify(payload));
     fs.renameSync(tmp, STATE_FILE);
   } catch (_) { /* best-effort */ }
+  // Tell the server too, so a blocked member is visible to the agency without
+  // anyone having to notice and email. Only on a real change, so a healthy
+  // brain cycling running/pulling/pushing does not chatter.
+  reportSyncState(state, reason || null);
+}
+
+// Only the BLOCKED edge is worth telling the server about: entering a stop, the
+// reason changing while stopped, and recovering. A healthy cycle walks
+// running -> pulling -> running -> pushing -> running, so reporting every hop
+// would be up to four POSTs a minute per person (~700/min across the fleet) to
+// say nothing anyone reads. A healthy brain now sends zero.
+let lastReportedSync = null;
+function reportSyncState(state, reason) {
+  if (MODE !== 'agency' || !TEAM_SLUG || !MEMBER_TOKEN) return;
+  const key = state === 'stop' ? `stop::${reason || ''}` : 'running::';
+  if (key === lastReportedSync) return;
+  lastReportedSync = key;
+  state = state === 'stop' ? 'stop' : 'running';
+  reason = state === 'stop' ? reason : null;
+  // Fire and forget. This is telemetry: it must never delay or break a sync,
+  // and the git-token heartbeat carries the same fields as a backstop if this
+  // call is lost.
+  fetch(`${API_BASE}/api/team-brain/sync-state`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MEMBER_TOKEN}` },
+    body: JSON.stringify({ teamSlug: TEAM_SLUG, syncState: state, stopReason: reason || null }),
+  }).catch(() => { lastReportedSync = null; }); // let the next change retry
+}
+
+// What the git-token heartbeat should carry, so a member whose immediate report
+// was lost still surfaces within the hour.
+function currentSyncHealth() {
+  if (!lastReportedSync) return {};
+  const i = lastReportedSync.indexOf('::');
+  return { syncState: lastReportedSync.slice(0, i), stopReason: lastReportedSync.slice(i + 2) || null };
 }
 
 // Held files keep the tray GREEN (still syncing) but surface a review line.
@@ -235,7 +291,7 @@ async function mintGitToken() {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${MEMBER_TOKEN}`,
     },
-    body: JSON.stringify({ teamSlug: TEAM_SLUG, appVersion: APP_VERSION, source: 'watcher' }),
+    body: JSON.stringify({ teamSlug: TEAM_SLUG, appVersion: APP_VERSION, source: 'watcher', ...currentSyncHealth() }),
   });
   if (!r.ok) {
     const body = await r.text().catch(() => '');
@@ -396,6 +452,26 @@ function addToLocalExclude(rel) {
   if (cur.split('\n').includes(line)) return;
   const sep = cur.length && !cur.endsWith('\n') ? '\n' : '';
   try { fs.appendFileSync(p, `${sep}${line}\n`); } catch (_) { /* best-effort */ }
+}
+
+// Office lock files (~$budget.xlsx) exist only while a document is open, and
+// they delete themselves the moment it closes. Staging them means git is racing
+// a file that is actively removing itself. Ignoring them in the file watcher is
+// only half the job: `git add -A` would still stage them, so they need a git
+// exclude too. Doing it in .git/info/exclude rather than .gitignore means every
+// EXISTING brain self-heals on update, with no repo change and nothing for the
+// member to do. (Datasauce, 2026-07-31: a scout lost a morning to a wedged
+// commit with one of these churning in a client campaigns folder.)
+function ensureOfficeLockExclude() {
+  const p = path.join(REPO, '.git', 'info', 'exclude');
+  let cur = '';
+  try { cur = fs.readFileSync(p, 'utf8'); } catch (_) { /* may not exist yet */ }
+  if (cur.split('\n').includes('~$*')) return;
+  try {
+    const sep = cur.length && !cur.endsWith('\n') ? '\n' : '';
+    fs.appendFileSync(p, `${sep}# Office lock files, transient by nature\n~$*\n`);
+    console.log(`[${ts()}] excluded Office lock files (~$*) from this clone`);
+  } catch (_) { /* best-effort */ }
 }
 
 // ───── Backup refs (recoverability) ─────
@@ -955,6 +1031,7 @@ if (MODE === 'agency') {
 }
 if (STATE_FILE) console.log(`[${ts()}] state file: ${STATE_FILE}`);
 ensureGitIdentity();
+ensureOfficeLockExclude();
 writeState('running', 'starting up');
 
 // Role-scoped section mounts (the leadership annex): reconciled after each
@@ -981,7 +1058,12 @@ if (MODE === 'agency') {
 chokidar.watch(REPO, {
   // Section mounts are their own repos on their own cadence — keep the main
   // watcher's debounce off them.
-  ignored: (p) => /(^|[\/\\])(\.git|node_modules|\.DS_Store|\.swp|~$)/.test(p)
+  // `~$` used to sit here unescaped, where $ is the end-of-string anchor, so it
+  // matched a path ENDING in a tilde and never once matched what it was written
+  // for: Word/Excel/PowerPoint lock files (~$budget.xlsx). Those churn into
+  // existence and vanish while a document is open, so every agency has been
+  // syncing them and racing git against files that delete themselves.
+  ignored: (p) => /(^|[\/\\])(\.git|node_modules|\.DS_Store|\.swp|~\$)/.test(p)
     || (sectionSync !== null && sectionSync.ownsPath(p)),
   ignoreInitial: true,
   persistent: true,

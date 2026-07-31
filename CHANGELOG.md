@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.16 — 2026-07-31
+
+- **Saving can no longer get stuck for good after something interrupts it.** If a save was cut off part way through, for instance because your computer shut down while it was working, it could leave a marker file behind that made every later save fail. There was no way out of that except finding the file and deleting it by hand, and until you did, nothing you wrote was being saved. The app already cleared one kind of leftover marker and now clears the rest, so this repairs itself within a minute and you never have to know it happened.
+
+- **Word and Excel lock files are no longer synced.** Opening a spreadsheet or a document makes Office create a hidden file next to it, which it deletes again when you close the file. Those were being synced to everyone on your team, and because they delete themselves while the app is still trying to save them, they could interrupt saving. They are now ignored on every computer, including ones set up before this update.
+
+- **If your syncing stops, whoever runs your brain can now see it.** Until now a brain that had stopped syncing looked completely normal from the outside, so the only way anyone found out was you telling them, which meant you could lose hours before help arrived. Your app now reports when saving has stopped and what stopped it. Nothing about your files or what is in them is sent, only whether syncing is working.
+
 ## 1.1.15 — 2026-07-31
 
 - **Your computer can now shut down and restart normally while the app is running.** When macOS asked every app to close at shutdown, this one refused, so you got a "failed to quit" message and had to click Try Again before your Mac would go down. It now closes properly when your computer asks. Pressing Cmd-Q still just hides the window and keeps everything syncing in the background, exactly as before.
