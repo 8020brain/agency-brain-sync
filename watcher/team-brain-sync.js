@@ -216,9 +216,17 @@ function writeState(state, reason, extra) {
     fs.renameSync(tmp, STATE_FILE);
   } catch (_) { /* best-effort */ }
   // Tell the server too, so a blocked member is visible to the agency without
-  // anyone having to notice and email. Only on a real change, so a healthy
-  // brain cycling running/pulling/pushing does not chatter.
-  reportSyncState(state, reason || null);
+  // anyone having to notice and email.
+  //
+  // Only alarm once a stop has actually STABILISED. stopStuck escalates after
+  // ESCALATE_AFTER consecutive failures, and an expired sign-in alarms straight
+  // away because only that person can fix it. Everything else (offline, a
+  // failed fetch, a push race) retries itself within a minute or two, and
+  // reporting those as blocked is how a red flag stops meaning anything. The
+  // first live data on 2026-07-31 flagged two people red for a blip whose own
+  // text said "will retry".
+  const alarm = state === 'stop' && !!(extra && (extra.stuck || extra.authExpired));
+  reportSyncState(alarm ? 'stop' : 'running', alarm ? (reason || null) : null);
 }
 
 // Only the BLOCKED edge is worth telling the server about: entering a stop, the
@@ -852,7 +860,7 @@ async function doSync(trigger) {
 
     if (s.state === 'fetch_failed') {
       console.log(`[${ts()}] ${trigger}: fetch failed -- ${s.detail}`);
-      writeState('stop', 'offline or fetch failed — will retry');
+      writeState('stop', 'offline or fetch failed, will retry');
       return;
     }
     if (s.state === 'clean_in_sync') {
@@ -952,7 +960,7 @@ async function doSync(trigger) {
       // tick re-classifies as behind and auto-merges, so this self-heals. Only a
       // persistent failure (ESCALATE_AFTER in a row) stabilises as stuck.
       console.log(`[${ts()}]   push failed; will retry next tick`);
-      stopStuck('can\'t push your changes up', 'push failed — usually a brief race or offline');
+      stopStuck('can\'t push your changes up', 'push failed, usually a brief race or offline');
       return;
     }
     console.log(`[${ts()}]   pushed.`);
@@ -968,7 +976,7 @@ async function doSync(trigger) {
       // This reason is rendered straight into the tray status line and tooltip,
       // which are otherwise branded from the app's own name. Naming the product
       // here was the one string that put "Agency Brain" in a client's menu bar.
-      writeState('stop', 'Your sign-in has expired — open the app in your menu bar and choose "Reconnect / sign in again"', { authExpired: true });
+      writeState('stop', 'Your sign-in has expired. Open the app in your menu bar and choose "Reconnect / sign in again"', { authExpired: true });
     } else {
       writeState('stop', `error: ${err.message}`);
     }

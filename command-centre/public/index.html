@@ -166,6 +166,12 @@
       <button class="ub-x" id="portal-nudge-x" title="Dismiss" aria-label="Dismiss">&times;</button>
     </div>
 
+    <div class="upsell-banner" id="staged-clients" hidden>
+      <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+      <div class="ub-text"><div class="ub-h" id="sc-h"></div><div class="ub-p" id="sc-p"></div></div>
+      <span class="ub-cta" data-ext="https://m.ads2ai.com/client-brain">Open Your Clients</span>
+    </div>
+
     <div class="verdict" id="owner-verdict" hidden></div>
 
     <div class="agency-progress" id="owner-progress" hidden></div>
@@ -226,6 +232,15 @@
           <div id="owner-plan"></div>
         </div>
 
+        <div class="card" id="join-code-card" hidden>
+          <div class="sec">Have a setup code? <span class="note">add another brain to this computer</span></div>
+          <div class="add-form">
+            <input id="jc-code" placeholder="ABC-123" maxlength="7" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other" style="text-transform:uppercase">
+            <button class="add-btn" id="jc-go" disabled>Continue</button>
+            <span class="af-status" id="jc-status"></span>
+          </div>
+        </div>
+
         <div class="card">
           <div class="sec">What this dashboard does not track</div>
           <div class="anti">
@@ -260,6 +275,12 @@
       <div class="ub-text"><div class="ub-h">Your A2AI members portal is included</div><div class="ub-p">Every course, the Mastery Path, the weekly videos and the monthly Q&amp;A live there. Sign in at m.ads2ai.com with your agency email.</div></div>
       <span class="ub-cta" data-ext="https://m.ads2ai.com">Open the portal</span>
       <button class="ub-x" id="portal-nudge-x-s" title="Dismiss" aria-label="Dismiss">&times;</button>
+    </div>
+
+    <div class="upsell-banner" id="staged-clients-s" hidden>
+      <div class="ub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+      <div class="ub-text"><div class="ub-h" id="sc-h-s"></div><div class="ub-p" id="sc-p-s"></div></div>
+      <span class="ub-cta" data-ext="https://m.ads2ai.com/client-brain">Open Your Clients</span>
     </div>
 
     <div class="verdict" id="scout-verdict" hidden></div>
@@ -330,6 +351,14 @@
         <div class="card">
           <div class="sec">Your month <span class="note">what you've sharpened</span></div>
           <div class="month-stat" id="your-month"></div>
+        </div>
+        <div class="card" id="join-code-card-s" hidden>
+          <div class="sec">Have a setup code? <span class="note">add another brain to this computer</span></div>
+          <div class="add-form">
+            <input id="jc-code-s" placeholder="ABC-123" maxlength="7" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other" style="text-transform:uppercase">
+            <button class="add-btn" id="jc-go-s" disabled>Continue</button>
+            <span class="af-status" id="jc-status-s"></span>
+          </div>
         </div>
         <div class="card">
           <div class="sec">What this dashboard does not track</div>
@@ -1027,5 +1056,6 @@ Three ways forward, cheapest first. One: use Claude Code instead. It runs fine o
 <script src="js/dashboard.js"></script>
 <script src="js/boot.js"></script>
 <script src="js/progression.js"></script>
+<script src="js/clients-notice.js"></script>
 </body>
 </html>

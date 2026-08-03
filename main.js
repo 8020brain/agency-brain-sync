@@ -395,7 +395,7 @@ function startWatcher() {
   if (watcherProcess) return;
 
   const pathExtra = process.platform === 'win32'
-    ? `${process.env.PATH || ''};C:\\Program Files\\Git\\cmd;C:\\Program Files (x86)\\Git\\cmd`
+    ? `${process.env.PATH || ''};C:\\Program Files\\Git\\cmd;C:\\Program Files (x86)\\Git\\cmd;${managedGitCmdDir()}`
     : `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin`;
 
   const env = {
@@ -417,7 +417,7 @@ function startWatcher() {
     // Register the git credential helper for every known brain clone, so git
     // outside the app (terminal, Claude Code) mints live tokens instead of
     // hitting the stale keychain cache. Self-heals on every start; never blocks.
-    ensureCredentialHelper(config, { userData: USER_DATA, exePath: process.execPath });
+    ensureCredentialHelper(config, { userData: USER_DATA, exePath: process.execPath, env: enrichedEnv() });
     env.BRAIN_SYNC_MODE = 'agency';
     env.AGENCY_TEAM_SLUG = config.teamSlug || '';
     env.AGENCY_MEMBER_EMAIL = config.memberEmail || '';
@@ -1006,7 +1006,7 @@ function showSetupWindow() {
 // the entry point a personal-mode owner needs for the solo->team flip. Force the
 // wizard file back into the shared window so "Connect to my agency team…" always
 // lands on the sign-in flow.
-function showSetupWizard(intent) {
+function showSetupWizard(intent, joinCode) {
   // A reconnect re-mints the member token; the Command Centre freezes the token
   // at spawn, so kill it here so it comes back with the fresh one after re-auth.
   if (intent === 'reconnect' && ccProcess) { try { ccProcess.kill(); } catch (_) {} ccProcess = null; }
@@ -1020,12 +1020,26 @@ function showSetupWizard(intent) {
     const b = setupWindow.getBounds();
     if (b.width > 760) setupWindow.setSize(680, 800);
     // intent rides the query string ('create-agency' = a member with no team yet
-    // goes straight to naming their agency after sign-in).
-    setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'), intent ? { query: { intent } } : undefined);
+    // goes straight to naming their agency after sign-in). joinCode rides along
+    // when the Command Centre code box already collected it, so the wizard can
+    // resolve it straight away instead of asking the person to type it twice.
+    const query = {};
+    if (intent) query.intent = intent;
+    if (joinCode) query.code = joinCode;
+    setupWindow.loadFile(path.join(__dirname, 'src', 'wizard.html'), Object.keys(query).length ? { query } : undefined);
     setupWindow.show();
     setupWindow.focus();
   }
 }
+
+// Command Centre "Have a setup code?" box → the same join-code wizard flow as
+// the tray item, with the typed code carried across. Renderer input is
+// untrusted: normalise to the 6-char alphabet before it touches a URL.
+ipcMain.handle('open-join-code', (_evt, code) => {
+  const clean = String(code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
+  showSetupWizard('join-code', clean.length === 6 ? clean : undefined);
+  return { ok: true };
+});
 
 function showAbout() {
   const cfg = loadConfig();
@@ -1052,6 +1066,11 @@ function startCommandCentre() {
   ccProcess = spawn(process.execPath, [CC_SERVER], {
     env: {
       ...process.env,
+      // Enriched PATH, same as the watcher: the CC server shells git for the
+      // observability/charts panels (safeGit), and a GUI-launched app's raw
+      // PATH misses Homebrew git on macOS and the managed MinGit on Windows —
+      // the panels then silently render empty instead of erroring.
+      PATH: enrichedEnv().PATH,
       ELECTRON_RUN_AS_NODE: '1',
       BRAIN_ROOT: config.brainPath,
       CC_PORT: String(CC_PORT),
@@ -2233,9 +2252,49 @@ ipcMain.handle('mark-install-complete', async (_evt, args) => {
 // same trick the watcher uses for its child process.
 function enrichedEnv() {
   const pathExtra = process.platform === 'win32'
-    ? `${process.env.PATH || ''};C:\\Program Files\\Git\\cmd;C:\\Program Files (x86)\\Git\\cmd`
+    ? `${process.env.PATH || ''};C:\\Program Files\\Git\\cmd;C:\\Program Files (x86)\\Git\\cmd;${managedGitCmdDir()}`
     : `${process.env.PATH || ''}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin`;
   return { ...process.env, PATH: pathExtra };
+}
+
+// ---- managed Git (Windows) ----
+// Most members' Windows machines have no Git, and telling a non-technical team
+// member to install it themselves loses them (two Datasauce team seats burned a
+// day each on this, 2026-08-03). So on Windows the app downloads its own
+// portable copy (MinGit, the official minimal Git for Windows build) into
+// userData and puts it LAST on PATH: a system Git always wins, the managed copy
+// is the fallback. The download is pinned to an exact version and checksum so a
+// compromised mirror or a moved URL can never hand us a different binary.
+const MINGIT_URL = 'https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/MinGit-2.55.0.3-64-bit.zip';
+const MINGIT_SHA256 = 'f48e2d2dc74a24454adc6d8fd0ac25bf9c2386f19cfb06202b9465aaad4f9f05';
+function managedGitCmdDir() {
+  return path.join(app.getPath('userData'), 'tools', 'mingit', 'cmd');
+}
+async function provisionPortableGitWindows() {
+  const toolsDir = path.join(app.getPath('userData'), 'tools');
+  const destDir = path.join(toolsDir, 'mingit');
+  const gitExe = path.join(destDir, 'cmd', 'git.exe');
+  if (fs.existsSync(gitExe)) return;
+  sendWizardLog('Git isn\'t on this computer yet — downloading a private copy (about 40 MB, one time)…');
+  fs.mkdirSync(toolsDir, { recursive: true });
+  const res = await fetch(MINGIT_URL);
+  if (!res.ok) throw new Error(`the Git download failed (HTTP ${res.status})`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const digest = require('crypto').createHash('sha256').update(buf).digest('hex');
+  if (digest !== MINGIT_SHA256) throw new Error('the Git download did not verify');
+  const zipPath = path.join(toolsDir, 'mingit.zip');
+  fs.writeFileSync(zipPath, buf);
+  sendWizardLog('Unpacking Git…');
+  fs.rmSync(destDir, { recursive: true, force: true });
+  await new Promise((resolve, reject) => {
+    execFile('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      `Expand-Archive -LiteralPath '${zipPath}' -DestinationPath '${destDir}' -Force`,
+    ], (err) => (err ? reject(new Error(`unpacking Git failed: ${(err.message || '').slice(0, 200)}`)) : resolve()));
+  });
+  try { fs.rmSync(zipPath); } catch (_) { /* best-effort cleanup */ }
+  if (!fs.existsSync(gitExe)) throw new Error('git.exe was missing after unpacking');
+  sendWizardLog('Git is ready.');
 }
 
 // Push a progress line to the wizard renderer (the new screens listen for it).
@@ -2294,7 +2353,7 @@ function detectMachine() {
   const isWin = process.platform === 'win32';
   const specs = isWin
     ? [
-        { key: 'git', label: 'Git', candidates: ['C:\\Program Files\\Git\\cmd\\git.exe', 'C:\\Program Files\\Git\\bin\\git.exe', 'C:\\Program Files (x86)\\Git\\cmd\\git.exe'], varg: '--version' },
+        { key: 'git', label: 'Git', candidates: ['C:\\Program Files\\Git\\cmd\\git.exe', 'C:\\Program Files\\Git\\bin\\git.exe', 'C:\\Program Files (x86)\\Git\\cmd\\git.exe', path.join(managedGitCmdDir(), 'git.exe')], varg: '--version' },
       ]
     : [
         { key: 'git', label: 'Git', candidates: ['/usr/bin/git', '/opt/homebrew/bin/git', '/usr/local/bin/git'], varg: '--version' },
@@ -2338,6 +2397,9 @@ ipcMain.handle('get-brain-home', () => {
 // carry credentials (x-access-token@) for private repos.
 ipcMain.handle('clone-into', async (_evt, args) => {
   const dir = assertSafeTarget(path.normalize(args.targetFolder));
+  // Same preflight as the agency path: a missing git must fail BEFORE the
+  // empty-target clear below, and on Windows it self-provisions.
+  await ensureGitAvailable();
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   if (fs.existsSync(dir)) {
     // Empty target is normal (the picker creates the folder); only block real
@@ -2364,6 +2426,9 @@ ipcMain.handle('clone-into', async (_evt, args) => {
 ipcMain.handle('clone-solo-brain', async (_evt, args) => {
   const { memberToken } = args;
   const targetFolder = assertSafeTarget(path.normalize(args.targetFolder));
+  // Same preflight as the agency path: a missing git must fail BEFORE the
+  // empty-target clear below, and on Windows it self-provisions.
+  await ensureGitAvailable();
   const r = await fetch(`${API_BASE}/api/brain/auth-token`, {
     headers: { Authorization: `Bearer ${memberToken}` },
   });
@@ -2463,12 +2528,67 @@ function runGit(args) {
 async function ensureGitAvailable() {
   try {
     await runGit(['--version']);
+    return;
+  } catch (e) { /* no usable git yet — handled per-platform below */ }
+  if (process.platform === 'win32') {
+    // Self-provision instead of sending the person to git-scm.com. runGit's
+    // enrichedEnv() already carries the managed dir on PATH, so the retry
+    // resolves the fresh copy with no restart.
+    try {
+      await provisionPortableGitWindows();
+      await runGit(['--version']);
+      return;
+    } catch (e2) {
+      throw new Error(`Git isn't installed yet, and downloading it automatically didn't work (${e2.message}). Check your internet and try again, or install Git from https://git-scm.com/download/win (keep the default options), then fully quit and reopen ${APP_NAME}.`);
+    }
+  }
+  throw new Error(`Git isn't available. Open Terminal and run \`git --version\` — if it offers to install the command line developer tools, accept, then reopen ${APP_NAME} and try again.`);
+}
+
+// macOS: an app running from Downloads or the mounted installer image can't
+// replace itself, so auto-update downloads and then fails with nothing visible
+// to the member (Rachael at Datasauce sat on v1.1.10 for a day this way,
+// 2026-08-03). Offer the fix at launch: Electron moves the bundle and
+// relaunches. Declining keeps the app fully working; it just asks again next
+// launch, which is rare for a menu-bar app.
+function maybeMoveToApplications() {
+  if (process.platform !== 'darwin' || !app.isPackaged) return false;
+  try {
+    if (app.isInApplicationsFolder()) return false;
+  } catch (_) { return false; }
+  app.focus({ steal: true });
+  const choice = dialog.showMessageBoxSync({
+    type: 'info',
+    title: APP_NAME,
+    message: `Move ${APP_NAME} to your Applications folder?`,
+    detail: `${APP_NAME} is running from a temporary spot (like Downloads or the installer window), so it can't keep itself up to date. Moving it to Applications fixes that. Nothing else changes.`,
+    buttons: ['Move to Applications', 'Not now'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+  if (choice !== 0) return false;
+  try {
+    isQuitting = true; // a successful move quits this copy and relaunches the moved one
+    const moved = app.moveToApplicationsFolder({
+      conflictHandler: (conflict) => {
+        if (conflict === 'exists') return true; // replace the stale copy sitting in Applications
+        // existsAndRunning: another copy is open from Applications; we can't replace it.
+        dialog.showMessageBoxSync({
+          type: 'info',
+          title: APP_NAME,
+          message: `${APP_NAME} is already running from Applications.`,
+          detail: 'Quit this copy and use the one in your Applications folder.',
+          buttons: ['OK'],
+        });
+        return false;
+      },
+    });
+    if (!moved) { isQuitting = false; return false; }
+    return true;
   } catch (e) {
-    throw new Error(
-      process.platform === 'win32'
-        ? `Git isn't installed yet. Install it from https://git-scm.com/download/win (keep the default options), then fully quit and reopen ${APP_NAME} and try again.`
-        : `Git isn't available. Open Terminal and run \`git --version\` — if it offers to install the command line developer tools, accept, then reopen ${APP_NAME} and try again.`
-    );
+    isQuitting = false;
+    dialog.showErrorBox(APP_NAME, `Couldn't move the app: ${e.message}\n\nQuit ${APP_NAME}, drag it into Applications in Finder, then open it again.`);
+    return false;
   }
 }
 
@@ -2479,6 +2599,7 @@ app.whenReady().then(() => {
     runE2E(process.env.AB_E2E);
     return;
   }
+  if (maybeMoveToApplications()) return; // relaunching from Applications now
   // Capture deep-link from initial launch argv (Windows + Linux pattern;
   // macOS uses the open-url event which is registered above).
   for (const arg of process.argv.slice(1)) {

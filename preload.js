@@ -70,6 +70,9 @@ const api = {
   writeBusinessContext: (args) => ipcRenderer.invoke('write-business-context', args),
   // Loads the embedded Command Centre into the app window (post-onboarding home).
   openCommandCentre: () => ipcRenderer.invoke('open-command-centre'),
+  // Command Centre "Have a setup code?" box → the tray's join-code wizard flow,
+  // carrying the typed code so it resolves without being typed twice.
+  openJoinCode: (code) => ipcRenderer.invoke('open-join-code', code),
   // Sign out: clears the member token + team identity, stops the watcher, and
   // returns to the setup wizard. The tray process keeps running.
   signOut: () => ipcRenderer.invoke('sign-out'),

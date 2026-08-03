@@ -1651,11 +1651,23 @@
       try { emailInput.focus(); } catch (_) {}
     } else {
       show('scene-welcome');
-      // 'join-code' comes from the tray's "I have a code" item: this machine
-      // already runs a brain and the member is adding another (an agency owner
-      // staging a client brain, say). Same screen as a fresh install, but drop
-      // the cursor in the code box so it's obvious that's the thing to do.
-      if (launchIntent === 'join-code') { try { codeInput.focus(); } catch (_) {} }
+      // 'join-code' comes from the tray's "I have a code" item or the Command
+      // Centre's code box: this machine already runs a brain and the member is
+      // adding another (an agency owner staging a client brain, say). Same
+      // screen as a fresh install, but drop the cursor in the code box so it's
+      // obvious that's the thing to do. When the Command Centre already
+      // collected the code it rides in on the query string: prefill and resolve
+      // it straight away rather than making the person type it twice.
+      if (launchIntent === 'join-code') {
+        const carried = normaliseCode(new URLSearchParams(window.location.search).get('code') || '');
+        if (carried.length === 6) {
+          codeInput.value = carried;
+          codeBtn.disabled = false;
+          resolveCodeValue(carried);
+        } else {
+          try { codeInput.focus(); } catch (_) {}
+        }
+      }
     }
     // Deep-link join (agencybrain://join?token=…): the long token resolves the
     // same way as a pasted code, so kick it off automatically.

@@ -724,6 +724,21 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { unavailable: true, reason: err.message });
       }
     }
+    // ClientBrain: the agency's staged clients, for the dashboard notice. A
+    // client brain is a SEPARATE brain that never appears in this app, which is
+    // exactly where owners went hunting for it (Greg Dickson, 2026-07-30).
+    // Owner/scout of an agency only; team seats and client brains get an empty
+    // list without a network call. ?agency= is passed so a caller who belongs
+    // to more than one agency doesn't trip the API's ambiguity 400.
+    if (req.method === 'GET' && p === '/api/my-clients') {
+      const roleOk = ['owner', 'scout', 'head_scout', 'head-scout'].includes(MEMBER_ROLE);
+      if (!MEMBER_TOKEN || !TEAM_SLUG || TEAM_KIND === 'client' || !roleOk) return send(res, 200, { clients: [] });
+      try {
+        return send(res, 200, await apiCall('GET', '/api/team-brain/my-clients?agency=' + encodeURIComponent(TEAM_SLUG)));
+      } catch (err) {
+        return send(res, 200, { clients: [], unavailable: true, reason: err.message });
+      }
+    }
     // Exactly what the invite email will say, so nobody sends one to a client's
     // people without having seen it first. Built by the API from the same code
     // that sends, so the preview can't drift from the real thing.

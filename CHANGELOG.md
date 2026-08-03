@@ -2,6 +2,20 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.17 — 2026-08-03
+
+- **Setup now installs Git for you on Windows.** Git is the free program your brain uses to keep its files in sync, and until now a Windows computer without it needed you to go to a download page, install it, and reopen the app. Setup now fetches its own copy (about 40 MB, one time, checked against a known fingerprint) and carries on by itself. The download page is only mentioned if that automatic download fails, for instance with no internet.
+
+- **The Mac app now offers to move itself into Applications.** An app run from Downloads or straight from the installer window cannot update itself, and the failures were invisible, so people were stuck on old versions without knowing it. On launch the app now notices, offers to move itself to the Applications folder, and relaunches from there. Everything else stays exactly as it was.
+
+- **Your staged client brains now show on your dashboard.** A client brain is its own separate brain, so it never appears in this app's team list, and that is exactly where people went looking for it. When a client is staged and waiting for install, your dashboard now says who is waiting, explains why they will not appear here, and points at the Your Clients page on the members portal, which holds the setup code and the handover steps.
+
+- **You can enter a setup code from the dashboard.** Adding another brain to this computer used to live only in the menu-bar icon, where nobody found it. The owner and scout dashboards now have a "Have a setup code?" box: type the 6-character code, click Continue, and setup opens with the code already filled in.
+
+- **A brief sync blip no longer flags you as blocked.** Going offline for a minute or a momentary failed save used to report you as stopped to your agency's roster, even though the app was already retrying and about to recover. The roster now only hears about a stop once it has actually stuck, or when your sign-in has expired, because only you can fix that one.
+
+- **Git is found more reliably in unusual setups.** Two places, the credential setup that lets tools outside the app reach your brain, and the dashboard's activity charts, could miss Git on machines where it lives somewhere unusual, and failed without any message. Both now look in the same places as the rest of the app, including the copy setup installs on Windows.
+
 ## 1.1.16 — 2026-07-31
 
 - **Saving can no longer get stuck for good after something interrupts it.** If a save was cut off part way through, for instance because your computer shut down while it was working, it could leave a marker file behind that made every later save fail. There was no way out of that except finding the file and deleting it by hand, and until you did, nothing you wrote was being saved. The app already cleared one kind of leftover marker and now clears the rest, so this repairs itself within a minute and you never have to know it happened.
