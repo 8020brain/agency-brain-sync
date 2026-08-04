@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.19 — 2026-08-04
+
+- **Setup now links GitHub's own guide to creating an organisation.** Your brain needs a GitHub organisation, because GitHub does not allow apps to create repositories on a personal account. Setup already has a button that opens the create form with the free plan chosen for you, and that is still the quickest way through. For anyone who would rather read the steps before filling anything in, there is now a link to GitHub's own walkthrough sitting next to it. The help section has also been rewritten to say plainly that an organisation is required rather than recommended, and it now answers the case where setup sat waiting and nothing happened.
+
 ## 1.1.18 — 2026-08-04
 
 - **A very big file can no longer freeze your syncing for good.** GitHub, the service that moves changes between machines, rejects any single file over 100 MB. The app has always refused to sync files that size when it did the saving itself, but a file saved by Claude or by hand in a terminal skipped that check, and once one was baked in, everything stopped going up from then on while the app still looked healthy. Two layers now cover it: a guard blocks oversized files at save time no matter which tool does the saving, and if one is already baked in, the app unpicks it by itself, keeps the big file on your machine only, and sends everything else up as normal. Nothing is deleted; the file stays right where it is on disk. Big media like videos belongs in Drive or Dropbox with a link in the brain, and the FAQ now says so.

@@ -1017,6 +1017,13 @@
       if (createBtn) createBtn.addEventListener('click', () => {
         api.openExternalUrl('https://github.com/account/organizations/new?plan=free');
       });
+      // GitHub's own walkthrough, for anyone who wants to read the steps before
+      // filling the form in. Opens in the real browser, never inside the wizard.
+      const docsLink = document.getElementById('link-org-docs');
+      if (docsLink) docsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        api.openExternalUrl('https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/creating-a-new-organization-from-scratch');
+      });
       // Check on Enter as well as on the button — this is a one-field form.
       if (orgInput) {
         orgInput.addEventListener('input', () => {
