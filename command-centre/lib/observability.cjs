@@ -44,11 +44,24 @@ function daysBetween(isoDate, now = new Date()) {
 // ---- skills -----------------------------------------------------------------
 function listSkillDirs(skillsDir) {
   if (!fs.existsSync(skillsDir)) return [];
+  // A skill is a directory containing a SKILL.md. Nothing else counts, and
+  // nothing else is excluded.
+  //
+  // This used to skip any folder whose name began with 'z', which was Mike's
+  // personal filing convention (z-occasional, z-new-skills-this-month) leaking
+  // into every agency and client brain. It silently ate real skills: a member
+  // wrote a 'zoho' skill and it never appeared, and Mike's own
+  // 'zoom-session-analyzer' was invisible in his Workbench the whole time.
+  // Requiring SKILL.md keeps his grouping folders out (they have none) without
+  // imposing a naming rule on anybody. It also stops a stray folder dropped in
+  // here being counted as a skill. (Mike, 2026-08-04.)
   return fs.readdirSync(skillsDir).filter(name => {
-    if (name.startsWith('z') || name.startsWith('.')) return false;
-    let st;
-    try { st = fs.statSync(path.join(skillsDir, name)); } catch { return false; }
-    return st.isDirectory();
+    if (name.startsWith('.')) return false;
+    const dir = path.join(skillsDir, name);
+    try {
+      if (!fs.statSync(dir).isDirectory()) return false;
+      return fs.existsSync(path.join(dir, 'SKILL.md'));
+    } catch { return false; }
   });
 }
 
