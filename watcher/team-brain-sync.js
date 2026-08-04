@@ -226,7 +226,21 @@ function writeState(state, reason, extra) {
   // first live data on 2026-07-31 flagged two people red for a blip whose own
   // text said "will retry".
   const alarm = state === 'stop' && !!(extra && (extra.stuck || extra.authExpired));
-  reportSyncState(alarm ? 'stop' : 'running', alarm ? (reason || null) : null);
+  // The reason names the failed step in words a member can act on; git's own
+  // words (extra.detail) are what tell the Workbench WHY. Append a scrubbed,
+  // trimmed copy for the server report only — the tray keeps the clean reason.
+  // Never send the raw string: a failed push can echo the authenticated remote
+  // URL, and that access token must never leave this machine.
+  let why = alarm ? (reason || null) : null;
+  if (alarm && extra && extra.detail) {
+    const scrubbed = String(extra.detail)
+      .replace(/x-access-token:[^@\s]*@/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 140);
+    if (scrubbed) why = `${why || 'stopped'} · ${scrubbed}`;
+  }
+  reportSyncState(alarm ? 'stop' : 'running', why);
 }
 
 // Only the BLOCKED edge is worth telling the server about: entering a stop, the
@@ -480,6 +494,76 @@ function ensureOfficeLockExclude() {
     fs.appendFileSync(p, `${sep}# Office lock files, transient by nature\n~$*\n`);
     console.log(`[${ts()}] excluded Office lock files (~$*) from this clone`);
   } catch (_) { /* best-effort */ }
+}
+
+// Any commit made OUTSIDE the app (a terminal, a Claude session in Cowork)
+// skips the stageAndCommit hold below, and one too-big file baked into a local
+// commit stops the whole brain pushing, permanently, while everything else
+// still looks healthy. A standard git pre-commit hook closes that gap at the
+// source, inside whatever tool runs the commit. Installed/refreshed at boot;
+// a hook we didn't write is left alone (the pre-push healer still covers it).
+const HOOK_MARKER = 'Agency Brain large-file guard';
+function installPrecommitSizeHook() {
+  try {
+    const hooksDir = path.join(REPO, '.git', 'hooks');
+    if (!fs.existsSync(hooksDir)) return;
+    const hookPath = path.join(hooksDir, 'pre-commit');
+    let cur = '';
+    try { cur = fs.readFileSync(hookPath, 'utf8'); } catch (_) { /* none yet */ }
+    if (cur && !cur.includes(HOOK_MARKER)) {
+      console.log(`[${ts()}] a pre-commit hook we didn't install exists; leaving it alone`);
+      return;
+    }
+    const script = `#!/bin/sh
+# ${HOOK_MARKER} — installed automatically by the app; edits here are overwritten.
+# GitHub rejects any push containing a file over 100 MB, and one such commit
+# freezes syncing for this whole brain until it's unwound. Block it at commit time.
+big=$(git diff --cached --name-only --diff-filter=AM -z | tr '\\0' '\\n' | while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  sz=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  [ "$sz" -ge ${MAX_FILE_BYTES} ] && echo "  $f ($((sz / 1048576)) MB)"
+done)
+if [ -n "$big" ]; then
+  echo "commit blocked: these files are ${MAX_FILE_MB} MB or bigger, and files this size stop the whole brain syncing:" >&2
+  echo "$big" >&2
+  echo "Keep them outside the brain folder, or take them out of this commit with: git reset -- '<file>'" >&2
+  exit 1
+fi
+exit 0
+`;
+    if (cur !== script) {
+      fs.writeFileSync(hookPath, script, { mode: 0o755 });
+      fs.chmodSync(hookPath, 0o755);
+      console.log(`[${ts()}] installed pre-commit large-file guard (${MAX_FILE_MB} MB)`);
+    }
+  } catch (e) {
+    console.error(`[${ts()}] pre-commit hook install failed: ${e.message}`);
+  }
+}
+
+// Every blob that exists only in the UNPUSHED commits, sized from git's object
+// store rather than the worktree — the file may already be deleted from disk,
+// but the commit still carries it and the push still fails. Feeds the pre-push
+// self-heal in doSync.
+function oversizedBlobsInRange(branch) {
+  const list = gitProbe('rev-list', '--objects', `origin/${branch}..${branch}`);
+  if (!list) return [];
+  const r = spawnSync('git', ['-C', REPO, 'cat-file', '--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)'], {
+    encoding: 'utf8',
+    input: list,
+    maxBuffer: 1024 * 1024 * 50,
+  });
+  if (r.error || r.status !== 0) return [];
+  const hits = [];
+  const seen = new Set();
+  for (const line of (r.stdout || '').split('\n')) {
+    const m = line.match(/^\S+ blob (\d+) (.+)$/);
+    if (m && Number(m[1]) >= MAX_FILE_BYTES && !seen.has(m[2])) {
+      seen.add(m[2]);
+      hits.push({ path: m[2], mb: Number(m[1]) / (1024 * 1024) });
+    }
+  }
+  return hits;
 }
 
 // ───── Backup refs (recoverability) ─────
@@ -769,6 +853,52 @@ function stageAndCommit(s) {
   return { committed: true, held };
 }
 
+// ───── Branch self-heal ─────
+
+// Out-of-app git (a Claude session, a terminal `git checkout <sha>`) can leave
+// the clone on no branch at all. Everything then LOOKS alive — fetch works,
+// merges work — but `git push` fails identically forever ("not currently on a
+// branch"): a permanent, silent wedge. Heal it: save any work in progress as a
+// commit, keep whatever was committed off-branch reachable via a backup ref,
+// return to the repo's real branch, and fold the off-branch work back in with
+// the usual keep-both-sides merge.
+function defaultBranch() {
+  const ref = gitProbe('symbolic-ref', '--short', 'refs/remotes/origin/HEAD');
+  const m = ref.match(/^origin\/(.+)$/);
+  if (m) return m[1];
+  return gitTry('rev-parse', '--verify', '--quiet', 'refs/heads/main').ok ? 'main' : 'master';
+}
+
+function healDetachedHead() {
+  if (gitProbe('rev-parse', '--abbrev-ref', 'HEAD') !== 'HEAD') return true; // on a branch
+  const branch = defaultBranch();
+  console.log(`[${ts()}] not on a branch (detached HEAD); returning to ${branch}`);
+  if (gitProbe('status', '--porcelain')) {
+    git('add', '-A');
+    gitTry('commit', '-m', `auto-sync: work saved while off-branch ${ts()}`);
+  }
+  const before = gitProbe('rev-parse', 'HEAD');
+  const backup = backupRef('detached');
+  const co = gitTry('checkout', branch);
+  if (!co.ok) {
+    stopStuck('your brain folder is off its main branch and couldn\'t be put back', co.err);
+    return false;
+  }
+  // If the off-branch state held anything the branch doesn't, merge it back in.
+  if (before && !gitTry('merge-base', '--is-ancestor', before, branch).ok) {
+    const m = gitTry('merge', '--no-edit', before);
+    if (!m.ok && midOperation() === 'merge') {
+      resolveConflictsAndCommit(tsCompact());
+    } else if (!m.ok) {
+      // Refused outright; the backup ref keeps the off-branch work reachable.
+      stopStuck('work made off the main branch couldn\'t be folded back in', m.err);
+      return false;
+    }
+    console.log(`[${ts()}]   folded off-branch work back into ${branch} (backup: ${backup})`);
+  }
+  return true; // the cycle's own push outcome decides whether the stall clears
+}
+
 // ───── Repo state classifier ─────
 
 async function classifyState() {
@@ -854,6 +984,10 @@ async function doSync(trigger) {
       writeState('stop', `a ${mid} is in progress — finish it in a terminal and sync resumes`);
       return;
     }
+
+    // Out-of-app git can leave the clone off its branch, where every push
+    // fails forever with everything else looking healthy. Put it back first.
+    if (!healDetachedHead()) return;
 
     writeState('pulling');
     const s = await classifyState();
@@ -946,6 +1080,36 @@ async function doSync(trigger) {
       }
     }
 
+    // 2b. Self-heal the big-file wedge. A commit made OUTSIDE the app (a
+    //     terminal, a Claude session — the app's own commits hold big files
+    //     BEFORE committing) can bake in a file GitHub rejects, and then EVERY
+    //     push fails forever while everything else looks healthy (the
+    //     Recognition stall, 2026-08-01→04). Unstitch those commits (worktree
+    //     untouched, backup ref kept), set the big files aside with the usual
+    //     hold, recommit the rest, and let the push that follows land.
+    const bigs = oversizedBlobsInRange(s.branch);
+    if (bigs.length) {
+      console.log(`[${ts()}]   unpushed commits carry ${bigs.length} file(s) too big to sync; setting aside and recommitting`);
+      backupRef('oversize');
+      const rr = gitTry('reset', '--mixed', `origin/${s.branch}`);
+      if (!rr.ok) {
+        stopStuck('can\'t set aside a file that\'s too big to sync', rr.err);
+        return;
+      }
+      for (const b of bigs) {
+        if (fs.existsSync(path.join(REPO, b.path))) addToLocalExclude(b.path);
+        held.push({ file: b.path, why: `${Math.round(b.mb)} MB — too big to sync, kept on this machine only` });
+      }
+      const st = git('status', '--porcelain');
+      const lines = (st || '').split('\n').filter(Boolean);
+      if (lines.length) {
+        const rc = stageAndCommit({ statusLines: lines });
+        held = held.concat(rc.held || []);
+        if (rc.error) { stopStuck(rc.error, rc.raw || null); return; }
+        didContribute = didContribute || rc.committed === true;
+      }
+    }
+
     // 3. Push (skip the network round-trip when there's genuinely nothing new).
     const ahead = git('rev-list', '--count', `origin/${s.branch}..${s.branch}`);
     if (ahead === '0' || ahead === null) {
@@ -954,13 +1118,18 @@ async function doSync(trigger) {
       return;
     }
     writeState('pushing');
-    const pushResult = await withAuthenticatedRemote(() => git('push'));
-    if (pushResult === null) {
+    // Raw call rather than git(): a failed push should keep git's own words,
+    // which are the only thing that can say WHY a push keeps failing. Luke's
+    // Recognition brain reported "can't push your changes up" for three days
+    // (2026-08-01 to 04) and nothing anywhere carried the underlying error.
+    const pushR = await withAuthenticatedRemote(() => runGitRaw(['push'], true));
+    if (!pushR.ok) {
       // Most often a race: someone pushed between our fetch and our push. Next
       // tick re-classifies as behind and auto-merges, so this self-heals. Only a
       // persistent failure (ESCALATE_AFTER in a row) stabilises as stuck.
+      console.error(`  git push -> ${pushR.err}`);
       console.log(`[${ts()}]   push failed; will retry next tick`);
-      stopStuck('can\'t push your changes up', 'push failed, usually a brief race or offline');
+      stopStuck('can\'t push your changes up', pushR.err || 'push failed, usually a brief race or offline');
       return;
     }
     console.log(`[${ts()}]   pushed.`);
@@ -1040,6 +1209,7 @@ if (MODE === 'agency') {
 if (STATE_FILE) console.log(`[${ts()}] state file: ${STATE_FILE}`);
 ensureGitIdentity();
 ensureOfficeLockExclude();
+installPrecommitSizeHook();
 writeState('running', 'starting up');
 
 // Role-scoped section mounts (the leadership annex): reconciled after each

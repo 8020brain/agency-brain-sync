@@ -18,6 +18,16 @@
  *      from the writer.
  *   C) Stuck surfacing — a jam that can't self-heal stops LOUDLY: state flips to
  *      stop + stuck:true with a reason, instead of looping quietly forever.
+ *
+ * And the v1.1.18 big-file/branch mitigations (MAX_FILE_MB=1 so "big" = 1 MB):
+ *   D) Pre-commit hook — installed at boot, and it blocks an out-of-app commit
+ *      that stages a too-big file, with a plain-words message.
+ *   E) Oversize self-heal — a too-big file committed with --no-verify (stands in
+ *      for commits made before the hook existed) no longer wedges the push: the
+ *      watcher unstitches the commit, holds the big file locally, and pushes the
+ *      rest.
+ *   F) Detached-HEAD self-heal — a clone left on no branch (out-of-app checkout)
+ *      returns to main by itself, and work committed off-branch reaches origin.
  */
 
 const { execSync, spawn } = require('child_process');
@@ -93,6 +103,7 @@ async function main() {
         ESCALATE_AFTER: '2',
         STUCK_RETRY_MS: '1500',
         LOCK_STALE_MS: '500',
+        MAX_FILE_MB: '1',
       },
     });
     watcher.stdout.on('data', (d) => logs.push(d.toString()));
@@ -150,6 +161,49 @@ async function main() {
     } else {
       bad('C: a persistent jam never surfaced as a stuck stop');
     }
+    // Let the watcher recover from C before the next scenarios (origin is
+    // writable again; the next successful cycle clears the stuck state).
+    fs.writeFileSync(path.join(app, 'recovery-ping.md'), 'origin is back\n');
+    await until(() => originHasPath(origin, 'main', 'recovery-ping.md'), 15000);
+
+    // ── D) Pre-commit hook: installed at boot, blocks a too-big out-of-app commit ──
+    const hookPath = path.join(app, '.git', 'hooks', 'pre-commit');
+    const hookInstalled = fs.existsSync(hookPath) && fs.readFileSync(hookPath, 'utf8').includes('large-file guard');
+    if (hookInstalled) ok('D1: pre-commit large-file guard installed at boot');
+    else bad('D1: pre-commit hook missing', hookPath);
+
+    fs.writeFileSync(path.join(app, 'big-blocked.bin'), Buffer.alloc(2 * 1024 * 1024, 7));
+    git(app, 'add -A');
+    const blocked = gitTry(app, `${idflags} commit -q -m big-commit`) === null;
+    if (blocked && hookInstalled) ok('D2: out-of-app commit of a too-big file was blocked by the hook');
+    else bad('D2: too-big commit was NOT blocked');
+    git(app, 'reset -q -- big-blocked.bin'); // unstage; leave the file on disk
+
+    // ── E) Oversize self-heal: a bypassed big commit no longer wedges the push ──
+    fs.writeFileSync(path.join(app, 'big-wedged.bin'), Buffer.alloc(2 * 1024 * 1024, 9));
+    fs.writeFileSync(path.join(app, 'alongside.md'), 'committed next to the big file\n');
+    git(app, 'add -A');
+    git(app, `${idflags} commit -q --no-verify -m wedge-commit`);
+    const healed = await until(() =>
+      originHasPath(origin, 'main', 'alongside.md') &&
+      !originHasPath(origin, 'main', 'big-wedged.bin') &&
+      fs.existsSync(path.join(app, 'big-wedged.bin')),
+    15000);
+    if (healed) ok('E: big-file commit was unstitched — small file pushed, big file kept local only');
+    else bad('E: oversize self-heal did not land', `alongside=${originHasPath(origin, 'main', 'alongside.md')}, big-on-origin=${originHasPath(origin, 'main', 'big-wedged.bin')}`);
+    const excluded = (gitTry(app, 'status --porcelain') || '').indexOf('big-wedged.bin') === -1;
+    if (excluded) ok('E2: held big file no longer shows as a pending change');
+    else bad('E2: held big file still churns in git status');
+
+    // ── F) Detached HEAD self-heal: off-branch clone returns to main ──
+    git(app, 'checkout -q --detach HEAD');
+    fs.writeFileSync(path.join(app, 'off-branch-note.md'), 'written while detached\n');
+    const reattached = await until(() =>
+      gitTry(app, 'rev-parse --abbrev-ref HEAD') === 'main' &&
+      originHasPath(origin, 'main', 'off-branch-note.md'),
+    15000);
+    if (reattached) ok('F: detached clone returned to main and off-branch work reached origin');
+    else bad('F: detached HEAD did not heal', `branch=${gitTry(app, 'rev-parse --abbrev-ref HEAD')}`);
   } catch (err) {
     bad('harness error', err.message);
   } finally {

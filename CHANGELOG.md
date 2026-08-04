@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.18 — 2026-08-04
+
+- **A very big file can no longer freeze your syncing for good.** GitHub, the service that moves changes between machines, rejects any single file over 100 MB. The app has always refused to sync files that size when it did the saving itself, but a file saved by Claude or by hand in a terminal skipped that check, and once one was baked in, everything stopped going up from then on while the app still looked healthy. Two layers now cover it: a guard blocks oversized files at save time no matter which tool does the saving, and if one is already baked in, the app unpicks it by itself, keeps the big file on your machine only, and sends everything else up as normal. Nothing is deleted; the file stays right where it is on disk. Big media like videos belongs in Drive or Dropbox with a link in the brain, and the FAQ now says so.
+
+- **A brain knocked off its branch puts itself back.** A tool working in the brain folder can leave it in a state where pulling changes down still works but nothing can ever be sent up, and there was no visible sign of why. The app now notices at the start of every cycle, saves any work in progress, returns to the proper branch, and folds the work back in, keeping a backup of everything it touched.
+
+- **When syncing really is stuck, the reason now travels with the report.** Until now the roster only heard "can't push your changes up" with nothing behind it, which is how a stuck brain could sit for days while everyone guessed at the cause. The app now keeps the exact error and sends a cleaned copy with its report (your sign-in token is stripped out first), so the cause is visible at a glance without anyone digging through logs.
+
 ## 1.1.17 — 2026-08-03
 
 - **Setup now installs Git for you on Windows.** Git is the free program your brain uses to keep its files in sync, and until now a Windows computer without it needed you to go to a download page, install it, and reopen the app. Setup now fetches its own copy (about 40 MB, one time, checked against a known fingerprint) and carries on by itself. The download page is only mentioned if that automatic download fails, for instance with no internet.
