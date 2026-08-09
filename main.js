@@ -508,6 +508,16 @@ let authExpired = false;
 // a red attention state, because syncing is still healthy.
 let lastHeld = [];
 
+// Where the app's icon lives, in the reader's own OS's words. "Menu bar" sent
+// a Windows member hunting for a button that doesn't exist there (Elaine,
+// 2026-08-09): on Windows the icon is in the system tray, usually behind the
+// ^ overflow arrow. Every user-facing "go click the icon" string uses this.
+function iconSpot() {
+  return process.platform === 'win32'
+    ? 'in your system tray, bottom right near the clock (click the ^ arrow if the icon is hidden)'
+    : 'in your menu bar';
+}
+
 // One desktop notification per stuck episode. The watcher has tried and failed
 // to sync several times in a row and needs the user to act (usually: quit and
 // reopen the app, which restarts sync cleanly). Re-armed once sync recovers.
@@ -520,7 +530,7 @@ function notifyStuck(reason) {
     // restarting could never fix (2026-07-31), and it buried the real cause.
     new Notification({
       title: `${APP_NAME} needs attention`,
-      body: `${String(reason).replace(/\.\s*$/, '')}.\nClick the menu bar icon and choose "See what needs attention" for the full details.`,
+      body: `${String(reason).replace(/\.\s*$/, '')}.\nClick the app icon ${iconSpot()} and choose "See what needs attention" for the full details.`,
     }).show();
   } catch (_) { /* notifications are best-effort */ }
 }
@@ -528,13 +538,60 @@ function notifyStuck(reason) {
 // Signed-out agency brain: tell the member exactly what to do (sign in again),
 // rather than letting the watcher fail silently in the background.
 function notifyReconnect() {
+  const body = `Your sign-in has expired or was cleared, so syncing is paused. Open ${APP_NAME} ${iconSpot()} and choose "Reconnect / sign in again".`;
+  // Windows: a tray balloon rises from the icon itself and shows even when the
+  // icon is tucked behind the ^ overflow, so it can't be missed the way a
+  // one-time notification can. Clicking it opens the reconnect wizard directly.
+  if (process.platform === 'win32' && tray) {
+    try {
+      tray.displayBalloon({
+        icon: nativeImage.createFromPath(ICON_ATTENTION),
+        title: `${APP_NAME}: please sign in again`,
+        content: body,
+      });
+      if (!notifyReconnect.__balloonWired) {
+        notifyReconnect.__balloonWired = true;
+        tray.on('balloon-click', () => { if (signedOut) showSetupWizard('reconnect'); });
+      }
+    } catch (_) { /* balloons are best-effort */ }
+  }
   try {
     if (!Notification.isSupported()) return;
     new Notification({
       title: `${APP_NAME}: please sign in again`,
-      body: `Your sign-in has expired or was cleared, so syncing is paused. Open ${APP_NAME} and choose "Reconnect / sign in again".`,
+      body,
     }).show();
   } catch (_) { /* notifications are best-effort */ }
+}
+
+// Per-machine sync-status breadcrumb, written into the brain's .git/ folder
+// (never synced, so it can't leak one machine's state to the team) for the
+// Workbench to read: it's a separate local app with no channel to this one,
+// and until now a signed-out brain looked perfectly normal from its pages.
+// Change-detected so the 15s updateTray tick doesn't churn the disk.
+let lastBreadcrumbKey = '';
+function writeSyncBreadcrumb() {
+  try {
+    const config = loadConfig();
+    if (!config || !config.brainPath) return;
+    const gitDir = path.join(config.brainPath, '.git');
+    if (!fs.existsSync(gitDir)) return;
+    const out = {
+      state: watcherState,
+      signedOut: !!signedOut,
+      message: signedOut
+        ? `You are signed out, so nothing is syncing right now. Open ${APP_NAME} ${iconSpot()} and choose "Reconnect / sign in again" to fix it, then this clears on its own.`
+        : '',
+      appName: APP_NAME,
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      updatedAt: new Date().toISOString(),
+    };
+    const key = [out.state, out.signedOut, out.message].join('|');
+    if (key === lastBreadcrumbKey) return;
+    lastBreadcrumbKey = key;
+    fs.writeFileSync(path.join(gitDir, 'agency-brain-sync-status.json'), JSON.stringify(out, null, 2));
+  } catch (_) { /* best-effort — a breadcrumb must never break the tray */ }
 }
 
 function applyWatcherState(payload) {
@@ -853,6 +910,7 @@ function updateTray() {
     tray.setTitle(signedOut ? ' Signed out' : '');
   }
   tray.setContextMenu(buildMenu());
+  writeSyncBreadcrumb();
 }
 
 // ---------- login item ----------
