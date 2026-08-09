@@ -119,9 +119,21 @@
       });
       // Session-expired surfacing: banner up top + the account line stops saying
       // "signed in" so an expired session can't look normal while nothing syncs.
+      // The banner names where the app's icon lives, which differs per OS:
+      // "menu bar" sent a Windows member hunting for a button that isn't there
+      // (Elaine, 2026-08-09), so Windows gets system-tray wording instead.
+      // CLIENT_TEXT is mutated to the same string BEFORE applyClientChrome runs
+      // below, so a client brain paints the identical platform-aware wording
+      // (with "the app" in place of the product name).
+      var _traySpot=(h.platform==='win32')
+        ? 'in your system tray, bottom-right near the clock (click the ^ arrow if the icon is hidden)'
+        : 'in your menu bar';
+      var _sebMsg='You are signed out, so nothing is syncing right now. Open '+(kind==='client'?'the app':'Agency Brain')+' '+_traySpot+' and choose “Reconnect / sign in again” to fix it, then this clears on its own.';
+      CLIENT_TEXT['session-expired-text']=_sebMsg;
       var _seb=$('session-expired-banner');
       if(_seb) _seb.hidden=!h.sessionExpired;
       if(h.sessionExpired){
+        var _sebT=$('session-expired-text'); if(_sebT) _sebT.textContent=_sebMsg;
         $('who-role').textContent='Session expired';
         $('who-email').textContent=(h.memberEmail||'')+' — reconnect in the app';
       } else {

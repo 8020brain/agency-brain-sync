@@ -505,6 +505,9 @@ const server = http.createServer(async (req, res) => {
         teamKind: TEAM_KIND,
         hasLocalIdentity: hasLocalIdentity(),
         sessionExpired,
+        // The session-expired banner tells the member where the app's icon
+        // lives, and that differs per OS ("menu bar" means nothing on Windows).
+        platform: process.platform,
       });
     }
     if (req.method === 'GET' && p === '/api/branding') {
