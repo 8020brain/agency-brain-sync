@@ -2,7 +2,7 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## 1.1.21 — 2026-08-13
+## 1.1.22 — 2026-08-13
 
 - **A client brain's setup checklist can now finish.** Client brains show three steps instead of four: the old "First client added" step asked the one thing some businesses can never do, so the checklist read as unfinished forever. The first step also now names the real setup prompt for your kind of brain, instead of a nickname no brain ships.
 

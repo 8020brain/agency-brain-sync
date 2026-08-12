@@ -18,6 +18,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+      # The sync-recovery test spawns the real watcher, which needs chokidar at
+      # runtime, so the suite needs dependencies. --ignore-scripts skips the
+      # Electron binary download the tests never use. (v1.1.21's test job ran
+      # bare and died on exactly this.)
+      - run: npm ci --ignore-scripts
       - run: npm test
 
   build:
