@@ -89,7 +89,11 @@ async function apiCall(method, apiPath, body, retries) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     if (retries > 0 && (r.status === 404 || r.status >= 500)) { await delay(1200); return apiCall(method, apiPath, body, retries - 1); }
-    const e = new Error(j.error || ('API ' + r.status)); e.statusCode = r.status; throw e;
+    // Keep the parsed body on the error. Some 4xx answers are not failures and
+    // carry fields the UI needs: licence_due sends a code and a url so a first
+    // sale can be rendered as an offer with a real link. Flattening this to a
+    // message is what made that arrive as a red "Failed: ..." in the browser.
+    const e = new Error(j.error || ('API ' + r.status)); e.statusCode = r.status; e.body = j; throw e;
   }
   return j;
 }
@@ -783,7 +787,13 @@ const server = http.createServer(async (req, res) => {
         }
         return send(res, 200, { ok: true, email, code });
       } catch (err) {
-        return send(res, err.statusCode || 500, { error: err.message });
+        // Relay licence_due through to the browser rather than flattening it to
+        // a message. core.js keys the first-sale offer off `code`, so without
+        // this the offer can never render and the member sees the red failure.
+        const extra = err.body && err.body.code === 'licence_due'
+          ? { code: err.body.code, url: err.body.url }
+          : {};
+        return send(res, err.statusCode || 500, Object.assign({ error: err.message }, extra));
       }
     }
     // Edit a member's name and/or role. Owner/scout only (enforced server-side).
