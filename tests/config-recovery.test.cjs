@@ -58,9 +58,9 @@ function loadRealFns(dir) {
   `;
   // Injected: the module-scope names the lifted functions close over.
   const make = new Function('fs', 'path', 'CONFIG_FILE', 'CONFIG_BACKUP_FILE',
-    'LOG_FILE', 'clog', 'computeAppName', 'BRAIN_PROFILE_KEYS', 'USER_DATA', 'APP_NAME', body);
+    'LOG_FILE', 'clog', 'computeAppName', 'applyAppMenu', 'BRAIN_PROFILE_KEYS', 'USER_DATA', 'APP_NAME', body);
   return make(fs, path, CONFIG_FILE, CONFIG_BACKUP_FILE, LOG_FILE,
-    () => {}, () => 'Business Brain',
+    () => {}, () => 'Business Brain', () => {},
     ['brainPath', 'mode', 'teamSlug', 'memberEmail', 'memberName', 'memberRole',
       'memberToken', 'scoutSeats', 'packageTier', 'kind', 'brandName'],
     dir, 'Business Brain');

@@ -6,7 +6,22 @@ on:
       - 'v*'
 
 jobs:
+  # Every release runs the test suite first. The seven files under tests/ sat
+  # in the repo for weeks with nothing invoking them, which is how a guard
+  # written specifically against white-label leaks never caught one. A red
+  # test now stops the build before anything is signed or published.
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npm test
+
   build:
+    needs: test
     name: Build ${{ matrix.os }}
     strategy:
       fail-fast: false
