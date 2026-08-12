@@ -351,7 +351,34 @@ function switchBrain(key) {
   // the window left the OLD brain's Command Centre on screen, so switching
   // looked like it did nothing (Mike, first client-brain install, 2026-07-30).
   openCommandCentre();
+  refreshBrandName();
 }
+// A client brain's brand name is set on the portal and can be renamed there,
+// but it was only ever read at setup, so a rename never reached an installed
+// app: the tray, the menu and the window title kept the install-day name for
+// good, and two similar names side by side made picking the wrong brain a
+// single mis-click (Peter Empson, 2026-08-13). Re-read it from the config
+// record on startup and on every brain switch. Best-effort: offline keeps the
+// stored name, and only a real, different value ever writes.
+async function refreshBrandName() {
+  try {
+    const cfg = loadConfig();
+    if (!cfg || cfg.kind !== 'client' || !cfg.teamSlug || !cfg.memberToken) return;
+    const r = await fetch(`${API_BASE}/api/team-brain/client-config?team=${encodeURIComponent(cfg.teamSlug)}`, {
+      headers: { Authorization: `Bearer ${cfg.memberToken}` },
+    });
+    if (!r.ok) return;
+    const j = await r.json().catch(() => null);
+    const fresh = j && j.config && String(j.config.brandName || '').trim();
+    if (fresh && fresh !== cfg.brandName) {
+      const next = { ...loadConfig(), brandName: fresh };
+      saveConfig(next);
+      updateTray();
+      ulog(`brand name refreshed: "${cfg.brandName}" -> "${fresh}"`);
+    }
+  } catch { /* offline or signed out: the stored name stands */ }
+}
+
 function brainLabel(p) {
   const name = (p && p.kind === 'client' && p.brandName) ? p.brandName
     : (p && p.teamSlug) ? p.teamSlug
@@ -1686,16 +1713,15 @@ function setupAutoUpdater() {
   catch (e) { ulog('electron-updater unavailable: ' + e.message); return; }
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  // Windows ships unsigned (by decision). electron-updater verifies the
-  // downloaded installer's Authenticode signature against publisherName and
-  // aborts when it's absent ("not signed by the application owner"), so
-  // update-downloaded never fired. verifyUpdateCodeSignature is a FUNCTION you
-  // override (returning null = pass), NOT a boolean — setting it false is
-  // ignored and the check still runs. Override it to skip on Windows; the
-  // sha512 in latest.yml still guarantees download integrity.
-  if (process.platform === 'win32') {
-    autoUpdater.verifyUpdateCodeSignature = () => Promise.resolve(null);
-  }
+  // Windows signature verification is ON. Every Windows build since v0.9.28
+  // (1 Jul 2026) is signed "Mike Rhodes" in CI, and the build hard-fails on any
+  // other signer, so electron-updater's Authenticode check against
+  // electron-builder.yml's publisherName list is real protection again. The
+  // override that skipped it dated from the genuinely-unsigned era and sat here
+  // under a stale comment for six weeks after signing shipped (2026-08-13
+  // review, architecture finding C3). Removing it only affects updates applied
+  // BY this build and later, so the release that carries this change is itself
+  // still installed by older apps using their own skip — nothing strands.
   autoUpdater.logger = { info: ulog, warn: ulog, error: ulog, debug: () => {} };
   autoUpdater.on('update-available', (i) => ulog('update available: v' + (i && i.version)));
   autoUpdater.on('update-not-available', () => ulog('up to date'));
@@ -2080,14 +2106,38 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
   // (Marco Assanti's client brain, 2026-08-12.) The question is whether a brain
   // is here, not whether history is, so ask for the markers a brain always has.
   let hasBrain = false;
+  let hasCommits = false;
   try {
     await runGit(['-C', targetFolder, 'rev-parse', 'HEAD']);
+    hasCommits = true;
     hasBrain = fs.existsSync(path.join(targetFolder, '.claude'))
       || fs.existsSync(path.join(targetFolder, 'CLAUDE.md'));
   } catch (e) {
     hasBrain = false; // unborn branch: an empty repo, the original case
   }
   if (hasBrain) return false;
+
+  // Commits but no brain markers: two very different repos look like this.
+  // A brain-to-be that a server-side writer touched first (roles.json, a
+  // context stub — the 2026-08-12 empty-brain case) must be seeded. Somebody's
+  // real project (their website, their codebase) must NEVER be seeded, because
+  // the copy below overwrites same-named files and commits the lot to their
+  // main branch (2026-08-13 review, flow finding B1). The server-side writers
+  // only ever touch a known handful of paths, so anything outside that set
+  // means this is a real project: stop loudly instead of writing.
+  if (hasCommits) {
+    const KNOWN_PRESEED = new Set(['.gitignore', '.gitattributes', '.team-config', 'context']);
+    const foreign = fs.readdirSync(targetFolder)
+      .filter((f) => f !== '.git' && !KNOWN_PRESEED.has(f));
+    if (foreign.length) {
+      throw new Error(
+        `This repository already holds work that isn't a brain (${foreign.slice(0, 3).join(', ')}` +
+        `${foreign.length > 3 ? ', …' : ''}), so nothing was written to it. ` +
+        `A brain needs a repository of its own: create a fresh GitHub organisation for it, ` +
+        `or re-run the GitHub step granting access to no existing repositories so a new one is created.`
+      );
+    }
+  }
 
   sendWizardLog('Fresh repo — setting it up from the template…');
 
@@ -2229,6 +2279,33 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
     // a ClientBrain deployment) — while the push token is still in the
     // freshly-cloned origin. A repo that already has content is left untouched.
     await seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind);
+  } else {
+    // Adopted folders can be a stranded first attempt: seeding committed the
+    // template locally, the very first push died (flaky wifi during the biggest
+    // upload of setup), and "Try again" landed here, where seeding is skipped.
+    // Without this, the machine looks finished, GitHub stays empty forever, and
+    // the watcher parks the repo as an unrecognised state on every tick
+    // (2026-08-13 review, flow finding B2). Local commits + a remote with no
+    // branches can only mean the first publish never landed, so finish it. The
+    // folder's origin may still hold the previous run's expired token, so point
+    // it at this run's fresh one first; the common set-url below cleans it.
+    let localHead = '';
+    let remoteHeads = 'unknown';
+    try {
+      localHead = String(await runGit(['-C', targetFolder, 'rev-parse', '--verify', '--quiet', 'HEAD'])).trim();
+    } catch { /* no commits locally — nothing stranded */ }
+    if (localHead) {
+      try {
+        await runGit(['-C', targetFolder, 'remote', 'set-url', 'origin', cloneUrl]);
+        remoteHeads = String(await runGit(['-C', targetFolder, 'ls-remote', '--heads', 'origin'])).trim();
+      } catch { remoteHeads = 'unknown'; /* can't read the remote — leave it to the watcher */ }
+      if (remoteHeads === '') {
+        sendWizardLog('An earlier attempt didn\'t finish publishing — pushing your brain to GitHub now…');
+        await runGit(['-C', targetFolder, 'branch', '-M', 'main']);
+        await runGit(['-C', targetFolder, 'push', '-u', 'origin', 'main']);
+        sendWizardLog('Brain published.');
+      }
+    }
   }
   // Rewrite the remote URL back to the token-less form so we don't keep a
   // 1-hour token on disk; the watcher will mint fresh tokens on each sync.
@@ -2737,6 +2814,10 @@ app.whenReady().then(() => {
   setupAutoUpdater();
   setTimeout(ensureAgencyRolesSeeded, 15 * 1000);
   setInterval(ensureAgencyRolesSeeded, 30 * 60 * 1000);
+  // A portal rename of a client brain's brand reaches the tray on the next
+  // launch rather than never (Peter Empson, 2026-08-13). Delayed so boot never
+  // waits on the network.
+  setTimeout(refreshBrandName, 20 * 1000);
 
   // Boot is the one read that MUST be patient: on a machine that just woke, or
   // that the updater has this second relaunched, a first read can fail for
