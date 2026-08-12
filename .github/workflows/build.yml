@@ -23,12 +23,17 @@ jobs:
       # Electron binary download the tests never use. (v1.1.21's test job ran
       # bare and died on exactly this.)
       - run: npm ci --ignore-scripts
-      # The sync harness builds real git repos and pushes "main". Every dev
-      # machine sets init.defaultBranch=main globally; the runner's git still
-      # defaults to master, which killed v1.1.22 with "src refspec main does
-      # not match any". Mirror the dev environment rather than patching every
-      # fixture.
-      - run: git config --global init.defaultBranch main
+      # The sync harness builds real git repos, commits and pushes "main".
+      # Runners ship git with no global config at all: no default branch
+      # (killed v1.1.22, "src refspec main does not match any") and no identity
+      # (killed v1.1.23, "empty ident name"). Set the three things a dev
+      # machine has. The whole suite was run locally under an empty HOME with
+      # exactly these before v1.1.24 was tagged, so this is the complete list,
+      # not the third guess.
+      - run: |
+          git config --global init.defaultBranch main
+          git config --global user.email "ci@agency-brain-sync.test"
+          git config --global user.name "CI"
       - run: npm test
 
   build:
