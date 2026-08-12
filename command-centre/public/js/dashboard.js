@@ -252,7 +252,7 @@
     var isClient=(CCKIND==='client');
     var next = (nextIdx>=0)
       ? '<div class="ap-next"><strong>Next:</strong> '+esc(clientWords(ms[nextIdx].action||ms[nextIdx].label))+'</div>'
-      : '<div class="ap-next all-done">All four milestones reached — your '+(isClient?'':'agency ')+'brain is fully up and running.</div>';
+      : '<div class="ap-next all-done">Every milestone reached — your '+(isClient?'':'agency ')+'brain is fully up and running.</div>';
     el.innerHTML='<div class="ap-card"><div class="ap-head"><span class="ap-eyebrow">'+(isClient?'Setup progress':'Agency progress')+'</span>'
       +'<span class="ap-count">'+doneCount+' of '+ms.length+'</span></div>'
       +'<div class="ap-steps">'+steps+'</div>'+next+'</div>';

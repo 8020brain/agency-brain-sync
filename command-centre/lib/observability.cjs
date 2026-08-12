@@ -394,7 +394,7 @@ function memberUsageStats(usageRecords) {
   return out;
 }
 
-function computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs) {
+function computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs, teamKind) {
   const customised = isCustomised(repoPath);
   const clients = clientCount(repoPath);
   let sharpened = 0, lastSharp = null;
@@ -406,10 +406,18 @@ function computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs) {
     if (!lastSharp || s.lastImproved > lastSharp.date) lastSharp = { date: s.lastImproved, by: s.lastImprovedBy, name: s.name };
   }
   const trusted = maturityDist.trusted || 0;
-  return [
+  // A client brain gets THREE steps, not four. Its reader is the end business:
+  // their people are customers, patients, members or nobody at all, so "First
+  // client added" is a box some of them can never tick, and the checklist read
+  // as permanently unfinished (Marco Assanti, 2026-08-12; Mike picked dropping
+  // the step over rewording it, 2026-08-13). The context prompt is also named
+  // per product line, because "tune-brain" was a nickname no template ships.
+  const isClient = teamKind === 'client';
+  const contextPrompt = isClient ? 'client-brain-context-setup' : 'agency-brain-context-setup';
+  const steps = [
     { key: 'customised', label: 'Made it yours', done: customised,
       detail: customised ? 'brain tailored to your agency' : 'still on the template',
-      action: 'Run the tune-brain prompt so CLAUDE.md describes your agency, not the template.' },
+      action: 'Run the ' + contextPrompt + ' prompt so CLAUDE.md describes your agency, not the template.' },
     { key: 'firstClient', label: 'First client added', done: clients > 0,
       detail: clients > 0 ? (clients + ' client' + (clients === 1 ? '' : 's')) : 'no client folders yet',
       action: 'Add your first client with /client-setup.' },
@@ -420,6 +428,7 @@ function computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs) {
       detail: trusted > 0 ? (trusted + ' trusted') : 'nothing promoted to trusted yet',
       action: 'Promote a skill that has proven itself from live to trusted.' },
   ];
+  return isClient ? steps.filter((s) => s.key !== 'firstClient') : steps;
 }
 
 // ---- main -------------------------------------------------------------------
@@ -500,7 +509,7 @@ function getObservability(opts = {}) {
 
   const usageRecords = loadUsage(repoPath);
   const milestones = {
-    agency: computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs),
+    agency: computeAgencyMilestones(repoPath, skills, maturityDist, sinceTs, opts.teamKind),
     members: memberUsageStats(usageRecords),
   };
 

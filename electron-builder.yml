@@ -87,14 +87,13 @@ win:
       arch:
         - x64
   icon: assets/icon.ico
-  # Two trusted signer names during the move to signed Windows builds. Installed
-  # apps only auto-update to a build whose signature matches a name listed here
-  # (electron-updater bakes this into app-update.yml and checks it on Windows).
-  # Existing installs trust "8020brain"; the new SSL.com code-signing cert signs
-  # as "Mike Rhodes". Shipping this UNSIGNED release first gets "Mike Rhodes" onto
-  # every install's trust list, so the later signed release installs cleanly
-  # instead of being rejected as an unrecognised publisher. Don't drop "8020brain"
-  # until the whole base has signed builds.
+  # Trusted signer names for Windows auto-update. Installed apps only apply an
+  # update whose Authenticode signature matches a name listed here
+  # (electron-updater bakes this into app-update.yml and checks it on Windows;
+  # the in-app skip that made this list inert was removed 2026-08-13). Every
+  # build since v0.9.28 signs as "Mike Rhodes" via SSL.com in CI. "8020brain"
+  # stays until the whole base is confirmed on signed builds; dropping it is a
+  # deliberate later step, not housekeeping.
   publisherName:
     - 8020brain
     - Mike Rhodes

@@ -541,7 +541,9 @@ const server = http.createServer(async (req, res) => {
       }
     }
     if (req.method === 'GET' && p === '/api/observability') {
-      return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true }));
+      // teamKind makes the milestones kind-aware: a client brain gets three
+      // steps and the right context-prompt name, never "First client added".
+      return send(res, 200, getObservability({ repoPath: BRAIN_ROOT, includeTeam: true, teamKind: TEAM_KIND }));
     }
     // ---- Guided paths (the /start skill; Getting started + Learn Cowork tabs) ----
     // Definitions are the synced JSONs inside the start skill (single source
