@@ -2,6 +2,16 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.20 — 2026-08-12
+
+- **Setup can no longer skip building your brain.** If anything managed to put a single file into your brand-new repository before setup ran, setup used to read that as "already set up" and skip copying your brain in, leaving you with no skills and no instructions. It happened to three brains this week; all three are repaired. Setup now checks whether a brain is actually there before deciding, so a stray early file can't cost you anything. The server-side cause was fixed the same day, and this closes the whole class.
+
+- **Setup warns you before a client brain shares a GitHub organisation with another client's.** Nothing about sharing one is broken, and the brains stay private from each other either way. The difference comes at handover: a brain in its own organisation hands over with a two-minute invite, while a shared one needs a repository transfer, because an organisation owner can see every repository in it. Setup now says so before you're sent to GitHub, and both "use it anyway" and "I'll make a new organisation" carry on smoothly. The old claim that GitHub won't allow a second brain in one organisation was wrong and has been removed.
+
+- **Windows users are now pointed at the system tray, not the menu bar.** Every message that says where to find the app icon now names the right place for your computer: the menu bar on a Mac, the system tray (usually behind the little arrow) on Windows. When the app is signed out, Windows also shows a clickable balloon from the tray that opens the reconnect screen, and the signed-out banner uses the right wording too. Your Workbench can now also show its own banner when the app is signed out, which completes the change the template shipped earlier this month.
+
+- **The built-in help is up to date.** The offline copy of the FAQ that ships inside the app now matches the live one, including the fuller "Cowork can't see my files" answer that walks through all three causes. The live help already serves the newest answers from the database, so this only matters when you're offline.
+
 ## 1.1.19 — 2026-08-04
 
 - **Setup now links GitHub's own guide to creating an organisation.** Your brain needs a GitHub organisation, because GitHub does not allow apps to create repositories on a personal account. Setup already has a button that opens the create form with the free plan chosen for you, and that is still the quickest way through. For anyone who would rather read the steps before filling anything in, there is now a link to GitHub's own walkthrough sitting next to it. The help section has also been rewritten to say plainly that an organisation is required rather than recommended, and it now answers the case where setup sat waiting and nothing happened.
