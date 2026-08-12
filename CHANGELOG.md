@@ -2,6 +2,20 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.21 — 2026-08-13
+
+- **A client brain's setup checklist can now finish.** Client brains show three steps instead of four: the old "First client added" step asked the one thing some businesses can never do, so the checklist read as unfinished forever. The first step also now names the real setup prompt for your kind of brain, instead of a nickname no brain ships.
+
+- **A licence reminder inside a client's brain now speaks to the right person.** It says to ask the agency looking after the brain, instead of showing a red error written for the agency. On agency brains, the same moment now renders as a proper first-sale prompt with a working link rather than a failure message.
+
+- **Setup will never write the starter template over real work.** If the repository it's pointed at already holds a project of yours, setup stops and says so instead of copying files over it. And if an install was interrupted during its very first upload, the app now finishes the job itself, both when you retry and quietly in the background, instead of looking done while syncing nothing.
+
+- **Renaming a client's brain on the portal now reaches the app.** The new name shows up in the menu on the next launch or brain switch, so two similar brains can't wear stale labels side by side.
+
+- **Updates are checked against the publisher's signature on Windows.** Every build has been signed for weeks; the app now verifies that signature before installing an update, and a stale Command Centre can no longer pass itself off as current after an update.
+
+- **Every release now runs the full test suite before it builds.** Twelve of those tests had been failing quietly for six versions because of a stale test harness, now fixed, so a red test stops a release instead of shipping with one.
+
 ## 1.1.20 — 2026-08-12
 
 - **Setup can no longer skip building your brain.** If anything managed to put a single file into your brand-new repository before setup ran, setup used to read that as "already set up" and skip copying your brain in, leaving you with no skills and no instructions. It happened to three brains this week; all three are repaired. Setup now checks whether a brain is actually there before deciding, so a stray early file can't cost you anything. The server-side cause was fixed the same day, and this closes the whole class.
