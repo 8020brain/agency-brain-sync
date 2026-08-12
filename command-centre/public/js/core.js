@@ -2,7 +2,23 @@
   function $(id){return document.getElementById(id);}
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
-  async function api(p,opts){var r=await fetch(p,opts);var j=await r.json().catch(function(){return{};});if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;}
+  // The parsed body rides along on the error, because some failures are not
+  // failures. licence_due is the member's first sale and carries a code and a
+  // url; throwing away everything but the message is what made it render as
+  // "Failed: ..." in red. (Marco Assanti, 2026-08-12.)
+  async function api(p,opts){var r=await fetch(p,opts);var j=await r.json().catch(function(){return{};});if(!r.ok){var e=new Error(j.error||('HTTP '+r.status));e.body=j;e.status=r.status;throw e;}return j;}
+
+  // A first-sale prompt, not an error. Renders the server's words plus a real
+  // link to the Your Clients page, so nobody has to copy an address out of a
+  // sentence to get from one page of the portal to another.
+  function isLicenceDue(e){ return !!(e&&e.body&&e.body.code==='licence_due'); }
+  function showLicenceDue(st,e){
+    var url=(e.body&&e.body.url)||'https://m.ads2ai.com/client-brain';
+    st.innerHTML='<span style="display:block;font-weight:700;margin-bottom:4px">Your first sale</span>'+
+      esc(String(e.message||'').replace(/^[a-z-]+:\s*/i,''))+
+      '<span style="display:block;margin-top:8px"><a href="'+esc(url)+'" target="_blank" rel="noopener" '+
+      'style="color:#D64C00;font-weight:700">Switch the licence on ↗</a></span>';
+  }
 
   function ago(iso){
     if(!iso) return '—';
@@ -544,7 +560,12 @@
             if(d&&d.code){ st.textContent='Invite emailed to '+email+'. Their code is '+d.code+'; if the email lands in spam, you can send them the code yourself.'; }
             else { st.textContent='Invite sent to '+email+'.'; setTimeout(function(){ $(t[5]).hidden=true; st.textContent=''; },1800); }
           })
-          .catch(function(e){ st.textContent='Failed: '+(e.name==='AbortError'?'timed out — try again':e.message); })
+          .catch(function(e){
+            // The form is deliberately NOT cleared here (only the success path
+            // clears it), so "what you typed is still here" is true.
+            if(isLicenceDue(e)) return showLicenceDue(st,e);
+            st.textContent='Failed: '+(e.name==='AbortError'?'timed out — try again':e.message);
+          })
           .then(function(){ clearTimeout(to); send.disabled=false; send.textContent='Send invite'; });
       });
     });
