@@ -2053,23 +2053,31 @@ ipcMain.handle('set-team-repo-url', async (_evt, token, teamSlug, repoUrl) => {
   return r.json();
 });
 
-// Seed a freshly-created EMPTY agency repo from the agency-brain-template.
+// Seed a not-yet-set-up agency repo from the agency-brain-template.
 // The API install-callback (Phase 1, AGENCY_AUTO_CREATE_REPO) makes the org repo
 // EMPTY; this fills it on first clone. Clones the private template with a brokered
-// read token, drops the template's history, copies its files over the (empty)
-// target, then commits + pushes to the owner's repo using the token still embedded
-// in `origin`. Returns true if it seeded, false if the repo already had content
+// read token, drops the template's history, copies its files over the target,
+// then commits + pushes to the owner's repo using the token still embedded
+// in `origin`. Returns true if it seeded, false if the repo already holds a brain
 // (the normal already-bootstrapped path). Throws loudly if the template can't be
 // reached — better a clear error than a silently-empty brain.
 async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
-  // An empty repo has no commits, so rev-parse HEAD fails (unborn branch).
-  let isEmpty = false;
+  // "Already bootstrapped" used to mean "has any commit at all", which made the
+  // seed skippable by anything that wrote a single file into the repo first. The
+  // server-side roles.json sweep does exactly that, so a client whose repo got
+  // swept before setup ran ended up with roles.json and NOTHING else: no
+  // .claude/, no skills, and a Command Centre reporting no guided path.
+  // (Marco Assanti's client brain, 2026-08-12.) The question is whether a brain
+  // is here, not whether history is, so ask for the markers a brain always has.
+  let hasBrain = false;
   try {
     await runGit(['-C', targetFolder, 'rev-parse', 'HEAD']);
+    hasBrain = fs.existsSync(path.join(targetFolder, '.claude'))
+      || fs.existsSync(path.join(targetFolder, 'CLAUDE.md'));
   } catch (e) {
-    isEmpty = true;
+    hasBrain = false; // unborn branch: an empty repo, the original case
   }
-  if (!isEmpty) return false;
+  if (hasBrain) return false;
 
   sendWizardLog('Fresh repo — setting it up from the template…');
 
