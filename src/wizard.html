@@ -145,6 +145,21 @@
               <button class="btn" id="btn-check-org" type="button" disabled>Check it</button>
             </div>
             <p id="org-check-status" aria-live="polite" style="min-height:1.3em;font-size:0.95em;"></p>
+            <!-- Shared-organisation warning. Shown when the named organisation
+                 already holds another brain from the same agency. It is a
+                 WARNING and never a block: putting several clients in one
+                 organisation works and the brains stay separate. What it costs
+                 is handover, which becomes a repository transfer instead of a
+                 two-minute invite. Both buttons lead somewhere, so this is
+                 never a dead end. -->
+            <div class="hidden" id="shared-org-warning" style="margin-top:0.8em;border-left:3px solid #D64C00;padding:0.2em 0 0.2em 1em;">
+              <p style="color:#333;margin:0 0 0.5em 0;font-weight:600;" id="shared-org-heading"></p>
+              <div id="shared-org-body" style="color:#333;"></div>
+              <div class="field" style="max-width:none;margin-top:0.6em;">
+                <button class="btn" id="btn-shared-org-continue" type="button">Use it anyway</button>
+                <button class="btn ghost hidden" id="btn-shared-org-new" type="button" style="margin-left:0.5em;">I'll make a new organisation</button>
+              </div>
+            </div>
           </div>
         </div>
 

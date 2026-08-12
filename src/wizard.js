@@ -629,6 +629,10 @@
   // The organisation the user named and GitHub confirmed, held so the connect
   // button can deep-link straight to it and every message can name it.
   let verifiedOrg = null;   // { login, id }
+  // Lower-cased login of an organisation the user has already been warned about
+  // sharing, and accepted. Stops the same handover warning appearing twice on
+  // one run (once before GitHub, once on the way back with the finished brain).
+  let sharedOrgAcked = '';
   // Sequence number for the org-name checks. Bumped on every new check AND by
   // lockConnectStep (which every edit runs through), so a lookup that resolves
   // late for a superseded name is ignored instead of unlocking step 3.
@@ -684,10 +688,95 @@
   function lockConnectStep() {
     verifiedOrg = null;
     orgCheckSeq++;
+    hideSharedOrgWarning();
     const step3 = document.getElementById('org-step-3');
     const btn = document.getElementById('btn-connect-org');
     if (step3) step3.classList.add('locked');
     if (btn) btn.disabled = true;
+  }
+
+  // ---- shared-organisation warning ----
+  //
+  // Shown when the organisation someone named already holds another brain from
+  // the same agency. It WARNS and never blocks: several clients in one
+  // organisation works, and the brains stay separate, because nobody can read a
+  // repository they haven't been added to. What it costs is handover. Handing a
+  // brain over from an organisation of its own is a two-minute invite; from a
+  // shared organisation it's a repository transfer, because an organisation
+  // owner can read every repository in it.
+  //
+  // The wording arrives ready-made from main.js (lib/shared-org.cjs) so the
+  // before-GitHub warning and the after-the-fact one can't drift apart.
+
+  function hideSharedOrgWarning() {
+    const wrap = document.getElementById('shared-org-warning');
+    if (wrap) wrap.classList.add('hidden');
+  }
+
+  /**
+   * @param shared the server's finding, already carrying heading + body
+   * @param opts.onProceed   run when they choose to use this organisation
+   * @param opts.onPickAnother  omit once the brain exists, which turns the panel
+   *   into a single "Got it" acknowledgement instead of a choice.
+   */
+  function showSharedOrgWarning(shared, opts) {
+    const wrap = document.getElementById('shared-org-warning');
+    const headingEl = document.getElementById('shared-org-heading');
+    const bodyEl = document.getElementById('shared-org-body');
+    const proceedBtn = document.getElementById('btn-shared-org-continue');
+    const newOrgBtn = document.getElementById('btn-shared-org-new');
+    const onProceed = (opts && opts.onProceed) || function () {};
+    const onPickAnother = opts && opts.onPickAnother;
+    // No panel to put it in? Carry on rather than stranding a working setup.
+    if (!wrap || !headingEl || !bodyEl || !proceedBtn || !newOrgBtn) { onProceed(); return; }
+
+    headingEl.textContent = shared.heading || '';
+    bodyEl.innerHTML = '';
+    for (const para of (shared.body || [])) {
+      const p = document.createElement('p');
+      p.style.margin = '0 0 0.5em 0';
+      p.textContent = para;
+      bodyEl.appendChild(p);
+    }
+
+    proceedBtn.textContent = onPickAnother ? `Use ${shared.org} anyway` : 'Got it, carry on';
+    // Assigned rather than added, so re-showing the panel replaces the previous
+    // choice instead of stacking a second listener on top of it.
+    proceedBtn.onclick = () => { hideSharedOrgWarning(); onProceed(); };
+    if (onPickAnother) {
+      newOrgBtn.classList.remove('hidden');
+      newOrgBtn.onclick = () => { onPickAnother(); };
+    } else {
+      newOrgBtn.classList.add('hidden');
+      newOrgBtn.onclick = null;
+    }
+    wrap.classList.remove('hidden');
+  }
+
+  // "I'll make a new organisation": back to an empty box and step 1, never a
+  // dead end. lockConnectStep hides the panel and invalidates the old ruling.
+  function resetOrgNameEntry() {
+    lockConnectStep();
+    // They may already have clicked through to GitHub before changing their
+    // mind, so stop waiting on the organisation they've just walked away from.
+    stopConnectOrgPoll();
+    const input = document.getElementById('orgNameInput');
+    const checkBtn = document.getElementById('btn-check-org');
+    const waitingEl = document.getElementById('connect-org-status');
+    if (input) { input.value = ''; input.focus(); }
+    if (checkBtn) { checkBtn.disabled = true; checkBtn.textContent = 'Check it'; }
+    if (waitingEl) waitingEl.textContent = '';
+    setOrgCheckStatus('Make the new organisation in step 1, then type its name here and click Check it.', '');
+  }
+
+  // The brain already exists by the time this runs, so there's nothing left to
+  // choose: one acknowledgement, then straight on. Silent when they were already
+  // warned about this organisation before they went to GitHub.
+  function proceedAfterSharedOrg(shared, next) {
+    const org = shared && String(shared.org || '').toLowerCase();
+    if (!shared || !org || sharedOrgAcked === org) { next(); return; }
+    sharedOrgAcked = org;
+    showSharedOrgWarning(shared, { onProceed: next });
   }
 
   function unlockConnectStep(org) {
@@ -702,6 +791,30 @@
         + '</strong> on GitHub, with no list to choose from. Approve it there and I\'ll create the brain '
         + 'and pull it down for you.';
     }
+  }
+
+  // The org may ALREADY have the app (typical when the agency's own brain lives
+  // there, or on a re-run). GitHub would show only "Configure" and never report
+  // back, so ask our server to link the existing installation now — if it can,
+  // the whole GitHub trip disappears (this is the check v1.1.11 promised:
+  // settled in the app, before GitHub ever appears).
+  async function adoptExistingOrgInstall(seq, shown, orgLogin) {
+    if (!authToken || !connectOrgSlug) return;
+    try {
+      const ad = await api.adoptOrgInstallation({ memberToken: authToken, teamSlug: connectOrgSlug, org: orgLogin });
+      if (seq !== orgCheckSeq) return; // superseded while we asked
+      if (ad && ad.installed) {
+        setOrgCheckStatus(`${shown} is already connected — no GitHub step needed. Creating your brain…`, 'org-check-ok');
+        if (ad.repoUrl) {
+          stopConnectOrgPoll();
+          if (teamInfo) teamInfo.repoUrl = ad.repoUrl;
+          proceedAfterSharedOrg(ad.sharedOrg, enterMachine);
+          return;
+        }
+        // Linked but no repo yet — the poll's ensure branch finishes it.
+        connectOrgStartWaiting();
+      }
+    } catch (e) { /* offline or API hiccup — the normal flow still works */ }
   }
 
   async function checkOrgName() {
@@ -725,28 +838,28 @@
     if (res && res.ok) {
       setOrgCheckStatus(`Found it. ${shown} is a GitHub organisation, so it can hold the brain.`, 'org-check-ok');
       unlockConnectStep({ login: res.login, id: res.id });
-      // The org may ALREADY have the app (typical when the agency's own brain
-      // lives there, or on a re-run). GitHub would show only "Configure" and
-      // never report back, so ask our server to link the existing installation
-      // now — if it can, the whole GitHub trip disappears (this is the check
-      // v1.1.11 promised: settled in the app, before GitHub ever appears).
-      if (authToken && connectOrgSlug) {
+      // Warn about a shared organisation HERE, while the name is still just
+      // text in a box. Once the brain has been created in it, "I'll make a new
+      // one" stops being a cheap answer.
+      if (authToken && connectOrgSlug && sharedOrgAcked !== String(res.login).toLowerCase()) {
+        let shared = null;
         try {
-          const ad = await api.adoptOrgInstallation({ memberToken: authToken, teamSlug: connectOrgSlug, org: res.login });
-          if (seq !== orgCheckSeq) return; // superseded while we asked
-          if (ad && ad.installed) {
-            setOrgCheckStatus(`${shown} is already connected — no GitHub step needed. Creating your brain…`, 'org-check-ok');
-            if (ad.repoUrl) {
-              stopConnectOrgPoll();
-              if (teamInfo) teamInfo.repoUrl = ad.repoUrl;
-              enterMachine();
-              return;
-            }
-            // Linked but no repo yet — the poll's ensure branch finishes it.
-            connectOrgStartWaiting();
-          }
-        } catch (e) { /* offline or API hiccup — the normal flow still works */ }
+          const r = await api.checkOrgBrains({ memberToken: authToken, teamSlug: connectOrgSlug, org: res.login });
+          shared = r && r.sharedOrg;
+        } catch (e) { /* a warning that breaks setup is worse than no warning */ }
+        if (seq !== orgCheckSeq) return; // superseded while we asked
+        if (shared) {
+          showSharedOrgWarning(shared, {
+            onProceed: () => {
+              sharedOrgAcked = String(res.login).toLowerCase();
+              adoptExistingOrgInstall(seq, shown, res.login);
+            },
+            onPickAnother: resetOrgNameEntry,
+          });
+          return;
+        }
       }
+      await adoptExistingOrgInstall(seq, shown, res.login);
       return;
     }
     // Every message below says what GitHub actually reported, and what to do
@@ -861,7 +974,7 @@
             if (ad.repoUrl) {
               stopConnectOrgPoll();
               if (teamInfo) teamInfo.repoUrl = ad.repoUrl;
-              enterMachine();
+              proceedAfterSharedOrg(ad.sharedOrg, enterMachine);
               return;
             }
             // Linked, no repo yet: fall through so the ensure branch below
@@ -896,7 +1009,7 @@
           if (res && !res.blocked && res.repoUrl) {
             stopConnectOrgPoll();
             if (teamInfo) teamInfo.repoUrl = res.repoUrl;
-            enterMachine();
+            proceedAfterSharedOrg(res.sharedOrg, enterMachine);
             return;
           }
           if (res && res.blocked) {
@@ -960,9 +1073,16 @@
       }
       if (step1Title) step1Title.textContent = brandName ? `Create a GitHub organisation for ${brandName}` : 'Create a GitHub organisation for the client';
       if (step1Text) {
-        step1Text.innerHTML = 'This brain needs an organisation of its own, separate from yours and from every other client\'s. '
-          + 'That is what lets you hand the whole thing over to them later, and GitHub will not put a second brain '
-          + 'in an organisation that already has one.';
+        // This used to end "GitHub will not put a second brain in an organisation
+        // that already has one", which isn't true: a second brain there is
+        // created and works, and the two stay separate. Saying otherwise would
+        // also contradict the shared-organisation warning below, which lets
+        // people go ahead. The real reason to give each client their own is
+        // handover, so that is what it says now.
+        step1Text.innerHTML = 'Give this brain an organisation of its own, separate from yours and from every other client\'s. '
+          + 'That is what keeps handing the whole thing over to them later a two-minute job. You can put several clients '
+          + 'in one organisation and they do stay separate, but handover from there means transferring the repository '
+          + 'across instead.';
       }
       if (step1Caption) {
         // GitHub's own funnel asks three things that stall people (all three

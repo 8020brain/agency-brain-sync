@@ -21,6 +21,7 @@ const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
 const { adoptBrain } = require('./lib/adopt-brain.cjs');
 const { ensureCredentialHelper } = require('./lib/git-credential.cjs');
 const { normaliseAccountName, isValidAccountName, classifyAccount } = require('./lib/github-account.cjs');
+const { describeSharedOrg } = require('./lib/shared-org.cjs');
 
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
@@ -1955,8 +1956,46 @@ ipcMain.handle('adopt-org-installation', async (_evt, args) => {
     const body = await r.json().catch(() => ({}));
     throw new Error(body.error || `adopt-org-installation failed (HTTP ${r.status})`);
   }
-  return r.json(); // { adopted, installed, repoUrl } | { adopted: false, reason }
+  // { adopted, installed, repoUrl, sharedOrg } | { adopted: false, reason }
+  return withSharedOrgWording(await r.json(), 'after');
 });
+
+// Does this organisation already hold another of the agency's brains? Asked
+// while the name is still just text in a box, so the handover warning lands
+// BEFORE anyone is sent to GitHub. The server only reads its own database here:
+// no GitHub call, no writes, and nothing it returns can refuse a setup.
+//
+// A warning that breaks setup would be worse than no warning, so every failure
+// (offline, API restart, a caller the server won't answer) resolves to "nothing
+// to say" and the wizard carries on exactly as it did before.
+ipcMain.handle('check-org-brains', async (_evt, args) => {
+  const { memberToken, teamSlug, org } = args || {};
+  if (!memberToken || !teamSlug || !org) return { sharedOrg: null };
+  try {
+    const r = await fetch(`${API_BASE}/api/team-brain/org-brain-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${memberToken}` },
+      body: JSON.stringify({ teamSlug, org }),
+    });
+    if (!r.ok) return { sharedOrg: null };
+    return withSharedOrgWording(await r.json(), 'before');
+  } catch (err) {
+    return { sharedOrg: null };
+  }
+});
+
+// Attach the ready-made heading and paragraphs to whatever `sharedOrg` the
+// server sent, so all three call sites say the same thing and the renderer
+// never has to build the wording itself.
+function withSharedOrgWording(payload, mode) {
+  const body = payload || {};
+  if (body.sharedOrg) {
+    const words = describeSharedOrg(body.sharedOrg, mode);
+    if (words) body.sharedOrg = { ...body.sharedOrg, ...words, mode };
+    else body.sharedOrg = null;
+  }
+  return body;
+}
 
 // Check a GitHub account name BEFORE anyone is sent to GitHub's install picker.
 // This is a public, unauthenticated endpoint, so it works before any install
@@ -1984,7 +2023,7 @@ ipcMain.handle('github-account-lookup', async (_evt, login) => {
 // we're installed on, or adopt the right existing one. Replaces the old
 // "wait and hope the redirect did it" loop, which stranded any owner whose org
 // already had repos in it (Gerrards, 2026-07-28).
-// Returns { blocked:false, repoUrl } or { blocked:true, reason, repos }.
+// Returns { blocked:false, repoUrl, sharedOrg } or { blocked:true, reason, repos }.
 ipcMain.handle('ensure-brain-repo', async (_evt, token, teamSlug) => {
   const r = await fetch(`${API_BASE}/api/team-brain/ensure-brain-repo`, {
     method: 'POST',
@@ -1995,7 +2034,9 @@ ipcMain.handle('ensure-brain-repo', async (_evt, token, teamSlug) => {
     const body = await r.json().catch(() => ({}));
     throw new Error(body.error || `HTTP ${r.status}`);
   }
-  return r.json();
+  // The brain exists by this point, so the handover warning is 'after': worth
+  // knowing, nothing to decide.
+  return withSharedOrgWording(await r.json(), 'after');
 });
 
 // The owner picked one of their existing repos to be the brain.

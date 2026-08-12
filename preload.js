@@ -38,6 +38,11 @@ const api = {
   // Link an installation that already exists on the named org (the "Configure,
   // never reports back" dead end) — see the handler in main.js.
   adoptOrgInstallation: (args) => ipcRenderer.invoke('adopt-org-installation', args),
+  // Warning only: does this org already hold another of the agency's brains?
+  // Args: { memberToken, teamSlug, org }. Returns { sharedOrg } — an object
+  // carrying { org, count, clients, heading, body, mode } when there's
+  // something to say, else null. Never refuses or blocks a setup.
+  checkOrgBrains: (args) => ipcRenderer.invoke('check-org-brains', args),
   setTeamRepoUrl: (token, teamSlug, repoUrl) => ipcRenderer.invoke('set-team-repo-url', token, teamSlug, repoUrl),
 
   // Email + OTP first-run: enter email -> request code -> verify -> look up
