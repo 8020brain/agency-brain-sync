@@ -11,8 +11,23 @@
   // A first-sale prompt, not an error. Renders the server's words plus a real
   // link to the Your Clients page, so nobody has to copy an address out of a
   // sentence to get from one page of the portal to another.
+  //
+  // Except inside a client's brain. The server's message is written for the
+  // MEMBER (it names the portal and the licence price, and talks about what
+  // "your client" pays), and the only screen this fires on is a client brain's
+  // own Command Centre, where the person reading is usually the client's owner.
+  // Showing them the member's buy price is the one thing a white-label must
+  // never do, so a client brain gets neutral words and no link (2026-08-13
+  // review, flow finding B4; Mike: fix now, aware of which kind they are).
   function isLicenceDue(e){ return !!(e&&e.body&&e.body.code==='licence_due'); }
   function showLicenceDue(st,e){
+    if(CCKIND==='client'){
+      st.innerHTML='<span style="display:block;font-weight:700;margin-bottom:4px">One thing to switch on first</span>'+
+        'Adding people here needs a switch flipped by the agency looking after your AI brain. '+
+        'Ask them to add this person for you, or to switch it on. It takes them about a minute, '+
+        'and what you typed is still here.';
+      return;
+    }
     var url=(e.body&&e.body.url)||'https://m.ads2ai.com/client-brain';
     st.innerHTML='<span style="display:block;font-weight:700;margin-bottom:4px">Your first sale</span>'+
       esc(String(e.message||'').replace(/^[a-z-]+:\s*/i,''))+
