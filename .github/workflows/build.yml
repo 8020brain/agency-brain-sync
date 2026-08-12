@@ -23,6 +23,12 @@ jobs:
       # Electron binary download the tests never use. (v1.1.21's test job ran
       # bare and died on exactly this.)
       - run: npm ci --ignore-scripts
+      # The sync harness builds real git repos and pushes "main". Every dev
+      # machine sets init.defaultBranch=main globally; the runner's git still
+      # defaults to master, which killed v1.1.22 with "src refspec main does
+      # not match any". Mirror the dev environment rather than patching every
+      # fixture.
+      - run: git config --global init.defaultBranch main
       - run: npm test
 
   build:
