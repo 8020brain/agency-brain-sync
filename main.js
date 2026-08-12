@@ -1180,7 +1180,17 @@ async function ccHealthy() {
     if (!h) return false;
     const cfg = loadConfig();
     if (!cfg || !cfg.brainPath) return true;
-    return h.brainRoot === cfg.brainPath && String(h.teamSlug || '') === String(cfg.teamSlug || '');
+    // Identity is not enough. After an update the OLD server is still serving
+    // the SAME brain and team, so it passed this check, kept the port, and the
+    // new app pointed its window at its stale pages — the Command Centre then
+    // shows the previous version in both corners while the update dialog
+    // correctly reports the new one (The Digital Stride, 1.1.3 under a 1.1.19
+    // app, 2026-08-12). Version is the half that catches it. A server too old
+    // to report one yields undefined and fails here, which is the right answer:
+    // eviction already handles both the /api/shutdown and kill-by-PID cases.
+    return h.brainRoot === cfg.brainPath
+      && String(h.teamSlug || '') === String(cfg.teamSlug || '')
+      && String(h.version || '') === String(MY_VERSION);
   } catch { return false; }
 }
 
