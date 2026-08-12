@@ -926,6 +926,19 @@ async function classifyState() {
 
   const localSha = git('rev-parse', branch);
   const remoteSha = git('rev-parse', `origin/${branch}`);
+  if (localSha && !remoteSha) {
+    // No origin/<branch> after a successful fetch. If the remote has no
+    // branches AT ALL, this is a stranded first publish: setup seeded and
+    // committed, the very first push died, and the retry adopted the folder
+    // without pushing. Every tick used to park this as "unrecognised git
+    // state" forever while the portal said Live (2026-08-13 review, flow
+    // finding B2). Name the state so doSync can finish the publish.
+    const heads = await withAuthenticatedRemote(() => git('ls-remote', '--heads', 'origin')).catch(() => null);
+    if (heads !== null && String(heads).trim() === '') {
+      return { state: 'unpublished_first_commit', branch };
+    }
+    return { state: 'unknown', branch };
+  }
   if (!localSha || !remoteSha) return { state: 'unknown', branch };
 
   if (localSha === remoteSha) {
@@ -1018,6 +1031,21 @@ async function doSync(trigger) {
         console.log(`[${ts()}]   fast-forwarded`);
         clearStall();
         reportRunning([]);
+      }
+      return;
+    }
+    if (s.state === 'unpublished_first_commit') {
+      // Finish the publish the setup run never completed: push the local
+      // commits up as the remote's first branch. Self-heals brains already
+      // stranded in the field, not just future installs.
+      console.log(`[${ts()}] ${trigger}: remote has no branches but local has commits; publishing first commit`);
+      const pushed = await withAuthenticatedRemote(() => git('push', '-u', 'origin', s.branch)).catch(() => null);
+      if (pushed === null) {
+        console.log(`[${ts()}]   first publish failed; will retry next tick`);
+        writeState('stop', 'first publish pending (push failed, retrying)');
+      } else {
+        console.log(`[${ts()}]   first publish landed`);
+        writeState('ok', 'first publish landed');
       }
       return;
     }
