@@ -1458,6 +1458,65 @@ ipcMain.handle('resolve-target-folder', (_evt, picked, folderSlug) => {
 });
 
 // ---------- Claude desktop app detection ----------
+// Windows ships Claude Desktop in several packagings and the install path differs
+// across all of them, so a single hardcoded exe path reports "not found" on a
+// machine that has the app and uses it daily (Mike, LWJ client brain, 2026-08-13:
+// a member read "not found" and told her client to download Claude she'd had for
+// weeks). Check every real-world layout and treat any one signal as installed.
+// Returns { path, version } or null. Closes over fs/path/process only, so the
+// test harness can lift it straight out of main.js without Electron.
+function findClaudeWindows() {
+  const la = process.env.LOCALAPPDATA || '';
+  const ra = process.env.APPDATA || '';
+  const pf = process.env.ProgramFiles || '';
+  const pf86 = process.env['ProgramFiles(x86)'] || '';
+  const exists = (p) => { try { return !!p && fs.existsSync(p); } catch (_) { return false; } };
+  const listDir = (p) => { try { return fs.readdirSync(p); } catch (_) { return []; } };
+
+  // 1) MSIX / Store package — the current default download. Its launcher is an
+  // app-execution alias whose reparse point can make fs.existsSync throw, so read
+  // the WindowsApps folder listing by name instead of stat-ing the alias.
+  const winApps = la && path.join(la, 'Microsoft', 'WindowsApps');
+  if (winApps && listDir(winApps).some((e) => /^Claude\.exe$/i.test(e))) {
+    return { path: path.join(winApps, 'Claude.exe'), version: '' };
+  }
+  // The package data folder (%LOCALAPPDATA%\Packages\Claude_<hash>) is proof of a
+  // packaged install even when the alias listing is unavailable.
+  const pkgRoot = la && path.join(la, 'Packages');
+  const pkg = pkgRoot && listDir(pkgRoot).find((e) => /^Claude_/i.test(e));
+  if (pkg) return { path: path.join(pkgRoot, pkg), version: '' };
+
+  // 2) Squirrel install (%LOCALAPPDATA%\AnthropicClaude) — the real exe lives in a
+  // versioned app-<ver> subfolder, and that folder name gives us the version.
+  const squirrel = la && path.join(la, 'AnthropicClaude');
+  if (exists(squirrel)) {
+    const apps = listDir(squirrel).filter((e) => /^app-\d/i.test(e)).sort();
+    for (const d of apps.reverse()) {
+      const p = path.join(squirrel, d, 'claude.exe');
+      if (exists(p)) { const m = d.match(/app-([\d.]+)/i); return { path: p, version: m ? m[1] : '' }; }
+    }
+    if (exists(path.join(squirrel, 'claude.exe'))) return { path: path.join(squirrel, 'claude.exe'), version: '' };
+    if (exists(path.join(squirrel, 'Update.exe'))) return { path: squirrel, version: '' };
+  }
+
+  // 3) Plain per-user / machine installs.
+  const plain = [
+    la && path.join(la, 'Programs', 'claude', 'Claude.exe'),
+    pf && path.join(pf, 'Claude', 'Claude.exe'),
+    pf86 && path.join(pf86, 'Claude', 'Claude.exe'),
+  ];
+  for (const p of plain) if (exists(p)) return { path: p, version: '' };
+
+  // 4) Roaming config folder — created on first run, so present for anyone using
+  // the classic build daily. Weakest signal (a leftover can linger after an
+  // uninstall), which is why it is checked last.
+  if (exists(path.join(ra, 'Claude', 'claude_desktop_config.json'))) {
+    return { path: path.join(ra, 'Claude'), version: '' };
+  }
+
+  return null;
+}
+
 ipcMain.handle('detect-claude-desktop', async () => {
   try {
     if (process.platform === 'darwin') {
@@ -1472,16 +1531,21 @@ ipcMain.handle('detect-claude-desktop', async () => {
       return { installed: true, version: version || 'unknown' };
     }
     if (process.platform === 'win32') {
-      // Best-effort: query the registry. If anything goes wrong, report not installed
-      // so the user sees the "install it" flow and can Skip if they have it.
-      const version = await new Promise((resolve) => {
-        execFile('reg', ['query', 'HKCU\\Software\\Anthropic\\Claude', '/v', 'DisplayVersion'], (err, stdout) => {
-          if (err) return resolve(null);
-          const m = stdout.match(/DisplayVersion\s+REG_SZ\s+(\S+)/);
-          resolve(m ? m[1] : null);
+      const found = findClaudeWindows();
+      if (!found) return { installed: false };
+      // The Squirrel folder name carries the version directly; otherwise try the
+      // registry, and if that's empty just confirm it's there (installed still true).
+      let version = found.version || '';
+      if (!version) {
+        version = await new Promise((resolve) => {
+          execFile('reg', ['query', 'HKCU\\Software\\Anthropic\\Claude', '/v', 'DisplayVersion'], (err, stdout) => {
+            if (err) return resolve('');
+            const m = stdout.match(/DisplayVersion\s+REG_SZ\s+(\S+)/);
+            resolve(m ? m[1] : '');
+          });
         });
-      });
-      return version ? { installed: true, version } : { installed: false };
+      }
+      return { installed: true, version };
     }
     return { installed: false };
   } catch (_) {
@@ -2558,12 +2622,19 @@ function detectMachine() {
       ? { key: s.key, label: s.label, present: true, version: toolVersion(p, s.varg), path: p }
       : { key: s.key, label: s.label, present: false, version: '', path: '' };
   });
-  const claudePaths = isWin
-    ? [path.join(process.env.LOCALAPPDATA || '', 'Programs', 'claude', 'Claude.exe'),
-       path.join(process.env.LOCALAPPDATA || '', 'AnthropicClaude', 'Claude.exe')]
-    : ['/Applications/Claude.app', '/Applications/Cowork.app'];
-  const claude = claudePaths.find((p) => p && fs.existsSync(p));
-  tools.push({ key: 'cowork', label: 'Claude desktop app', present: !!claude, version: '', path: claude || '' });
+  // Windows ships Claude Desktop in several packagings (MSIX/Store, Squirrel,
+  // plain per-user) whose install paths all differ, so findClaudeWindows() checks
+  // every real layout instead of one guessed exe path that read "not found" on
+  // machines that had the app.
+  let claude = '';
+  let claudeVersion = '';
+  if (isWin) {
+    const found = findClaudeWindows();
+    if (found) { claude = found.path; claudeVersion = found.version || ''; }
+  } else {
+    claude = ['/Applications/Claude.app', '/Applications/Cowork.app'].find((p) => fs.existsSync(p)) || '';
+  }
+  tools.push({ key: 'cowork', label: 'Claude desktop app', present: !!claude, version: claudeVersion, path: claude });
   // The platform rides along so the screen can give the right install
   // instructions for a missing Git (a Windows download vs macOS's developer
   // tools prompt) without the renderer having to guess from the user agent.
