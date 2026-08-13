@@ -312,7 +312,10 @@ function liveRole() {
 function writeLocalIdentity(nameOverride) {
   return localIdentity.writeLocalIdentity({
     brainRoot: BRAIN_ROOT,
-    name: (nameOverride || MEMBER_NAME || '').trim(),
+    // A typed name (the banner) always wins; otherwise the live roster name
+    // beats the config snapshot, which can be a stale or wrong stored name
+    // (Peter Empson's brand-as-name, 2026-08-13). Mirrors liveRole()'s order.
+    name: (nameOverride || localIdentity.nameFromRoster(BRAIN_ROOT, MEMBER_EMAIL) || MEMBER_NAME || '').trim(),
     role: liveRole(),
     teamKind: TEAM_KIND,
     teamName: agencyName(),

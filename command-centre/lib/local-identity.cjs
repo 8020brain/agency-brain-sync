@@ -29,6 +29,20 @@ function roleFromRoster(brainRoot, email) {
   } catch (e) { return ''; }
 }
 
+// Name of record for an email, from the synced roster — same reason as the
+// role above. config.json's memberName snapshot is whatever was typed when the
+// seat was staged, and with nothing refreshing it a wrong name was
+// uncorrectable (Peter Empson's agency seat stored the brand "Rok Systems", so
+// every write said "You are the brain instance for Rok Systems", 2026-08-13).
+// roles.json carries the live name, so callers prefer it over the snapshot.
+function nameFromRoster(brainRoot, email) {
+  try {
+    const roles = JSON.parse(fs.readFileSync(path.join(brainRoot, '.team-config', 'roles.json'), 'utf8'));
+    const m = (roles.members || []).find((x) => String(x.email || '').toLowerCase() === String(email || '').toLowerCase().trim());
+    return ((m && m.name) || '').trim();
+  } catch (e) { return ''; }
+}
+
 function teamNameFromRoster(brainRoot) {
   try {
     const roles = JSON.parse(fs.readFileSync(path.join(brainRoot, '.team-config', 'roles.json'), 'utf8'));
@@ -67,8 +81,9 @@ function writeLocalIdentity({ brainRoot, name, role, teamKind, teamName }) {
   // A client brain is white-label: this file lands in the CLIENT's repo, where
   // naming the product would tell them who their agency buys from.
   const instance = teamKind === 'client' ? 'brain instance' : 'Agency Brain instance';
+  const article = /^[aeiou]/i.test(r) ? 'an' : 'a';
   const body = '# CLAUDE.local.md — local identity (per-person, never synced)\n\n'
-    + `You are the ${instance} for **${who}**, a **${r}** at **${agency}**.\n\n`
+    + `You are the ${instance} for **${who}**, ${article} **${r}** at **${agency}**.\n\n`
     + 'This file is local to this machine and is never synced to the team.\n';
   ensureIdentityPointer(brainRoot);
   ensureGitignored(brainRoot, 'CLAUDE.local.md');
@@ -76,4 +91,4 @@ function writeLocalIdentity({ brainRoot, name, role, teamKind, teamName }) {
   return { name: who, role: r, agency };
 }
 
-module.exports = { IDENTITY_POINTER, hasLocalIdentity, roleFromRoster, teamNameFromRoster, writeLocalIdentity };
+module.exports = { IDENTITY_POINTER, hasLocalIdentity, roleFromRoster, nameFromRoster, teamNameFromRoster, writeLocalIdentity };

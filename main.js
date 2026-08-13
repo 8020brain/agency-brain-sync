@@ -2401,7 +2401,7 @@ ipcMain.handle('configure-identity', async (_evt, args) => {
       if (!li.hasLocalIdentity(brainPath)) {
         li.writeLocalIdentity({
           brainRoot: brainPath,
-          name: memberName,
+          name: li.nameFromRoster(brainPath, memberEmail) || memberName,
           role: li.roleFromRoster(brainPath, memberEmail) || 'team',
           teamKind,
           teamName: li.teamNameFromRoster(brainPath),
