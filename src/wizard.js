@@ -1262,7 +1262,7 @@
         const detail = t.present && t.version ? `<span class="check-detail">${escapeHtml(t.version)}</span>` : '';
         row.innerHTML = `<span class="check-mark">${t.present ? '&#10003;' : '&#43;'}</span>
           <span class="check-label">${escapeHtml(t.label)}</span>${detail}
-          <span class="check-status">${t.present ? 'installed' : 'not found'}</span>`;
+          <span class="check-status">${t.present ? 'installed' : 'not detected'}</span>`;
         list.appendChild(row);
       });
       // A missing Git used to be one grey line in a footnote that also said
@@ -1288,8 +1288,8 @@
       if (optionalMissing) {
         note.className = 'check-note';
         note.innerHTML = machineGitMissing
-          ? "Anything else marked <em>not found</em> you can install whenever suits, and it won't hold setup up. The check can also miss things that are installed."
-          : "Anything marked <em>not found</em> you can install whenever suits, and you can carry on now either way. The check can also miss things that are installed.";
+          ? "Anything else marked <em>not detected</em> you can install whenever suits, and it won't hold setup up. This check only looks in the usual places, so if you know you've already got one of these, trust that over the list."
+          : "Anything marked <em>not detected</em> you can install whenever suits, and you can carry on now either way. This check only looks in the usual places, so if you know you've already got one of these, trust that over the list.";
       }
     } catch (e) {
       list.innerHTML = `<div class="check-row missing"><span class="check-mark">!</span><span class="check-label">Detection failed</span><span class="check-status">${escapeHtml(String(e))}</span></div>`;
@@ -1598,8 +1598,8 @@
       tag.textContent = 'installed';
       body.textContent = `Found on your computer (version ${d.version || 'detected'}). Inside it you can use Claude Code, or Cowork, a friendlier UI some people prefer.`;
     } else {
-      tag.textContent = 'not found';
-      body.textContent = "Not installed yet. It's the app called Claude (not 'Claude Code'). Free from Anthropic.";
+      tag.textContent = 'not detected';
+      body.textContent = "I couldn't find the Claude desktop app automatically. This check only looks in the usual spots, so if you know it's already installed (the app called Claude, not 'Claude Code'), you're set, just carry on. If you don't have it yet, it's free from Anthropic.";
       dl.classList.remove('hidden');
       recheck.classList.remove('hidden');
     }
