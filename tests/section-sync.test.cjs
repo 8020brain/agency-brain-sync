@@ -123,6 +123,25 @@ async function main() {
     check(sc === 'their version\n', 'C3: sidecar holds the remote side', JSON.stringify(sc));
   }
 
+  // ── C-bin) a BINARY conflict is preserved byte-for-byte (finding F8) ──
+  // The old sidecar path decoded the remote blob as utf8 and trimmed it, which
+  // turned any non-text file into U+FFFD garbage and ate leading/trailing
+  // whitespace. These bytes carry a null (forces git to treat it as binary),
+  // high bytes (would become U+FFFD), and a leading/trailing whitespace byte
+  // (would be trimmed). The sidecar must equal them exactly.
+  git(mate, 'pull');
+  const bin = Buffer.from([0x0a, 0x00, 0x89, 0xff, 0x50, 0x4e, 0x47, 0x1a, 0xfe, 0x20]);
+  fs.writeFileSync(path.join(mate, 'logo.png'), bin);
+  git(mate, 'add -A'); git(mate, 'commit -m theirspng'); git(mate, 'push');
+  fs.writeFileSync(path.join(mount, 'logo.png'), Buffer.from([0x00, 0x01, 0x02]));
+  await sync.tick();
+  const binSidecars = fs.readdirSync(mount).filter((f) => f.includes('__from-remote-') && f.includes('logo'));
+  check(binSidecars.length === 1, 'C4: binary conflict lands in a sidecar', binSidecars.join(','));
+  if (binSidecars.length === 1) {
+    const scBin = fs.readFileSync(path.join(mount, binSidecars[0])); // Buffer — no encoding
+    check(Buffer.compare(scBin, bin) === 0, 'C5: binary sidecar is byte-for-byte the remote side', scBin.toString('hex'));
+  }
+
   // ── D) safety ──
   auth = { token: null, sections: [{ slug: '../evil', repoUrl: annexOrigin }, { slug: 'leadership', repoUrl: annexOrigin }] };
   await sync.tick();

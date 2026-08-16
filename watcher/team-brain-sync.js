@@ -132,6 +132,20 @@ function runGitRaw(args, captureStderr) {
   return { ok: !r.error && r.status === 0, out, err };
 }
 
+// Read a git object as RAW BYTES (finding F8). runGitRaw decodes stdout as utf8
+// and trims it, which turns any non-text blob (image, PDF, spreadsheet, zip) into
+// U+FFFD garbage and eats leading/trailing whitespace on text. The conflict
+// sidecar must preserve the remote file byte-for-byte, so it reads through this
+// instead. No `encoding` option → stdout is a Buffer. Returns the Buffer, or null
+// on failure. An empty blob is a zero-length Buffer (still truthy), so it writes.
+function gitShowBytes(spec) {
+  const r = spawnSync('git', ['-C', REPO, 'show', spec], {
+    stdio: ['pipe', 'pipe', 'ignore'],
+    maxBuffer: 1024 * 1024 * 50,
+  });
+  return (!r.error && r.status === 0) ? r.stdout : null;
+}
+
 function git(...args) {
   const r = runGitRaw(args, true);
   if (!r.ok) {
@@ -326,6 +340,9 @@ async function mintGitToken() {
     throw err;
   }
   const json = await r.json();
+  // Server-authoritative role (finding F2). Older API versions omit it during
+  // rollout; keep the last known value rather than reverting to the local file.
+  if (typeof json.role === 'string' && json.role) SERVER_ROLE = json.role;
   // sections: role-scoped annex repos this member is entitled to (server-
   // authoritative, [] for everyone else). Ridden by section-sync below; the
   // minted token is scoped to cover exactly these repos plus the main one.
@@ -333,6 +350,7 @@ async function mintGitToken() {
     token: json.token,
     expiresAt: new Date(json.expiresAt),
     sections: Array.isArray(json.sections) ? json.sections : [],
+    role: SERVER_ROLE,
   };
 }
 
@@ -423,8 +441,18 @@ function loadRolesMap() {
   }
 }
 
+// The server-authoritative role, set from each git-token mint (finding F2). Null
+// until the first successful mint. Preferred over the local roles.json because
+// that file lives in the writable clone and a team member could edit their own
+// row to escape the path filter.
+let SERVER_ROLE = null;
+
 function currentRole() {
   if (MODE !== 'agency') return null;
+  // Trust the server's answer (from the last mint) over the editable local file.
+  // Fall back to the file only before the first successful mint (offline / first
+  // run), where it is the only signal available.
+  if (SERVER_ROLE) return SERVER_ROLE;
   const map = loadRolesMap();
   if (!map || !Array.isArray(map.members)) return MEMBER_ROLE_HINT;
   const me = map.members.find((m) => (m.email || '').toLowerCase() === MEMBER_EMAIL);
@@ -609,13 +637,16 @@ function resolveConflictsAndCommit(stamp) {
   const unmerged = gitProbe('diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
   const conflicts = [];
   for (const f of unmerged) {
-    const theirs = gitTry('show', `:3:${f}`); // stage 3 = remote/their side
+    const theirsBytes = gitShowBytes(`:3:${f}`); // stage 3 = remote/their side, RAW bytes (finding F8)
     try {
-      if (theirs.ok) {
+      if (theirsBytes) {
         const sc = sidecarName(f, stamp);
         const scAbs = path.join(REPO, sc);
         fs.mkdirSync(path.dirname(scAbs), { recursive: true });
-        fs.writeFileSync(scAbs, theirs.out.endsWith('\n') ? theirs.out : `${theirs.out}\n`);
+        // Write byte-for-byte. Do NOT decode or trim or append a newline: this is
+        // the preserved remote copy, and a member may open it in the app that made
+        // it (an image, a spreadsheet). Text is preserved exactly too.
+        fs.writeFileSync(scAbs, theirsBytes);
         git('add', '--', sc);
         conflicts.push({ file: f, sidecar: sc });
       }

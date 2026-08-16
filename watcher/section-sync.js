@@ -82,6 +82,16 @@ function create({ repoPath, getAuth, log }) {
     return { ok: !r.error && r.status === 0, out, err };
   }
 
+  // Read a git object as RAW BYTES (finding F8). gitC decodes+trims, which
+  // corrupts any non-text blob; the conflict sidecar must be byte-for-byte.
+  function gitShowBytesC(dir, spec) {
+    const r = spawnSync('git', ['-C', dir, 'show', spec], {
+      stdio: ['pipe', 'pipe', 'ignore'],
+      maxBuffer: 1024 * 1024 * 50,
+    });
+    return (!r.error && r.status === 0) ? r.stdout : null;
+  }
+
   function cleanRemoteUrl(url) {
     let prev; let u = url;
     do { prev = u; u = u.replace(/^(https:\/\/)[^@/]*@/i, '$1'); } while (u !== prev);
@@ -176,13 +186,15 @@ function create({ repoPath, getAuth, log }) {
     const unmerged = gitC(dir, ['diff', '--name-only', '--diff-filter=U']).out
       .split('\n').filter(Boolean);
     for (const f of unmerged) {
-      const theirs = gitC(dir, ['show', `:3:${f}`], true);
-      if (theirs.ok) {
+      const theirsBytes = gitShowBytesC(dir, `:3:${f}`); // raw bytes (finding F8)
+      if (theirsBytes) {
         const sc = sidecarName(f, stamp);
         const scAbs = path.join(dir, sc);
         try {
           fs.mkdirSync(path.dirname(scAbs), { recursive: true });
-          fs.writeFileSync(scAbs, theirs.out.endsWith('\n') ? theirs.out : `${theirs.out}\n`);
+          // Byte-for-byte: no decode, no trim, no newline append (would corrupt
+          // an image/PDF and lose whitespace on text).
+          fs.writeFileSync(scAbs, theirsBytes);
           gitC(dir, ['add', '--', sc]);
         } catch (_) { /* sidecar is best-effort; ours is kept either way */ }
       }
@@ -255,6 +267,35 @@ function create({ repoPath, getAuth, log }) {
     // Only ever remove a real mount (it must carry its own .git) — a plain
     // folder that happens to share a slug's name is the user's own data.
     if (!fs.existsSync(path.join(dir, '.git'))) { known.delete(slug); return; }
+
+    // Q2: never delete unsaved work. A leadership annex is invisible to the rest
+    // of the team by design, so anything uncommitted, or committed but unpushed,
+    // exists ONLY here. If the mount is dirty or ahead of its remote, rename it
+    // aside instead of erasing it, and say where it went. (A final push is not
+    // attempted: once leadership access is revoked the token no longer scopes to
+    // this repo, so a push would fail; preserving the work locally is the goal.)
+    let dirty = false;
+    try {
+      const status = gitC(dir, ['status', '--porcelain']).out;
+      const branch = gitC(dir, ['rev-parse', '--abbrev-ref', 'HEAD']).out || 'main';
+      const ahead = gitC(dir, ['rev-list', '--count', `origin/${branch}..${branch}`]).out;
+      dirty = !!status || (!!ahead && ahead !== '0');
+    } catch (_) {
+      dirty = true; // if we cannot tell, assume there is work to protect
+    }
+    if (dirty) {
+      const asideName = `${slug}.removed-${tsCompact()}`;
+      try {
+        fs.renameSync(dir, path.join(repoPath, asideName));
+        addExclude(asideName); // keep the set-aside copy out of the shared repo
+        say(`section ${slug}: access ended — your unsaved work was moved to ${asideName}, not deleted`);
+      } catch (e) {
+        say(`section ${slug}: access ended but could not set your work aside — ${e.message}; left in place`);
+      }
+      known.delete(slug);
+      return;
+    }
+
     try {
       fs.rmSync(dir, { recursive: true, force: true });
       say(`section ${slug}: access ended — removed from this machine`);
