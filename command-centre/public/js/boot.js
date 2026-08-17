@@ -178,10 +178,10 @@
         : pending.length+' updates: '+pending.map(function(m){return m.title;}).join(' \u00b7 ');
       var prompt='Apply the pending Agency Brain update'+(pending.length>1?'s':'')+': read '+
         pending.map(function(m){return m.file;}).join(', then ')+
-        ' and follow the instructions inside exactly.';
+        ' and follow the instructions inside exactly. Run this in a Claude Code terminal session opened in the synced brain folder; updates cannot be applied from Cowork, which can only report what is pending.';
       $('bu-copy').addEventListener('click',function(){
         try{ navigator.clipboard.writeText(prompt); }catch(e){}
-        var btn=$('bu-copy'); btn.textContent='Copied \u2014 paste into Claude Code';
+        var btn=$('bu-copy'); btn.textContent='Copied, paste into a Claude Code terminal in your brain folder';
         setTimeout(function(){ btn.textContent='Copy the update prompt'; },2200);
       });
       b.hidden=false;

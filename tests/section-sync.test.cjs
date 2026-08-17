@@ -123,6 +123,25 @@ async function main() {
     check(sc === 'their version\n', 'C3: sidecar holds the remote side', JSON.stringify(sc));
   }
 
+  // ── C-bin) a BINARY conflict is preserved byte-for-byte (finding F8) ──
+  // The old sidecar path decoded the remote blob as utf8 and trimmed it, which
+  // turned any non-text file into U+FFFD garbage and ate leading/trailing
+  // whitespace. These bytes carry a null (forces git to treat it as binary),
+  // high bytes (would become U+FFFD), and a leading/trailing whitespace byte
+  // (would be trimmed). The sidecar must equal them exactly.
+  git(mate, 'pull');
+  const bin = Buffer.from([0x0a, 0x00, 0x89, 0xff, 0x50, 0x4e, 0x47, 0x1a, 0xfe, 0x20]);
+  fs.writeFileSync(path.join(mate, 'logo.png'), bin);
+  git(mate, 'add -A'); git(mate, 'commit -m theirspng'); git(mate, 'push');
+  fs.writeFileSync(path.join(mount, 'logo.png'), Buffer.from([0x00, 0x01, 0x02]));
+  await sync.tick();
+  const binSidecars = fs.readdirSync(mount).filter((f) => f.includes('__from-remote-') && f.includes('logo'));
+  check(binSidecars.length === 1, 'C4: binary conflict lands in a sidecar', binSidecars.join(','));
+  if (binSidecars.length === 1) {
+    const scBin = fs.readFileSync(path.join(mount, binSidecars[0])); // Buffer — no encoding
+    check(Buffer.compare(scBin, bin) === 0, 'C5: binary sidecar is byte-for-byte the remote side', scBin.toString('hex'));
+  }
+
   // ── D) safety ──
   auth = { token: null, sections: [{ slug: '../evil', repoUrl: annexOrigin }, { slug: 'leadership', repoUrl: annexOrigin }] };
   await sync.tick();
@@ -156,6 +175,30 @@ async function main() {
   // restart persistence: a fresh instance still knows nothing is mounted
   const sync2 = create({ repoPath: app, getAuth: async () => auth, log: () => {} });
   check(!sync2.ownsPath(path.join(mount, 'x')), 'E3: manifest reflects the removal across restarts');
+
+  // ── F) revoke never deletes unpushed work (Q2) ──
+  // A mount with a local commit that never reached the annex, and no
+  // origin/<branch> ref at all (its first push never landed, or the ref was
+  // lost). The old code read the failed "am I ahead?" probe as "0 ahead" and
+  // erased the folder; the work existed on no other machine.
+  auth = { token: null, sections: [{ slug: 'leadership', repoUrl: annexOrigin }] };
+  await sync.tick();
+  check(fs.existsSync(path.join(mount, '.git')), 'F0: re-granted section mounts again');
+  git(mount, 'config user.email leader@test.local');
+  git(mount, 'config user.name Leader');
+  fs.writeFileSync(path.join(mount, 'only-here.md'), 'exists nowhere else\n');
+  git(mount, 'add -A'); git(mount, 'commit -q -m unpushed');
+  gitTry(mount, 'update-ref -d refs/remotes/origin/main');
+  gitTry(mount, 'update-ref -d refs/remotes/origin/HEAD');
+  auth = { token: null, sections: [] };
+  await sync.tick();
+  const aside = fs.readdirSync(app).filter((f) => /^leadership\.removed-/.test(f));
+  check(!fs.existsSync(mount) && aside.length === 1, 'F1: an unpushed mount is renamed aside, not deleted', aside.join(','));
+  if (aside.length === 1) {
+    const asideDir = path.join(app, aside[0]);
+    check(fs.readFileSync(path.join(asideDir, 'only-here.md'), 'utf8') === 'exists nowhere else\n', 'F2: the unpushed commit survives in the aside copy');
+    check(!/removed-/.test(git(app, 'status --porcelain')), 'F3: the aside copy is excluded from the shared repo', git(app, 'status --porcelain'));
+  }
 
   console.log(`\n${pass} passed, ${fail} failed`);
   try { fs.rmSync(root, { recursive: true, force: true }); } catch (_) { /* temp dir */ }

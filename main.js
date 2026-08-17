@@ -2253,6 +2253,12 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
   return true;
 }
 
+// Files that do NOT make a target folder "non-empty" for a clone (finding F6).
+// Only genuinely throwaway OS artefacts. Everything else, INCLUDING .git and any
+// other dotfile, counts as real content: a hidden-only folder is real content and
+// must never be silently erased. Kept deliberately tiny.
+const CLONE_IGNORABLE = new Set(['.DS_Store', '.localized', 'Thumbs.db']);
+
 ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   const { memberToken, teamSlug, repoUrl, teamKind } = args;
   // Normalise whatever the renderer sent into the OS-native form (collapses
@@ -2296,9 +2302,13 @@ ipcMain.handle('clone-agency-brain', async (_evt, args) => {
   let existedEmpty = false;
   if (fs.existsSync(targetFolder)) {
     // An existing EMPTY folder is normal: the native picker creates the folder
-    // when you select/make one. git clones cleanly into an empty dir. Only block
-    // on real content (dotfiles don't count).
-    const realContent = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
+    // when you select/make one. git clones cleanly into an empty dir. Only skip
+    // genuinely throwaway OS files (finding F6): dotfiles do NOT all count as
+    // empty — a folder holding only .git (an unrelated repo) or a dotfiles/.config
+    // set is real content, and treating it as empty would erase it with rmSync.
+    // .git here falls through to the adopt-or-block branch below, which recognises
+    // this brain and refuses anything else.
+    const realContent = fs.readdirSync(targetFolder).filter((f) => !CLONE_IGNORABLE.has(f));
     if (realContent.length) {
       // The owner often already has their brain cloned locally (e.g.
       // ~/Projects/brain — the solo brain they turned into the agency brain). If
@@ -2656,33 +2666,6 @@ ipcMain.handle('get-brain-home', () => {
   return { brainHome: '', isSandbox: false };
 });
 
-// Generic clone into a target folder. Used by the SOLO path (members brain
-// template) and by sandbox tests. The agency path keeps its own
-// clone-agency-brain handler (which mints a team token). repoUrl may already
-// carry credentials (x-access-token@) for private repos.
-ipcMain.handle('clone-into', async (_evt, args) => {
-  const dir = assertSafeTarget(path.normalize(args.targetFolder));
-  // Same preflight as the agency path: a missing git must fail BEFORE the
-  // empty-target clear below, and on Windows it self-provisions.
-  await ensureGitAvailable();
-  fs.mkdirSync(path.dirname(dir), { recursive: true });
-  if (fs.existsSync(dir)) {
-    // Empty target is normal (the picker creates the folder); only block real
-    // content. Dev sandboxes are always cleared.
-    const realContent = fs.readdirSync(dir).filter((f) => !f.startsWith('.'));
-    const isDevSandbox = !app.isPackaged && path.basename(dir).includes('sandbox');
-    if (realContent.length && !isDevSandbox) {
-      throw new Error(`${dir} already exists and isn't empty. Pick an empty folder or a new location.`);
-    }
-    if (isDevSandbox) sendWizardLog('Sandbox exists — removing for a clean clone.');
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-  sendWizardLog('Cloning your brain…');
-  await runGit(['clone', '--depth', '1', args.repoUrl, dir]);
-  sendWizardLog('Clone complete.');
-  return { ok: true, brainPath: dir };
-});
-
 // SOLO path: a member with no agency team clones the shared members brain
 // template. Uses the already-deployed GET /api/brain/auth-token (gated to
 // memberType community/ota), then clones with the x-access-token credential —
@@ -2706,22 +2689,43 @@ ipcMain.handle('clone-solo-brain', async (_evt, args) => {
   const cleanRemote = `https://github.com/${slug}.git`;
   const cloneUrl = `https://x-access-token:${token}@github.com/${slug}.git`;
   fs.mkdirSync(path.dirname(targetFolder), { recursive: true });
+  let existedEmpty = false;
   if (fs.existsSync(targetFolder)) {
     // The native folder picker CREATES the folder when you select or make one,
     // so an empty target is the normal case, not an error. git clones cleanly
-    // into an empty dir. Only block when the folder holds real content (dotfiles
-    // like .DS_Store don't count). Empty folders (and dev sandboxes) get cleared
-    // so the clone lands on a pristine target.
-    const realContent = fs.readdirSync(targetFolder).filter((f) => !f.startsWith('.'));
+    // into an empty dir. Only skip genuinely throwaway OS files (finding F6):
+    // a folder holding only .git or a dotfiles set is real content and must NOT
+    // be wiped as if it were empty.
+    const realContent = fs.readdirSync(targetFolder).filter((f) => !CLONE_IGNORABLE.has(f));
     const isDevSandbox = !app.isPackaged && path.basename(targetFolder).includes('sandbox');
     if (realContent.length && !isDevSandbox) {
       throw new Error(`${targetFolder} already exists and isn't empty. Pick an empty folder or a new location.`);
     }
-    if (isDevSandbox) sendWizardLog('Sandbox exists — removing for a clean clone.');
-    fs.rmSync(targetFolder, { recursive: true, force: true });
+    if (isDevSandbox) {
+      sendWizardLog('Sandbox exists — removing for a clean clone.');
+      fs.rmSync(targetFolder, { recursive: true, force: true });
+    } else {
+      // Empty target: do NOT clear it yet. Clone to a sibling temp first and only
+      // swap it in once the clone succeeds (finding F6, ported from the agency
+      // path), so a mid-transfer failure never leaves the member with a deleted
+      // folder and no brain.
+      existedEmpty = true;
+    }
   }
   sendWizardLog('Cloning your brain…');
-  await runGit(['clone', cloneUrl, targetFolder]);
+  if (existedEmpty) {
+    const tmpClone = path.join(path.dirname(targetFolder), '.ab-clone-' + process.pid + '-' + Date.now());
+    try {
+      await runGit(['clone', cloneUrl, tmpClone]);
+    } catch (e) {
+      try { fs.rmSync(tmpClone, { recursive: true, force: true }); } catch { /* nothing cloned */ }
+      throw e; // target folder left untouched
+    }
+    fs.rmSync(targetFolder, { recursive: true, force: true });
+    fs.renameSync(tmpClone, targetFolder);
+  } else {
+    await runGit(['clone', cloneUrl, targetFolder]);
+  }
   // Scrub the short-lived token from the remote so it never persists on disk;
   // the watcher mints a fresh one per network op (same as the agency path).
   await runGit(['-C', targetFolder, 'remote', 'set-url', 'origin', cleanRemote]);
