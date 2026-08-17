@@ -69,7 +69,6 @@ const api = {
   // Electron equivalents of Brain 3.0's Tauri commands.
   detectMachine: () => ipcRenderer.invoke('detect-machine'),
   getBrainHome: () => ipcRenderer.invoke('get-brain-home'),
-  cloneInto: (args) => ipcRenderer.invoke('clone-into', args),
   cloneSoloBrain: (args) => ipcRenderer.invoke('clone-solo-brain', args),
   runNpmInstall: (args) => ipcRenderer.invoke('run-npm-install', args),
   writeBusinessContext: (args) => ipcRenderer.invoke('write-business-context', args),

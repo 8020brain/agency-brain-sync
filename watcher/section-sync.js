@@ -274,15 +274,17 @@ function create({ repoPath, getAuth, log }) {
     // aside instead of erasing it, and say where it went. (A final push is not
     // attempted: once leadership access is revoked the token no longer scopes to
     // this repo, so a push would fail; preserving the work locally is the goal.)
-    let dirty = false;
-    try {
-      const status = gitC(dir, ['status', '--porcelain']).out;
-      const branch = gitC(dir, ['rev-parse', '--abbrev-ref', 'HEAD']).out || 'main';
-      const ahead = gitC(dir, ['rev-list', '--count', `origin/${branch}..${branch}`]).out;
-      dirty = !!status || (!!ahead && ahead !== '0');
-    } catch (_) {
-      dirty = true; // if we cannot tell, assume there is work to protect
-    }
+    // gitC never throws (it returns { ok:false, out:'' } on failure), so the
+    // "can't tell" case is a failed probe, not an exception: a mount whose first
+    // push never landed has no origin/<branch>, and reading that as "0 ahead"
+    // is exactly the deletion this block exists to prevent. Any probe we could
+    // not run means assume there is work to protect.
+    const statusR = gitC(dir, ['status', '--porcelain']);
+    const branchR = gitC(dir, ['rev-parse', '--abbrev-ref', 'HEAD']);
+    const branch = branchR.out || 'main';
+    const aheadR = gitC(dir, ['rev-list', '--count', `origin/${branch}..${branch}`]);
+    const dirty = !statusR.ok || !branchR.ok || !aheadR.ok
+      || !!statusR.out || (!!aheadR.out && aheadR.out !== '0');
     if (dirty) {
       const asideName = `${slug}.removed-${tsCompact()}`;
       try {

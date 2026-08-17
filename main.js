@@ -2666,33 +2666,6 @@ ipcMain.handle('get-brain-home', () => {
   return { brainHome: '', isSandbox: false };
 });
 
-// Generic clone into a target folder. Used by the SOLO path (members brain
-// template) and by sandbox tests. The agency path keeps its own
-// clone-agency-brain handler (which mints a team token). repoUrl may already
-// carry credentials (x-access-token@) for private repos.
-ipcMain.handle('clone-into', async (_evt, args) => {
-  const dir = assertSafeTarget(path.normalize(args.targetFolder));
-  // Same preflight as the agency path: a missing git must fail BEFORE the
-  // empty-target clear below, and on Windows it self-provisions.
-  await ensureGitAvailable();
-  fs.mkdirSync(path.dirname(dir), { recursive: true });
-  if (fs.existsSync(dir)) {
-    // Empty target is normal (the picker creates the folder); only block real
-    // content. Dev sandboxes are always cleared.
-    const realContent = fs.readdirSync(dir).filter((f) => !f.startsWith('.'));
-    const isDevSandbox = !app.isPackaged && path.basename(dir).includes('sandbox');
-    if (realContent.length && !isDevSandbox) {
-      throw new Error(`${dir} already exists and isn't empty. Pick an empty folder or a new location.`);
-    }
-    if (isDevSandbox) sendWizardLog('Sandbox exists — removing for a clean clone.');
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-  sendWizardLog('Cloning your brain…');
-  await runGit(['clone', '--depth', '1', args.repoUrl, dir]);
-  sendWizardLog('Clone complete.');
-  return { ok: true, brainPath: dir };
-});
-
 // SOLO path: a member with no agency team clones the shared members brain
 // template. Uses the already-deployed GET /api/brain/auth-token (gated to
 // memberType community/ota), then clones with the x-access-token credential —

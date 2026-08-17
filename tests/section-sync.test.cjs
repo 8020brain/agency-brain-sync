@@ -176,6 +176,30 @@ async function main() {
   const sync2 = create({ repoPath: app, getAuth: async () => auth, log: () => {} });
   check(!sync2.ownsPath(path.join(mount, 'x')), 'E3: manifest reflects the removal across restarts');
 
+  // ── F) revoke never deletes unpushed work (Q2) ──
+  // A mount with a local commit that never reached the annex, and no
+  // origin/<branch> ref at all (its first push never landed, or the ref was
+  // lost). The old code read the failed "am I ahead?" probe as "0 ahead" and
+  // erased the folder; the work existed on no other machine.
+  auth = { token: null, sections: [{ slug: 'leadership', repoUrl: annexOrigin }] };
+  await sync.tick();
+  check(fs.existsSync(path.join(mount, '.git')), 'F0: re-granted section mounts again');
+  git(mount, 'config user.email leader@test.local');
+  git(mount, 'config user.name Leader');
+  fs.writeFileSync(path.join(mount, 'only-here.md'), 'exists nowhere else\n');
+  git(mount, 'add -A'); git(mount, 'commit -q -m unpushed');
+  gitTry(mount, 'update-ref -d refs/remotes/origin/main');
+  gitTry(mount, 'update-ref -d refs/remotes/origin/HEAD');
+  auth = { token: null, sections: [] };
+  await sync.tick();
+  const aside = fs.readdirSync(app).filter((f) => /^leadership\.removed-/.test(f));
+  check(!fs.existsSync(mount) && aside.length === 1, 'F1: an unpushed mount is renamed aside, not deleted', aside.join(','));
+  if (aside.length === 1) {
+    const asideDir = path.join(app, aside[0]);
+    check(fs.readFileSync(path.join(asideDir, 'only-here.md'), 'utf8') === 'exists nowhere else\n', 'F2: the unpushed commit survives in the aside copy');
+    check(!/removed-/.test(git(app, 'status --porcelain')), 'F3: the aside copy is excluded from the shared repo', git(app, 'status --porcelain'));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   try { fs.rmSync(root, { recursive: true, force: true }); } catch (_) { /* temp dir */ }
   process.exit(fail ? 1 : 0);

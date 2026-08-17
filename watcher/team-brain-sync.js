@@ -337,6 +337,15 @@ async function mintGitToken() {
     // request is the ONLY place the app learns it's dead — tag it so doSync raises
     // a loud, specific "sign in again" state instead of a silent generic error.
     if (r.status === 401) err.authExpired = true;
+    // A 403 or 409 is the server REFUSING this machine a key on purpose (the
+    // client brain was handed over and this seat is the agency's; a client
+    // brain that can't be given a repo-scoped key; no repo bound yet). Its body
+    // carries a sentence written for the person. Tag it so doSync shows that
+    // sentence instead of "offline or fetch failed" (Gate 1 review, finding 4).
+    if (r.status === 403 || r.status === 409) {
+      err.syncRefused = true;
+      try { err.userMessage = String(JSON.parse(body).error || '').trim(); } catch (_) { /* not json */ }
+    }
     throw err;
   }
   const json = await r.json();
@@ -942,7 +951,7 @@ async function classifyState() {
     // failed" — re-throw so doSync raises the loud "Reconnect / sign in again"
     // state. Without this the pull path silently mislabels an expired session as
     // offline, which is the exact silent failure this fixes.
-    if (err && err.authExpired) throw err;
+    if (err && (err.authExpired || err.syncRefused)) throw err;
     return { state: 'fetch_failed', detail: err.message };
   }
   if (fetchResult === null) return { state: 'fetch_failed', detail: 'see git error above' };
@@ -1205,6 +1214,11 @@ async function doSync(trigger) {
       // which are otherwise branded from the app's own name. Naming the product
       // here was the one string that put "Agency Brain" in a client's menu bar.
       writeState('stop', 'Your sign-in has expired. Open the app in your menu bar and choose "Reconnect / sign in again"', { authExpired: true });
+    } else if (err && err.syncRefused) {
+      // The server said no, in words meant for this person. Show those words.
+      // stopStuck keeps retrying each tick (a GitHub blip clears itself) and only
+      // escalates to "needs attention" once the refusal has stabilised.
+      stopStuck(err.userMessage || "the server refused to give this machine a key for the brain", err.message);
     } else {
       writeState('stop', `error: ${err.message}`);
     }
