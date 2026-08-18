@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.25 — 2026-08-18
+
+- **A file your computer refuses to save no longer stops everything else.** Some machines run a check of their own over every save, often to keep personal data out of a repository, and if it objects to one file it refuses the whole save. Until now that stopped the entire brain: nothing else could be saved, nothing new could come in, and only someone sitting at that machine could clear it. The app now sets aside just the file that was refused, saves the rest, and carries on. The refused file stays on your machine untouched and is named in the menu with your other changes set aside. Your own check is never overridden or bypassed.
+
+- **A blocked save now tells you what blocked it.** The message used to hand you the raw output of whatever refused the save. It now says that a check installed on this computer blocked it, then quotes what that check said, so you can tell straight away whether to edit the file or talk to whoever set the check up.
+
+- **A brain that can't save stays honest about it.** While stuck, the app retries every few minutes, and each of those attempts used to report the brain as healthy on its way to failing again. Anyone watching saw it flicker between fine and blocked. It now reports a recovery only once one has actually happened, so a stuck brain reads as stuck. For client brains, the agency looking after them also sees it on their Your Clients page, with the name of whoever is stuck and how long it has been.
+
 ## 1.1.24 — 2026-08-13
 
 - **A client brain's setup checklist can now finish.** Client brains show three steps instead of four: the old "First client added" step asked the one thing some businesses can never do, so the checklist read as unfinished forever. The first step also now names the real setup prompt for your kind of brain, instead of a nickname no brain ships.

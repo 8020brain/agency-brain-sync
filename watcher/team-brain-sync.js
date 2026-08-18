@@ -254,6 +254,18 @@ function writeState(state, reason, extra) {
       .slice(0, 140);
     if (scrubbed) why = `${why || 'stopped'} · ${scrubbed}`;
   }
+  // A stop that has stabilised as stuck retries every STUCK_RETRY_MS, and every
+  // one of those retries walks through writeState('pulling') on its way to
+  // failing the same way again. Reporting that hop tells the server the brain
+  // recovered a second before the identical failure re-reports the stop, so an
+  // agency watching a wedged brain sees it flicker green — and because both
+  // reports are fire-and-forget, the pair can land out of order and SETTLE on
+  // green. (Poeppel Rechtsanwaelte, 2026-08-18: blocked for hours while the
+  // roster showed them healthy in the gaps between retries.) Only a cycle that
+  // actually got somewhere calls clearStall(), so that is the single signal
+  // worth reporting a recovery on. The tray still gets the honest live state,
+  // which is written above this line.
+  if (!alarm && stuckSince) return;
   reportSyncState(alarm ? 'stop' : 'running', why);
 }
 
@@ -810,12 +822,32 @@ function explainCommitFailure(err) {
   if (/index\.lock/i.test(e)) return "can't save: another program is holding your brain folder's git lock. Close Cowork and any open terminal, then it should clear on its own";
   if (/no space left|disk quota|ENOSPC/i.test(e)) return "can't save: this computer has run out of disk space";
   if (/gpg|signing failed|secret key not available/i.test(e)) return "can't save: git commit signing is switched on and failed. Turn it off with: git config --global commit.gpgsign false";
-  if (/hook declined|pre-commit|hook.*failed|cannot run .*hook/i.test(e)) return "can't save: a git hook on this computer blocked the save";
   if (/tell me who you are|empty ident|user\.email/i.test(e)) return "can't save: git has no name or email set on this computer";
   if (/permission denied|insufficient permission|EACCES|read-only file system|operation not permitted/i.test(e)) return "can't save: this computer can't write to your brain folder (permissions)";
   if (/does not have a commit checked out|not a git repository|bad object|corrupt/i.test(e)) return "can't save: your brain folder's git data looks damaged, so it needs re-cloning";
   const first = e.split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
+  // Last, because any cause above can coexist with a hook and is more specific.
+  if (foreignPrecommitHook()) {
+    return `can't save: a check installed on this computer blocked the save${first ? `. It said: ${first}` : ''}`;
+  }
   return first ? `can't save your latest changes: ${first}` : "can't save your latest changes (git gave no reason)";
+}
+
+// Git relays a pre-commit hook's own words and adds nothing of its own, so the
+// TEXT of a failed commit can never tell you a hook refused it: the branch that
+// used to test for "hook declined" matched only what a SERVER-side hook prints,
+// and so never once fired. The reliable signal is the hook file. One that exists
+// and isn't the size guard this app installs belongs to whoever owns the machine
+// — a data-protection or secret scanner, most often — and the member deserves to
+// be told that rather than handed its raw output. (Poeppel Rechtsanwaelte,
+// 2026-08-18: a scanner refusing an email address in a client note read as
+// "can't save your latest changes: E-MAIL <path>:76".)
+function foreignPrecommitHook() {
+  try {
+    return !fs.readFileSync(path.join(REPO, '.git', 'hooks', 'pre-commit'), 'utf8').includes(HOOK_MARKER);
+  } catch (_) {
+    return false; // no hook at all
+  }
 }
 
 function stageAndCommit(s) {
@@ -870,6 +902,7 @@ function stageAndCommit(s) {
   }
 
   const commitMsg = `auto-sync: ${ts()}`;
+  let refusedCount = 0; // files a check on this machine wouldn't let us save
   // gitTry, not git: we need git's OWN stderr to tell the member what went
   // wrong. The old code called git(), which discards the error and returned the
   // bare string 'commit failed' — so the notification, the tray and the log all
@@ -884,12 +917,48 @@ function stageAndCommit(s) {
     cr = gitTry('commit', '-m', commitMsg);
   }
   if (!cr.ok) {
+    // A check installed on this machine (a data-protection or secret scanner in
+    // .git/hooks/pre-commit) refuses the WHOLE commit over one file, and until
+    // 2026-08-18 that wedged the entire brain: nothing else could save, nothing
+    // could be pulled in, and only the person sitting at that machine could
+    // clear it. Treat it the way an oversized file is already treated. Set the
+    // files it named aside, save everything else, and let the brain carry on.
+    // Never retry with --no-verify: that check belongs to the customer, and
+    // overriding it is not this app's call. (Poeppel Rechtsanwaelte, a law firm,
+    // 2026-08-18: one client note with an email address in it stopped their
+    // brain for hours.)
+    const refused = staged.filter((f) => (cr.err || '').includes(f));
+    refusedCount = refused.length;
+    if (refused.length) {
+      console.log(`[${ts()}]   a check on this computer refused ${refused.length} file(s); setting aside and saving the rest`);
+      const said = (cr.err || '').split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
+      for (const f of refused) {
+        git('reset', '-q', 'HEAD', '--', f);
+        held.push({
+          file: f,
+          why: `a check on this computer refused this file, so it was set aside and the rest of your work saved${said ? `. It said: ${said.slice(0, 160)}` : ''}`,
+        });
+      }
+      const left = gitProbe('diff', '--cached', '--name-only').split('\n').filter(Boolean);
+      // Everything staged was refused: there is nothing left to commit, but the
+      // cycle is no longer a failure. Reporting it as one is what stopped the
+      // pull half of syncing dead.
+      if (!left.length) {
+        for (const h of held) console.log(`[${ts()}]   held: ${h.file} — ${h.why}`);
+        return { committed: false, held };
+      }
+      cr = gitTry('commit', '-m', commitMsg);
+    }
+  }
+  if (!cr.ok) {
+    // Still refused with the named files out, so the cause is something else
+    // (or a check that reads the working tree rather than what's being saved).
     const raw = (cr.err || '').trim();
     console.error(`[${ts()}]   commit failed — git said: ${raw || '(no output)'}`);
     git('reset', '-q', 'HEAD');
     return { committed: false, held, error: explainCommitFailure(raw), raw };
   }
-  console.log(`[${ts()}]   committed ${staged.length} file(s)${held.length ? `, held ${held.length}` : ''}`);
+  console.log(`[${ts()}]   committed ${staged.length - refusedCount} file(s)${held.length ? `, held ${held.length}` : ''}`);
   return { committed: true, held };
 }
 

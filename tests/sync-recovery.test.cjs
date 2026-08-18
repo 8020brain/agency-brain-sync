@@ -28,6 +28,11 @@
  *      rest.
  *   F) Detached-HEAD self-heal — a clone left on no branch (out-of-app checkout)
  *      returns to main by itself, and work committed off-branch reaches origin.
+ *
+ * And the 2026-08-18 fix for a check the CUSTOMER installed:
+ *   G) A foreign pre-commit hook (a data-protection scanner) refuses one file.
+ *      That file is set aside and everything else keeps syncing, instead of the
+ *      refusal wedging the whole brain the way it did for Poeppel Rechtsanwaelte.
  */
 
 const { execSync, spawn } = require('child_process');
@@ -204,6 +209,44 @@ async function main() {
     15000);
     if (reattached) ok('F: detached clone returned to main and off-branch work reached origin');
     else bad('F: detached HEAD did not heal', `branch=${gitTry(app, 'rev-parse --abbrev-ref HEAD')}`);
+
+    // ── G) A check the CUSTOMER installed refuses one file ──
+    // Stand in for a data-protection scanner: reject any staged file carrying an
+    // email address, in the same "E-MAIL <path>:<line>" shape the real one used.
+    // Before the fix this failed the whole commit every cycle, and nothing in the
+    // brain could save or pull until a human at that machine cleared it.
+    const scanner = [
+      '#!/bin/sh',
+      'out=""',
+      'for f in $(git diff --cached --name-only --diff-filter=AM); do',
+      '  n=$(git show ":$f" 2>/dev/null | grep -n -E "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+" | head -1 | cut -d: -f1)',
+      '  if [ -n "$n" ]; then out="$out E-MAIL $f:$n"; fi',
+      'done',
+      'if [ -n "$out" ]; then echo "$out" >&2; exit 1; fi',
+      'exit 0',
+      '',
+    ].join('\n');
+    fs.writeFileSync(hookPath, scanner, { mode: 0o755 });
+    fs.chmodSync(hookPath, 0o755);
+
+    fs.writeFileSync(path.join(app, 'client-note.md'), 'call notes\nreach them on someone@example.com\n');
+    fs.writeFileSync(path.join(app, 'innocent.md'), 'nothing personal in here\n');
+    const isolated = await until(() =>
+      originHasPath(origin, 'main', 'innocent.md') &&
+      !originHasPath(origin, 'main', 'client-note.md') &&
+      fs.existsSync(path.join(app, 'client-note.md')),
+    15000);
+    if (isolated) ok('G1: a refused file was set aside and the rest of the work still synced');
+    else bad('G1: a refused file wedged the sync', `innocent=${originHasPath(origin, 'main', 'innocent.md')}, refused-on-origin=${originHasPath(origin, 'main', 'client-note.md')}`);
+
+    const gState = await until(() => {
+      if (!fs.existsSync(stateFile)) return false;
+      const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      return st.state !== 'stop' && Array.isArray(st.held) && st.held.some((h) => h.file === 'client-note.md');
+    }, 15000);
+    if (gState) ok('G2: the brain stayed running and named the file it set aside');
+    else bad('G2: refused file was not surfaced as a held change', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+
   } catch (err) {
     bad('harness error', err.message);
   } finally {
