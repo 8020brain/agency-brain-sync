@@ -46,7 +46,12 @@ function extract(name) {
 }
 
 const NAMES = ['sleepSync', 'readConfig', 'loadConfig', 'saveConfig',
-  'brainKey', 'profileFromActive', 'upsertProfile', 'brainFolderReallyMissing'];
+  'brainKey', 'profileFromActive', 'upsertProfile', 'brainFolderReallyMissing',
+  'brainLabel', 'forgetBrain'];
+
+// The dialog stub forgetBrain() talks to. `answer` is the button index the
+// "person" clicks: 0 = Forget it, 1 = Cancel.
+const dialogStub = { answer: 0, showMessageBox: async () => ({ response: dialogStub.answer }) };
 
 function loadRealFns(dir) {
   const CONFIG_FILE = path.join(dir, 'config.json');
@@ -58,12 +63,13 @@ function loadRealFns(dir) {
   `;
   // Injected: the module-scope names the lifted functions close over.
   const make = new Function('fs', 'path', 'CONFIG_FILE', 'CONFIG_BACKUP_FILE',
-    'LOG_FILE', 'clog', 'computeAppName', 'applyAppMenu', 'BRAIN_PROFILE_KEYS', 'USER_DATA', 'APP_NAME', body);
+    'LOG_FILE', 'clog', 'computeAppName', 'applyAppMenu', 'BRAIN_PROFILE_KEYS', 'USER_DATA', 'APP_NAME',
+    'dialog', 'updateTray', body);
   return make(fs, path, CONFIG_FILE, CONFIG_BACKUP_FILE, LOG_FILE,
     () => {}, () => 'Business Brain', () => {},
     ['brainPath', 'mode', 'teamSlug', 'memberEmail', 'memberName', 'memberRole',
       'memberToken', 'scoutSeats', 'packageTier', 'kind', 'brandName'],
-    dir, 'Business Brain');
+    dir, 'Business Brain', dialogStub, () => {});
 }
 
 let passed = 0;
@@ -152,6 +158,52 @@ check('saving a second brain keeps the first in the brains list', (api) => {
   const cfg = api.readConfig().config;
   const slugs = (cfg.brains || []).map((b) => b.teamSlug).sort();
   assert.deepStrictEqual(slugs, ['one', 'two'], 'archiving a brain must not drop the other');
+});
+
+// E) Forgetting a brain (2026-08-19). An owner's first setup adopted his
+// personal brain as a solo brain; the agency he created afterwards became the
+// active one, and the solo entry stayed listed under Switch brain with no way
+// to remove it. forgetBrain() drops the bookmark only, never the active brain,
+// never anything on disk outside config.json.
+check('forgetting a non-active brain removes it and keeps the active one', async (api) => {
+  api.saveConfig({ brainPath: '/tmp/personal-brain', mode: 'personal' });
+  api.saveConfig({ brainPath: '/tmp/agency-brain', mode: 'agency', teamSlug: 'evolution-digital', memberToken: 't' });
+  assert.strictEqual(api.loadConfig().brains.length, 2);
+  dialogStub.answer = 0;
+  await api.forgetBrain('/tmp/personal-brain');   // a personal profile's key is its path
+  const cfg = api.loadConfig();
+  assert.strictEqual(cfg.brainPath, '/tmp/agency-brain', 'the active brain is untouched');
+  assert.strictEqual(cfg.teamSlug, 'evolution-digital');
+  assert.deepStrictEqual(cfg.brains.map((b) => b.brainPath), ['/tmp/agency-brain']);
+});
+
+check('forgetting removes every profile saved for that folder, not just one identity', async (api) => {
+  api.saveConfig({ brainPath: '/tmp/client', mode: 'agency', teamSlug: 'client-a', memberToken: 't' });
+  api.saveConfig({ brainPath: '/tmp/client', mode: 'agency', teamSlug: 'client-a-renamed', memberToken: 't' });
+  api.saveConfig({ brainPath: '/tmp/agency-brain', mode: 'agency', teamSlug: 'acme', memberToken: 't' });
+  assert.strictEqual(api.loadConfig().brains.length, 3);
+  dialogStub.answer = 0;
+  await api.forgetBrain('client-a');
+  const cfg = api.loadConfig();
+  assert.deepStrictEqual(cfg.brains.map((b) => b.teamSlug), ['acme']);
+});
+
+check('cancelling the dialog changes nothing', async (api) => {
+  api.saveConfig({ brainPath: '/tmp/personal-brain', mode: 'personal' });
+  api.saveConfig({ brainPath: '/tmp/agency-brain', mode: 'agency', teamSlug: 'acme', memberToken: 't' });
+  dialogStub.answer = 1;
+  await api.forgetBrain('/tmp/personal-brain');
+  assert.strictEqual(api.loadConfig().brains.length, 2);
+});
+
+check('the active brain can never be forgotten', async (api) => {
+  api.saveConfig({ brainPath: '/tmp/personal-brain', mode: 'personal' });
+  api.saveConfig({ brainPath: '/tmp/agency-brain', mode: 'agency', teamSlug: 'acme', memberToken: 't' });
+  dialogStub.answer = 0;
+  await api.forgetBrain('acme');
+  const cfg = api.loadConfig();
+  assert.strictEqual(cfg.brainPath, '/tmp/agency-brain');
+  assert.strictEqual(cfg.brains.length, 2);
 });
 
 // D) The brain-folder check.

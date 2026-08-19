@@ -353,6 +353,37 @@ function switchBrain(key) {
   openCommandCentre();
   refreshBrandName();
 }
+// Drop a stored brain from the switcher. The app archives every brain it has
+// ever set up into config.brains[] and, until this existed, nothing ever removed
+// one: a first attempt that pointed at the wrong folder, a handed-over client
+// brain, or a test brain stayed listed for good, and the only remedy was
+// hand-editing config.json (an owner's mistaken solo-brain entry, 2026-08-06).
+// This forgets the BOOKMARK only: the folder, its files and whatever repo it
+// syncs to are untouched, and the person can set it up again any time. It
+// removes every profile saved for that folder (one folder can be saved under
+// more than one identity), never the active brain (switch first), and asks
+// before doing it.
+async function forgetBrain(key) {
+  const cfg = loadConfig();
+  if (!cfg || !Array.isArray(cfg.brains)) return;
+  if (brainKey(cfg) === key) return;
+  const target = cfg.brains.find((b) => brainKey(b) === key);
+  if (!target || !target.brainPath) return;
+  const label = brainLabel(target);
+  const { response } = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Forget it', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    message: `Forget "${label}"?`,
+    detail: `The folder and everything in it stay exactly where they are on this computer, and nothing changes on GitHub. ${APP_NAME} just stops listing it under Switch brain. You can set it up again any time with "Run setup again…".\n\nFolder: ${target.brainPath}`,
+  });
+  if (response !== 0) return;
+  const remaining = cfg.brains.filter((b) => b.brainPath !== target.brainPath || brainKey(b) === brainKey(cfg));
+  saveConfig({ ...cfg, brains: remaining });
+  clog(`forgot brain "${label}" (${target.brainPath}); ${remaining.length} profile(s) remain`);
+  updateTray();
+}
 // A client brain's brand name is set on the portal and can be renamed there,
 // but it was only ever read at setup, so a rename never reached an installed
 // app: the tray, the menu and the window title kept the install-day name for
@@ -805,13 +836,24 @@ function buildMenu() {
   const realBrains = [...byFolder.values()];
   if (realBrains.length > 1) {
     items.push({ type: 'separator' });
+    const others = realBrains.filter((b) => brainKey(b) !== brainKey(config));
     items.push({
       label: 'Switch brain',
-      submenu: realBrains.map((b) => ({
-        label: brainLabel(b) + (brainKey(b) === brainKey(config) ? '   ✓ active' : ''),
-        enabled: brainKey(b) !== brainKey(config),
-        click: () => switchBrain(brainKey(b)),
-      })),
+      submenu: [
+        ...realBrains.map((b) => ({
+          label: brainLabel(b) + (brainKey(b) === brainKey(config) ? '   ✓ active' : ''),
+          enabled: brainKey(b) !== brainKey(config),
+          click: () => switchBrain(brainKey(b)),
+        })),
+        // Forgetting lives next to switching, because the person staring at a
+        // brain they no longer want in this list is already here. Never the
+        // active one: switch away first, then forget.
+        { type: 'separator' },
+        ...others.map((b) => ({
+          label: `Forget "${brainLabel(b)}"…`,
+          click: () => { forgetBrain(brainKey(b)); },
+        })),
+      ],
     });
   }
 

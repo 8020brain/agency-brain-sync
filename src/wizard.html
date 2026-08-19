@@ -27,16 +27,21 @@
              before the setup code tells us which kind of brain this is. -->
         <div class="eyebrow" id="welcomeEyebrow">Brain setup</div>
         <h1>Welcome. Let's get you connected.</h1>
-        <p class="lede">Your team shares a brain: the files everyone works on with Claude, kept in sync on your computer automatically. Paste the invite code from your email to join. No terminal, no GitHub account.</p>
+        <p class="lede">Your team shares a brain: the files everyone works on with Claude, kept in sync on your computer automatically. Joining a team? Paste the invite code from your email. Setting the brain up yourself, as an owner or scout? Sign in with your email instead. No terminal, no GitHub account either way.</p>
         <div class="field">
           <label for="codeInput">Invite code</label>
           <input id="codeInput" type="text" placeholder="ABC-DEF" autocomplete="one-time-code" spellcheck="false" maxlength="9" style="text-transform:uppercase; letter-spacing:0.14em; font-family:'SFMono-Regular',Consolas,monospace;">
         </div>
         <div class="error-banner hidden" id="err-code"></div>
+        <!-- Two equal ways in. The email sign-in used to be a small link under
+             the Continue button, so an owner (who never has an invite code)
+             read the portal's "sign in with your email", then met a screen
+             that asked for a code, and the instructions already looked wrong
+             before setup had begun (2026-08-19). -->
         <div class="field" style="max-width:none;">
           <button class="btn primary" id="btn-code" disabled>Continue</button>
+          <button class="btn" id="btn-email-signin" type="button" style="margin-left:10px;">I'm an owner or scout, sign in with my email</button>
         </div>
-        <p style="margin-top:14px;"><span class="link" id="link-email-signin">No invite code? Sign in with your email instead</span></p>
       </section>
 
       <!-- 2 sign in: email -->
@@ -201,6 +206,32 @@
         </div>
 
         <div class="error-banner hidden" id="err-connect-org"></div>
+      </section>
+
+      <!-- 2a what are you setting up? Shown to a signed-in member whose email
+           is on no team yet. Before this screen existed, that member went
+           straight to the solo question below ("Do you already have a brain
+           on this machine?") with the agency path as a footnote link under it.
+           An owner who DID have a solo brain answered the question truthfully,
+           adopted that brain as a solo brain, created the agency on a second
+           run, and ended up with two brains listed and no way to remove one
+           (2026-08-06). Asking solo-or-agency first, as two equal choices, is
+           the fix. "Connect to my agency team…" (launch intent create-agency)
+           still skips this and goes straight to naming the agency. -->
+      <section class="screen" data-step="2" id="scene-kind">
+        <div class="eyebrow">Step 2 &middot; What you're setting up</div>
+        <h1>What are you setting up?</h1>
+        <p class="lede">Your email isn't on an agency yet, so this could be either. Pick one now; the other can always be added later from the menu bar.</p>
+        <div class="choice-list">
+          <button class="choice-option" id="btn-kind-agency" type="button">
+            <span class="c-title">An agency brain for my team</span>
+            <span class="c-sub">Name your agency, connect your business's GitHub, and the app creates a fresh shared brain. A solo brain you already have stays exactly as it is.</span>
+          </button>
+          <button class="choice-option" id="btn-kind-solo" type="button">
+            <span class="c-title">My own brain, just for me</span>
+            <span class="c-sub">Point the app at the brain already on this computer, or set a fresh one up.</span>
+          </button>
+        </div>
       </section>
 
       <!-- 2b have-brain fork (solo only): adopt an existing brain, or set up new -->

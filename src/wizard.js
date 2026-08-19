@@ -70,7 +70,8 @@
       'scene-email': 'scene-welcome',
       'scene-otp': 'scene-email',
       'scene-team': 'scene-otp',
-      'scene-have-brain': 'scene-otp',
+      'scene-kind': 'scene-otp',
+      'scene-have-brain': 'scene-kind',
       'scene-create-team': createTeamBackTarget,
       'scene-machine': machineBackTarget,
       'scene-clone': 'scene-machine',
@@ -210,7 +211,7 @@
   });
   codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !codeBtn.disabled) codeBtn.click(); });
   codeBtn.addEventListener('click', () => resolveCodeValue(normaliseCode(codeInput.value)));
-  document.getElementById('link-email-signin').addEventListener('click', () => {
+  document.getElementById('btn-email-signin').addEventListener('click', () => {
     show('scene-email');
     emailInput.focus();
   });
@@ -419,15 +420,15 @@
     const mt = (member && member.memberType) || '';
     if (/community|ota|script/i.test(mt) || demoMode) {
       mode = 'solo';
-      soloConfirmed = true;
-      renderFooterIdentity();
-      // Demo always seeds a fresh demo folder, so it skips the fork. A real solo
-      // member is first asked whether to adopt the brain they already have —
-      // unless they launched via "Connect to my agency team…", which means they
-      // want an agency and don't have one yet, so go straight to creating it.
-      if (demoMode) enterMachine();
+      // Demo always seeds a fresh demo folder, so it skips every fork. A launch
+      // via "Connect to my agency team…" means they want an agency and don't
+      // have one yet, so go straight to creating it. Everyone else is ASKED
+      // which kind of brain they're setting up (scene-kind) before anything
+      // else: assuming solo and hiding the agency path in a footnote link is
+      // how an owner adopted his personal brain by mistake (2026-08-06).
+      if (demoMode) { confirmSolo(); enterMachine(); }
       else if (launchIntent === 'create-agency') enterCreateTeam();
-      else show('scene-have-brain');
+      else show('scene-kind');
     } else {
       errorIn('err-otp',
         "This email isn't linked to a brain yet. If you just signed up or your owner just added you, give it a minute and try again, or check the exact address.");
@@ -1313,6 +1314,18 @@
   // ====================================================================
   let adoptFolder = '';
   let adoptReport = null;
+
+  // The solo-or-agency fork (scene-kind). Solo is only "confirmed" (footer role
+  // 'personal') once they actually choose it; picking agency goes to Name your
+  // agency, whose Back returns here because enterCreateTeam records the scene
+  // it was entered from.
+  function confirmSolo() {
+    mode = 'solo';
+    soloConfirmed = true;
+    renderFooterIdentity();
+  }
+  document.getElementById('btn-kind-solo').addEventListener('click', () => { confirmSolo(); show('scene-have-brain'); });
+  document.getElementById('btn-kind-agency').addEventListener('click', enterCreateTeam);
 
   document.getElementById('btn-have-new').addEventListener('click', enterMachine);
   document.getElementById('btn-have-existing').addEventListener('click', enterAdopt);
