@@ -19,7 +19,7 @@
       var root=$('prog-self-root'); if(!root) return;
       // A client brain never shows the six-level rail. It is a way for an agency
       // to think about adoption, not something to put in front of a client's team
-      // on day two (Lucy Walker, 2026-08-19). Agency brains keep it, below the
+      // on day two (client field report, 2026-08-19). Agency brains keep it, below the
       // guided path rather than above it.
       // CCKIND already carries Mike's kind-preview override (core.js uiKind), so
       // prefer it over the server's answer; fall back to the payload if this

@@ -60,7 +60,7 @@ function watcherTests() {
 
   // The fix itself: a tick on the Getting started rail lives in
   // .team-config/progression/<slug>.json, and blocking it meant every tick was
-  // reverted by the next sync tick (Lucy Walker, 2026-08-19).
+  // reverted by the next sync tick (client field report, 2026-08-19).
   check(!pathBlockedForRole('.team-config/progression/jo-acme.json', 'team'),
     'a team member\'s own progression tick syncs up');
   check(!pathBlockedForRole('.team-config/feedback/flag-123.json', 'team'),

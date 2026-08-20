@@ -387,8 +387,8 @@
 
   // ── Client brain: the Getting started tab a beginner actually needs ────────
   //
-  // Lucy Walker, 19 Aug 2026: a client's team member landed on a panel asking
-  // her to place herself on six levels of AI adoption, spent four and a half
+  // Client field report, 19 Aug 2026: a client's team member landed on a panel
+  // asking her to place herself on six levels of AI adoption, spent four and a half
   // minutes unable to tell whether a tick meant "I've done this" or "I want to
   // do this", and never scrolled as far as the steps. Nothing had told her the
   // brain was a folder, that the Claude desktop app has to be pointed at it, or
@@ -458,8 +458,8 @@
     });
   }
 
-  // A named person to ask, below the steps. Lucy recorded a four-and-a-half
-  // minute video because there was nowhere on the screen to say "I don't
+  // A named person to ask, below the steps. That same field report ran four and
+  // a half minutes because there was nowhere on the screen to say "I don't
   // understand this". The white-label record already carries the contacts.
   function renderClientAsk(help){
     if(CCKIND!=='client') return;

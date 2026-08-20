@@ -494,7 +494,7 @@ function pathBlockedForRole(relPath, role) {
   // Their own self-report on the Getting started rail. Team is the ONLY role
   // that ticks here (owners/scouts self-report on the members portal), so
   // blocking this path meant every tick was reverted by the next sync tick and
-  // nobody could ever save one (Lucy Walker, 2026-08-19). Each person writes
+  // nobody could ever save one (client field report, 2026-08-19). Each person writes
   // only their own <slug>.json, so there is nothing to conflict on.
   if (relPath.startsWith('.team-config/progression/')) return false;
   return relPath.startsWith('.') || !relPath.includes('/');

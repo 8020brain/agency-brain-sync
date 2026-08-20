@@ -297,7 +297,7 @@
     // whether or not those panes had anything in them. A client team member's
     // Cowork course lives in the top-level tab, so the Help copy is an empty
     // shell, which is how the tab came to open on a blank page for every client
-    // (Lucy Walker, 2026-08-19). Prefer the questions, fall back to the first
+    // (client field report, 2026-08-19). Prefer the questions, fall back to the first
     // section that is both visible and non-empty.
     landOnFirstVisibleHelpSection('faq');
   }

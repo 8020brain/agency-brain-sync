@@ -265,7 +265,7 @@ async function main() {
   // and a blocked path is not just refused: stageAndCommit reverts it, and for a
   // brand-new file that means deleting it. So every tick a team member made was
   // wiped by the next sync tick, and the panel had never saved anything for
-  // anyone since it shipped (Lucy Walker, 2026-08-19). Team is the ONLY role
+  // anyone since it shipped (client field report, 2026-08-19). Team is the ONLY role
   // that ticks there, so nothing else could have caught it.
   {
     console.log('\nH) team write permissions');
