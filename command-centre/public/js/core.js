@@ -213,7 +213,13 @@
             if(note){
               var previewing=(effKind!==realKind);
               note.hidden=!previewing;
-              note.textContent=previewing?('previewing '+effKind+' — this brain is '+realKind):'';
+              // Say what the preview can't fake. The layout switches; the CONTENTS
+              // stay this brain's, so the skill count and the skill list are
+              // still yours and will not match what a real client sees (Mike hit
+              // exactly this and read 53 skills as a client-brain bug, 2026-08-20).
+              note.textContent=previewing
+                ? ('previewing '+effKind+', this brain is '+realKind+' — layout only, the skills and counts are still this brain\'s')
+                : '';
             }
           }
         }

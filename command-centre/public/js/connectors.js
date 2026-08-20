@@ -169,10 +169,33 @@
   // Skills page (master-detail) — team + scout. Reuses the observability data
   // already in SK.data; shows what each skill is, plus its status.
   var SP_SEL=null;
+  // A skill's SKILL.md may carry `roles: owner, scout` — an allow-list of who is
+  // meant to run it, added to the client template on 2026-07-21 for setup and
+  // admin skills a team member should never touch. Until now nothing in the app
+  // read it, so every skill was listed to everybody and a client's team member
+  // could browse (and flag) key-rotation (Mike, 2026-08-20).
+  //
+  // Absent means everyone. head-scout is a legacy alias of scout, and 'agency'
+  // (agency staff inside a client brain) carries scout-level access everywhere
+  // else, so both resolve to scout here. An unknown role sees only ungated
+  // skills, which is the safe direction.
+  function skillRole(){
+    var r=String(CCROLE||'').toLowerCase();
+    return (r==='head-scout'||r==='agency') ? 'scout' : r;
+  }
+  function visibleSkills(){
+    var all=(SK.data&&SK.data.skills)||[];
+    var me=skillRole();
+    return all.filter(function(s){
+      if(!s.roles||!s.roles.length) return true;
+      return s.roles.indexOf(me)>=0;
+    });
+  }
+
   function renderSkillsList(){
     var box=$('sp-items'); if(!box||!SK.data) return;
     var q=((($('sp-search')||{}).value)||'').toLowerCase().trim();
-    var list=(SK.data.skills||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+    var list=visibleSkills().slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
     if(q) list=list.filter(function(s){return (s.name||'').toLowerCase().indexOf(q)>=0;});
     box.innerHTML=list.length?list.map(function(s){
       return '<div class="sp-item'+(s.name===SP_SEL?' active':'')+'" data-skill="'+esc(s.name)+'"><span class="nm">'+esc(s.name)+'</span><span class="pill '+esc(s.maturity)+'">'+esc(s.maturity)+'</span></div>';
@@ -180,7 +203,7 @@
   }
   function renderSkillDetail(name){
     var d=$('sp-detail'); if(!d||!SK.data) return;
-    var s=(SK.data.skills||[]).filter(function(x){return x.name===name;})[0];
+    var s=visibleSkills().filter(function(x){return x.name===name;})[0];
     if(!s){ d.innerHTML='<div class="sp-empty">Pick a skill on the left to see what it does.</div>'; return; }
     SP_SEL=name;
     var status=[]; status.push(s.flags>0?(s.flags+' open flag'+(s.flags===1?'':'s')):'no open flags');
@@ -217,11 +240,14 @@
 
   // Flag a skill — populate the dropdown from the same skills data, submit to
   // the CC server (which writes the feedback file), refresh so counts update.
-  function renderWelcomeStats(){ var el=$('wc-skill-count'); if(el&&SK.data) el.textContent=(SK.data.skills||[]).length; }
+  // Counts what this person can actually run, not what is on disk. The Welcome
+  // headline promising "skills ready to run" was counting skills the reader is
+  // not allowed to run.
+  function renderWelcomeStats(){ var el=$('wc-skill-count'); if(el&&SK.data) el.textContent=visibleSkills().length; }
   function populateFlagSkills(){
     var sel=$('fg-skill'); if(!sel||!SK.data) return;
     var cur=sel.value;
-    sel.innerHTML='<option value="">Select a skill…</option>'+(SK.data.skills||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).map(function(s){return '<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>';}).join('');
+    sel.innerHTML='<option value="">Select a skill…</option>'+visibleSkills().slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');}).map(function(s){return '<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>';}).join('');
     if(cur) sel.value=cur;
   }
   (function(){

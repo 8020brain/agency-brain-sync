@@ -156,6 +156,9 @@ function fixtureFromHtml() {
   // browser itself, so the test can see content travelled with the wrapper.
   const skillsRoot = el('div', { id: 'skills-root', parent: body });
   el('div', { cls: ['skills-page'], parent: skillsRoot });
+  // The Welcome headline's "skills ready to run" number, so the role filter can
+  // be checked on the surface that actually misled someone.
+  el('span', { id: 'wc-skill-count', parent: body });
 
   // Every id the client-kind copy swap targets, seeded with the shipped text.
   for (const id of ['wc-eyebrow', 'wc-h', 'wc-sub', 'wc-pillar-cowork-p', 'wc-step-2', 'wc-step-3',
@@ -547,10 +550,58 @@ function kindSwitchTests() {
   }
 }
 
+// ── E) role-scoped skills ──────────────────────────────────────────────────
+// A SKILL.md can carry `roles: owner, scout`. That convention shipped in the
+// client template on 2026-07-21 as a written rule for Claude and nothing else,
+// so the Skills browser never read it and listed every skill to everybody,
+// key-rotation included (Mike, 2026-08-20).
+function skillRoleTests() {
+  console.log('\nE) role-scoped skills');
+  const SKILLS = [
+    { name: 'gmail', roles: null },
+    { name: 'calendar' },                                  // field absent entirely
+    { name: 'key-rotation', roles: ['owner', 'scout'] },
+    { name: 'tidy-up', roles: ['owner', 'scout'] },
+  ];
+  const seen = (ctx, role) => {
+    ctx.CCROLE = role;
+    ctx.SK.data = { skills: SKILLS };
+    return ctx.visibleSkills().map((s) => s.name);
+  };
+  const { document } = fixtureFromHtml();
+  const ctx = loadCommandCentreJs(document);
+
+  const team = seen(ctx, 'team');
+  check(!team.includes('key-rotation') && !team.includes('tidy-up'),
+    'a team member never sees an owner/scout skill', team.join(', '));
+  check(team.includes('gmail') && team.includes('calendar'),
+    'an ungated skill still shows, with or without the field', team.join(', '));
+  check(seen(ctx, 'owner').length === SKILLS.length, 'an owner sees everything');
+  check(seen(ctx, 'scout').length === SKILLS.length, 'a scout sees everything');
+  check(seen(ctx, 'head-scout').includes('key-rotation'),
+    'head-scout follows the scout rules, as it does everywhere else');
+  check(seen(ctx, 'agency').includes('key-rotation'),
+    'agency staff inside a client brain get scout-level access here too');
+  check(!seen(ctx, 'wat').includes('key-rotation'),
+    'an unrecognised role sees only ungated skills, the safe direction');
+
+  // The Welcome headline counts what you can run, not what is on disk.
+  ctx.CCROLE = 'team';
+  ctx.SK.data = { skills: SKILLS };
+  ctx.renderWelcomeStats();
+  const el = ctx.document.getElementById('wc-skill-count');
+  // String() both sides: a real DOM coerces textContent, this fake one stores
+  // whatever it was given, so an exact === would be testing the fixture.
+  check(el && String(el.textContent) === String(seen(ctx, 'team').length),
+    'the Welcome skill count matches what this person can run',
+    el ? `showed ${el.textContent}` : 'no count element');
+}
+
 (async () => {
   console.log('client-kind tests');
   domTests();
   kindSwitchTests();
+  skillRoleTests();
   outsideCommandCentreTests();
   await serverTests();
   console.log(`\n${pass} passed, ${fail} failed`);

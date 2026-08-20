@@ -67,7 +67,13 @@ function listSkillDirs(skillsDir) {
 
 function parseFrontmatter(skillDir) {
   const md = path.join(skillDir, 'SKILL.md');
-  const out = { maturity: 'live', description: '', version: '' };
+  // roles: an optional allow-list of who may run this skill, added to the client
+  // template on 2026-07-21 as a soft gate ("roles: owner, scout" on setup and
+  // admin skills a team member should never run). It was only ever read by
+  // Claude following a CLAUDE.md rule; the Skills browser never parsed it, so it
+  // listed every skill to everybody, including key-rotation (Mike, 2026-08-20).
+  // Absent means everyone.
+  const out = { maturity: 'live', description: '', version: '', roles: null };
   if (!fs.existsSync(md)) return out;
   let text = '';
   try { text = fs.readFileSync(md, 'utf8'); } catch { return out; }
@@ -77,6 +83,11 @@ function parseFrontmatter(skillDir) {
   if (mMat) out.maturity = mMat[1];
   const mDesc = fm[1].match(/^description:\s*(.+?)\s*$/m);
   if (mDesc) out.description = mDesc[1].replace(/^["']|["']$/g, '').slice(0, 1200);
+  const mRoles = fm[1].match(/^roles:\s*(.+?)\s*$/m);
+  if (mRoles) {
+    const list = mRoles[1].split(',').map(r => r.trim().toLowerCase()).filter(Boolean);
+    if (list.length) out.roles = list;
+  }
   const mVer = fm[1].match(/^version:\s*(.+?)\s*$/m);
   if (mVer) out.version = mVer[1].replace(/^["']|["']$/g, '').slice(0, 24);
   // Pull the first prose paragraph of the BODY (the human-readable bit under the
@@ -450,7 +461,7 @@ function getObservability(opts = {}) {
 
   const skills = names.map(name => {
     const skillDir = path.join(skillsDir, name);
-    const { maturity, description, version, intro } = parseFrontmatter(skillDir);
+    const { maturity, description, version, intro, roles } = parseFrontmatter(skillDir);
     const gi = lastImproved[name] || null;
     const daysStale = gi ? daysBetween(gi.date, now) : null;
     let drift = null;
@@ -463,6 +474,7 @@ function getObservability(opts = {}) {
       description,
       intro: intro || '',
       version,
+      roles,
       lastImproved: gi ? gi.date : null,
       lastImprovedBy: gi ? gi.author : null,
       daysStale,
