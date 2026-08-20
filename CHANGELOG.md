@@ -2,6 +2,12 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.27 — 2026-08-20
+
+- **The Skills list now shows people what they can actually run.** A skill can carry a line in its file marking it as owner and scout only, and setup, maintenance and admin skills have carried it since July. Nothing in the app ever read it, so everybody saw every skill regardless, including key rotation, which is the one that matters most. A team member's Skills list, the Flag a skill dropdown, and the "skills ready to run" number on Welcome now all leave out the ones that aren't theirs. Owners and scouts see everything, exactly as before. On a client brain this takes a team member from 22 skills to 14.
+
+- **Housekeeping.** Source comments were tidied so no member, agency or client is named in anything another agency can read. Nothing about how your brain behaves has changed.
+
 ## 1.1.26 — 2026-08-20
 
 - **A client's team gets a Getting started tab written for them, not for an agency.** It used to open with a panel asking someone to place themselves on six levels of AI adoption, which is a way for an agency to think about progress and no use at all to a business owner on their second day. That panel is gone from client brains, and in agency brains it now sits below the guided path instead of above it. What a client sees first is what the brain actually is, how to point the Claude desktop app at it, and one thing to do today.
