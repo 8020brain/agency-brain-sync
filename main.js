@@ -2815,6 +2815,15 @@ ipcMain.handle('write-business-context', async (_evt, args) => {
     `- **What I sell:** ${ctx.sells || ''}\n` +
     `- **Who I serve:** ${ctx.serves || ''}\n`;
   const target = path.join(bizDir, 'business-context.md');
+  // NEVER replace a file this handler did not create. This used to be a blind
+  // writeFileSync reached by every single person who joined, so the second
+  // teammate through setup silently overwrote the whole business's context with
+  // their own four answers, and it synced (Mike, 2026-08-20). The wizard screen
+  // that called this is gone; the guard stays so nothing can reintroduce the
+  // damage from another path.
+  if (fs.existsSync(target)) {
+    return { ok: false, skipped: 'exists', path: target };
+  }
   fs.writeFileSync(target, body);
   return { ok: true, path: target };
 });

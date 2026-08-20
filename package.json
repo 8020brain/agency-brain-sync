@@ -1,7 +1,7 @@
 {
   "name": "agency-brain-sync",
   "productName": "Agency Brain",
-  "version": "1.1.25",
+  "version": "1.1.26",
   "description": "Keeps your agency brain folder in sync across the team. Runs quietly in the menu bar. Personal-mode supported too.",
   "main": "main.js",
   "author": {
@@ -12,7 +12,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node tests/claude-detection.test.cjs && node tests/client-kind.test.cjs && node tests/config-recovery.test.cjs && node tests/git-credential.test.cjs && node tests/github-account.test.cjs && node tests/local-identity.test.cjs && node tests/section-sync.test.cjs && node tests/shared-org.test.cjs && node tests/sync-recovery.test.cjs",
+    "test": "node tests/claude-detection.test.cjs && node tests/client-experience.test.cjs && node tests/client-kind.test.cjs && node tests/config-recovery.test.cjs && node tests/git-credential.test.cjs && node tests/github-account.test.cjs && node tests/local-identity.test.cjs && node tests/section-sync.test.cjs && node tests/shared-org.test.cjs && node tests/sync-recovery.test.cjs",
     "build:mac": "electron-builder --mac --publish never",
     "build:win": "electron-builder --win --publish never",
     "build:all": "electron-builder --mac --win --publish never"

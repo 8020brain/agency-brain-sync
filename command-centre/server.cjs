@@ -609,6 +609,40 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(file, JSON.stringify(progress, null, 2) + '\n');
       return send(res, 200, { ok: true, path: key, progress });
     }
+    // ---- Open the brain folder in the OS file browser ---------------------
+    // The Getting started tab shows a client their folder path and a button, so
+    // they can find it in the file picker when they attach it to Cowork. The
+    // tray menu has done this for ages via Electron; the Command Centre is a
+    // plain node server, so it shells out to the platform opener. Only ever the
+    // brain root, never a path from the request.
+    if (req.method === 'POST' && p === '/api/open-brain-folder') {
+      const opener = process.platform === 'darwin' ? 'open'
+        : process.platform === 'win32' ? 'explorer' : 'xdg-open';
+      const r = spawnSync(opener, [BRAIN_ROOT], { timeout: 5000 });
+      // explorer.exe returns 1 even on success, so only a spawn error is a failure.
+      if (r.error) return send(res, 500, { error: 'Could not open the folder.' });
+      return send(res, 200, { ok: true });
+    }
+    // ---- Client-brain FAQ (from the brain, not Firestore) -----------------
+    // A client's team must never see the Firestore FAQ: it is written for
+    // agencies and members and carries the Client Brain reseller answers. Their
+    // FAQ lives in the brain instead, at .claude/faq/faq.json, which the sync
+    // rules already make read-only for a team member (anything under a dot
+    // folder is), so a scout or owner writes it and everyone else just reads.
+    // Missing or malformed degrades to unavailable; the Help pane then shows
+    // the contact block rather than a blank tab (Mike, 2026-08-20).
+    if (req.method === 'GET' && p === '/api/client-faq') {
+      try {
+        const raw = fs.readFileSync(path.join(BRAIN_ROOT, '.claude', 'faq', 'faq.json'), 'utf8');
+        const doc = JSON.parse(raw);
+        const items = (Array.isArray(doc.items) ? doc.items : [])
+          .filter((i) => i && i.q && i.a)
+          .map((i) => ({ q: String(i.q), a: String(i.a), category: String(i.category || 'Questions') }));
+        return send(res, 200, { available: items.length > 0, items });
+      } catch {
+        return send(res, 200, { available: false, items: [] });
+      }
+    }
     // ---- Self-report progression rail (trust-spine, six levels) -----------
     // Team members tick where they feel they are; owners/scouts see the team's
     // self-reports rolled up. Team ticks live in .team-config/progression/
@@ -617,7 +651,9 @@ const server = http.createServer(async (req, res) => {
     // lib/progression.cjs for the full rationale + the observability parallel.
     if (req.method === 'GET' && p === '/api/progression') {
       const role = (MEMBER_ROLE || (TEAM_SLUG ? 'team' : 'owner')).toLowerCase();
-      const payload = { role, levels: progression.LEVELS };
+      // kind travels with the payload so the rail can take itself off a client
+      // brain without depending on another script's variables (Mike, 2026-08-20).
+      const payload = { role, kind: TEAM_KIND, levels: progression.LEVELS };
       if (role === 'team') payload.self = progression.readSelf(BRAIN_ROOT, MEMBER_EMAIL, MEMBER_NAME);
       else payload.rollup = progression.rollup(BRAIN_ROOT);
       return send(res, 200, payload);

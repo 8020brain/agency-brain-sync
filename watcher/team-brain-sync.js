@@ -491,6 +491,12 @@ function pathBlockedForRole(relPath, role) {
   // Team's one allowed upward channel: skill feedback. flag-skill writes here,
   // and the whole point is that a flag reaches the scout, so let it sync up.
   if (relPath.startsWith('.team-config/feedback/')) return false;
+  // Their own self-report on the Getting started rail. Team is the ONLY role
+  // that ticks here (owners/scouts self-report on the members portal), so
+  // blocking this path meant every tick was reverted by the next sync tick and
+  // nobody could ever save one (Lucy Walker, 2026-08-19). Each person writes
+  // only their own <slug>.json, so there is nothing to conflict on.
+  if (relPath.startsWith('.team-config/progression/')) return false;
   return relPath.startsWith('.') || !relPath.includes('/');
 }
 

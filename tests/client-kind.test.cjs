@@ -150,8 +150,16 @@ function fixtureFromHtml() {
   const faq = document.getElementById('help-faq');
   for (const id of ['help-os', 'help-team', 'help-team-note']) el('div', { id, parent: faq || pane });
 
+  // The Skills browser wrapper. In a client brain applyClientTabs moves this one
+  // node into the Help pane (#help-skills, built from the help-navi loop above),
+  // so both ends of that move must exist here. The child stands in for the
+  // browser itself, so the test can see content travelled with the wrapper.
+  const skillsRoot = el('div', { id: 'skills-root', parent: body });
+  el('div', { cls: ['skills-page'], parent: skillsRoot });
+
   // Every id the client-kind copy swap targets, seeded with the shipped text.
-  for (const id of ['wc-eyebrow', 'wc-h', 'wc-app-h', 'wc-app-p', 'wc-scout-h', 'wc-scout-p',
+  for (const id of ['wc-eyebrow', 'wc-h', 'wc-sub', 'wc-pillar-cowork-p', 'wc-step-2', 'wc-step-3',
+    'wc-app-h', 'wc-app-p', 'wc-scout-h', 'wc-scout-p',
     'session-expired-text', 'bu-lead', 'cw-p', 'ft-ver', 'ft-path', 'brand-ver',
     'who-role', 'who-email', 'upsell-banner', 'upsell-banner-s', 'owner-plan-card',
     'owner-plan', 'ub-h', 'ub-p', 'ub-cta', 'ub-x', 'ub-h-s', 'ub-p-s', 'ub-x-s',
@@ -167,7 +175,10 @@ function fixtureFromHtml() {
   return { document, tabViews, helpNav, nLinks };
 }
 
-function loadCommandCentreJs(document) {
+// seedStorage: localStorage contents present BEFORE the scripts run. Some
+// overrides are read once at load time (DEV_ROLE_OVERRIDE), so setting them
+// after the fact would prove nothing.
+function loadCommandCentreJs(document, seedStorage) {
   const ctx = {
     document, console,
     window: {}, location: { search: '' }, URLSearchParams, Date, Math, JSON, String, Number,
@@ -175,7 +186,7 @@ function loadCommandCentreJs(document) {
     // Timers are no-ops: nothing here needs deferred work, and a real one would
     // fire a poll into a torn-down fixture after the test had moved on.
     setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
-    localStorage: { store: {}, getItem(k) { return this.store[k] === undefined ? null : this.store[k]; }, setItem(k, v) { this.store[k] = String(v); }, removeItem(k) { delete this.store[k]; } },
+    localStorage: { store: Object.assign({}, seedStorage || {}), getItem(k) { return this.store[k] === undefined ? null : this.store[k]; }, setItem(k, v) { this.store[k] = String(v); }, removeItem(k) { delete this.store[k]; } },
     fetch: () => Promise.reject(new Error('no network in tests')),
     alert() {}, confirm: () => false,
   };
@@ -212,25 +223,76 @@ function domTests() {
     const ctx = loadCommandCentreJs(document);
     ctx.CCKIND = 'client'; ctx.CCROLE = role; ctx.CC_PAGES = null;
     ctx.applyClientTabs();
-    check(OPT_IN.every((v) => tabHidden(ctx, v)),
-      `${role}: Skills, Google Ads, Getting started and Learn Cowork all hidden by default`,
-      OPT_IN.filter((v) => !tabHidden(ctx, v)).join(', ') + ' still visible');
+    // Before the branding record arrives, the two onboarding tabs are already
+    // on and everything else is hidden (Mike, 2026-08-20: "show the two that are
+    // safe to show, then respect the setup the scout chose"). Hiding all four
+    // pre-branding made sense while Skills and Google Ads were opt-ins carrying
+    // agency content; they can never show in a client brain now, so the only
+    // thing left to guess about is the client's own onboarding, where a blank
+    // tab bar is the worse outcome and there is nothing to leak.
+    const DEFAULT_ON = ['path', 'cowork'];
+    check(DEFAULT_ON.every((v) => !tabHidden(ctx, v)),
+      `${role}: the two onboarding tabs paint before branding loads`,
+      DEFAULT_ON.filter((v) => tabHidden(ctx, v)).join(', ') + ' was hidden');
+    check(OPT_IN.filter((v) => !DEFAULT_ON.includes(v)).every((v) => tabHidden(ctx, v)),
+      `${role}: nothing else shows before branding loads`,
+      OPT_IN.filter((v) => !DEFAULT_ON.includes(v) && !tabHidden(ctx, v)).join(', ') + ' still visible');
+    // Once branding HAS loaded, an untouched record means Getting started and
+    // Learn Cowork are ON (Mike, 2026-08-20): Getting started holds the only
+    // connect-Cowork instructions, so default-off dead-ended the wizard's
+    // handoff for any client whose agency never opened Customize.
+    ctx.CC_PAGES = {};
+    ctx.applyClientTabs();
+    check(!tabHidden(ctx, 'path') && !tabHidden(ctx, 'cowork'),
+      `${role}: a fresh client brain gets Getting started and Learn Cowork`,
+      ['path', 'cowork'].filter((v) => tabHidden(ctx, v)).join(', ') + ' hidden');
+    check(tabHidden(ctx, 'skills') && tabHidden(ctx, 'gads'),
+      `${role}: Skills and Google Ads stay off the tab row`);
+  }
+
+  {
+    // The agency's off switch still works: an explicit false beats the default.
+    const { document } = fixtureFromHtml();
+    const ctx = loadCommandCentreJs(document);
+    ctx.CCKIND = 'client'; ctx.CCROLE = 'team';
+    ctx.CC_PAGES = { path: { team: false } };
+    ctx.applyClientTabs();
+    check(tabHidden(ctx, 'path'), 'an agency can still switch Getting started off');
+    check(!tabHidden(ctx, 'cowork'), 'switching one tab off leaves the other on');
   }
 
   {
     const { document } = fixtureFromHtml();
     const ctx = loadCommandCentreJs(document);
     ctx.CCKIND = 'client'; ctx.CCROLE = 'team';
-    ctx.CC_PAGES = { skills: { team: true }, gads: { team: false } };
+    // 2026-08-20 (Mike): Google Ads and Skills are no longer tabs a client brain
+    // can have. Google Ads was inherited from Agency Brain and does not belong in
+    // front of a client's team, so the SWITCH goes too — opting in must not work.
+    // Skills moves inside Help. Both must stay hidden even when CC_PAGES says on.
+    ctx.CC_PAGES = { skills: { team: true }, gads: { team: true }, path: { team: true } };
     ctx.applyClientTabs();
-    check(!tabHidden(ctx, 'skills'), 'an agency can opt its client\'s team back into Skills');
-    check(tabHidden(ctx, 'gads'), 'Google Ads stays hidden when not opted in');
+    check(tabHidden(ctx, 'skills'), 'Skills is not a client tab, even opted in');
+    check(tabHidden(ctx, 'gads'), 'Google Ads is not a client tab, even opted in');
+    check(!tabHidden(ctx, 'path'), 'a genuinely opt-in tab still opts in');
     // The bug this guards: applyRoleTabs re-runs on a role change (loadRoster)
     // and used to hard-set skills/gads visible with no kind check at all.
     ctx.applyRoleTabs('team');
-    check(tabHidden(ctx, 'gads'), 'a role re-run cannot un-hide an opted-out tab',
+    check(tabHidden(ctx, 'gads'), 'a role re-run cannot un-hide Google Ads',
       'applyRoleTabs turned Google Ads back on');
-    check(!tabHidden(ctx, 'skills'), 'a role re-run keeps an opted-in tab visible');
+    check(tabHidden(ctx, 'skills'), 'a role re-run cannot un-hide Skills');
+    check(!tabHidden(ctx, 'path'), 'a role re-run keeps an opted-in tab visible');
+    // Skills lost its tab but not its browser: the one node moves into the Help
+    // pane, content and all, and a re-run must not append it a second time.
+    const skRoot = ctx.document.getElementById('skills-root');
+    const skHome = ctx.document.getElementById('help-skills');
+    check(skRoot && skHome && skRoot.parentElement === skHome,
+      'the Skills browser is relocated into the Help pane',
+      skRoot && skRoot.parentElement ? `parent: #${skRoot.parentElement.id}` : 'no parent');
+    check(skRoot && skRoot.querySelector('.skills-page') !== null,
+      'the browser\'s content travelled with it');
+    ctx.applyClientTabs();
+    check(skHome && skHome.children.filter((c) => c.id === 'skills-root').length === 1,
+      'a second pass never duplicates the relocated node');
   }
 
   {
@@ -240,9 +302,9 @@ function domTests() {
     const { document } = fixtureFromHtml();
     const ctx = loadCommandCentreJs(document);
     ctx.CCKIND = 'client'; ctx.CCROLE = 'head-scout';
-    ctx.CC_PAGES = { skills: { scout: true }, gads: { scout: false } };
+    ctx.CC_PAGES = { path: { scout: true }, gads: { scout: false } };
     ctx.applyClientTabs();
-    check(!tabHidden(ctx, 'skills'), 'a head-scout follows the scout toggles, so it can be opted in');
+    check(!tabHidden(ctx, 'path'), 'a head-scout follows the scout toggles, so it can be opted in');
     check(tabHidden(ctx, 'gads'), 'a head-scout still gets the scout opt-outs');
   }
 
@@ -265,8 +327,19 @@ function domTests() {
     ctx.CCKIND = 'client'; ctx.CCROLE = 'owner'; ctx.CC_PAGES = null;
     ctx.applyClientTabs();
     const visible = helpNav.filter((h) => !navHidden(ctx, h));
-    check(visible.length === 1 && visible[0] === 'flag',
-      'only Flag a skill survives in the Help sub-nav', `visible: ${visible.join(', ') || 'none'}`);
+    // Skills moved in here from the top nav, and FAQ is back but served from the
+    // brain's own .claude/faq/faq.json rather than Firestore (Mike, 2026-08-20).
+    // Our world stays out: no Get set up, no How it works, no Updates.
+    // Learn Cowork joins the list for an owner or scout, because applyRoleTabs
+    // leaves the one course node inside Help for them (a team member gets it as
+    // a top-level tab instead, and its Help copy is an empty shell). This block
+    // runs as owner.
+    const expected = ['cowork', 'skills', 'flag', 'faq'];
+    check(expected.every((k) => visible.includes(k)) && visible.length === expected.length,
+      'Help sub-nav for a client owner is Learn Cowork, Skills, Flag a skill and FAQ',
+      `visible: ${visible.join(', ') || 'none'}`);
+    check(!visible.includes('setup') && !visible.includes('how') && !visible.includes('updates'),
+      'no agency-facing Help sections survive in a client brain');
     check(['help-os', 'help-team', 'help-team-note'].every((id) => !ctx.document.getElementById(id)),
       'both FAQ blocks are removed, so the live FAQ fetch has nowhere to render');
     const srch = ctx.document.getElementById('help-search');
@@ -279,13 +352,21 @@ function domTests() {
     const ctx = loadCommandCentreJs(document);
     ctx.CCKIND = 'client'; ctx.CCROLE = 'team';
     ctx.applyClientChrome('client', 'Acme Co');
-    const ids = ['wc-eyebrow', 'wc-h', 'wc-app-p', 'wc-scout-h', 'wc-scout-p', 'session-expired-text', 'bu-lead'];
+    const ids = ['wc-eyebrow', 'wc-h', 'wc-sub', 'wc-pillar-cowork-p', 'wc-app-p', 'wc-scout-h', 'wc-scout-p', 'session-expired-text', 'bu-lead'];
     const copyText = ids.map((i) => (ctx.document.getElementById(i) || {}).textContent || '').join(' ')
-      + ' ' + ((ctx.document.getElementById('cw-p') || {}).innerHTML || '');
+      + ' ' + ['cw-p', 'wc-step-2', 'wc-step-3'].map((i) => (ctx.document.getElementById(i) || {}).innerHTML || '').join(' ');
     check(!/Agency Brain/i.test(copyText), 'no product name left in the client-visible copy',
       (copyText.match(/.{0,40}Agency Brain.{0,40}/i) || [])[0]);
     check(!/your agency/i.test(copyText), 'no "your agency" wording left',
       (copyText.match(/.{0,40}your agency.{0,40}/i) || [])[0]);
+    // "how the agency does things" dodged the check above for weeks because it
+    // says "the agency", not "your agency" (found in the 2026-08-20 render).
+    check(!/the agency\b/i.test(copyText) && !/\bScout\b/.test(copyText), 'no "the agency" or "Scout" wording left',
+      (copyText.match(/.{0,40}(the agency|Scout).{0,40}/i) || [])[0]);
+    check(!/your client/i.test(copyText), 'no "your client" framing left',
+      (copyText.match(/.{0,40}your client.{0,40}/i) || [])[0]);
+    check(!/Skills tab/i.test(copyText), 'nothing points a client at a Skills tab that is not there',
+      (copyText.match(/.{0,40}Skills tab.{0,40}/i) || [])[0]);
     check(ctx.document.title === 'Acme Co · Command Centre', 'the page title wears the client\'s brand', ctx.document.title);
     const suffix = ctx.document.querySelector('.brand .agency');
     check(suffix && suffix.textContent === '· Acme Co', 'the brand suffix wears the client\'s brand', suffix && suffix.textContent);
@@ -420,9 +501,56 @@ async function serverTests() {
   });
 }
 
+// ── D) Mike's brain-kind preview switcher ──────────────────────────────────
+// "View as team" only ever showed the AGENCY team page, so there was no way to
+// look at what a client's team member gets without installing a client brain
+// (Mike, 2026-08-20). uiKind() reads a stored override, and the flip reloads the
+// page because a kind change moves DOM nodes and swaps the FAQ source.
+function kindSwitchTests() {
+  console.log('\nD) brain-kind preview switcher');
+  {
+    const { document } = fixtureFromHtml();
+    const ctx = loadCommandCentreJs(document);
+    check(ctx.uiKind('agency') === 'agency', 'with no override, the real kind wins');
+    ctx.localStorage.setItem('cc-dev-kind', 'client');
+    check(ctx.uiKind('agency') === 'client', 'a stored override flips an agency brain to client');
+    ctx.localStorage.setItem('cc-dev-kind', 'nonsense');
+    check(ctx.uiKind('agency') === 'agency', 'a junk override is ignored, never trusted blindly');
+    ctx.localStorage.removeItem('cc-dev-kind');
+    ctx.location.search = '?kind=client';
+    check(ctx.uiKind('agency') === 'client', 'the ?kind= query param works the same way');
+    ctx.location.search = '';
+  }
+  {
+    // The override must reach the tab gating, or the preview looks like an
+    // agency brain wearing a client label.
+    const { document } = fixtureFromHtml();
+    const ctx = loadCommandCentreJs(document);
+    ctx.localStorage.setItem('cc-dev-kind', 'client');
+    ctx.CCKIND = ctx.uiKind('agency'); ctx.CCROLE = 'team';
+    ctx.CC_PAGES = { path: { team: true }, cowork: { team: true } };
+    ctx.applyClientTabs();
+    check(tabHidden(ctx, 'gads'), 'previewing a client hides Google Ads');
+    check(tabHidden(ctx, 'skills'), 'previewing a client hides the Skills tab');
+    check(!tabHidden(ctx, 'path'), 'previewing a client keeps Getting started');
+  }
+  {
+    // The role preview has to survive the reload the kind flip triggers, so it
+    // is read from storage as the scripts load, not held in memory.
+    const kept = loadCommandCentreJs(fixtureFromHtml().document, { 'cc-dev-role': 'team' });
+    check(kept.uiRole('owner') === 'team',
+      'a stored role preview survives the reload a kind flip causes');
+    const junk = loadCommandCentreJs(fixtureFromHtml().document, { 'cc-dev-role': 'not-a-role' });
+    check(junk.uiRole('owner') === 'owner', 'a junk stored role is ignored');
+    const none = loadCommandCentreJs(fixtureFromHtml().document);
+    check(none.uiRole('owner') === 'owner', 'with nothing stored, your own role wins');
+  }
+}
+
 (async () => {
   console.log('client-kind tests');
   domTests();
+  kindSwitchTests();
   outsideCommandCentreTests();
   await serverTests();
   console.log(`\n${pass} passed, ${fail} failed`);

@@ -91,14 +91,25 @@
     }
     var cur=tpCur(); if(!cur){ root.innerHTML=''; return; }
     var p=cur.def, role=tpEffRole();
+    // Roster role BEFORE the client-owner collapse below. A track can carry
+    // roles:["owner"] (the "If you run the business" group), and a client brain's
+    // owner must still see it even though the rest of this function treats them
+    // as a team member for layout purposes.
+    var rosterRole=role;
     // A client-brain owner uses the team path as THEIR path (see tpPickPath),
     // so the tab treats them like a team member: no path switcher, no
     // "what your team sees" framing, none of the agency scout copy.
     if(((TP_DATA&&TP_DATA.kind)||'agency')==='client'&&role==='owner') role='team';
     var isTeamRole=(role==='team');
     var bothPaths=!!(TP_DATA.paths.team&&TP_DATA.paths.scout);
+    // Tracks with no roles list are for everyone; one that names roles shows
+    // only to those. Filtering here (not just at render) keeps the step count
+    // and the progress bar honest for whoever is reading.
+    var tracks=(p.tracks||[]).filter(function(t){
+      return !Array.isArray(t.roles) || t.roles.indexOf(rosterRole)>=0;
+    });
     var allSteps=[], doneCount=0;
-    p.tracks.forEach(function(t){ t.steps.forEach(function(s){ allSteps.push(s); if(tpDone(s.id)) doneCount++; }); });
+    tracks.forEach(function(t){ t.steps.forEach(function(s){ allSteps.push(s); if(tpDone(s.id)) doneCount++; }); });
     var pct=allSteps.length?Math.round(doneCount/allSteps.length*100):0;
 
     var h='<div class="card tp-hero">'
@@ -118,14 +129,18 @@
     h+='<p class="tp-intro">'+esc(p.intro)+'</p>'
       +'<div class="tp-bar"><div class="tp-bar-fill" style="width:'+pct+'%"></div></div>'
       +'<div class="tp-cowork"><b>The guided way:</b> '+(TP_SEL==='scout'
-        ?'open Claude Code in your brain folder and type <code>/start</code>. '
-        :'open Cowork (pointed at your brain folder) and type <code>/start</code>. ')
-      +'Claude walks you through these steps and does them with you. This page is the map; tick steps off in either place. '
+        // Typing /start works in Claude Code. It does NOT work in Cowork (repo
+        // skills aren't registered as commands there; Peter, 2026-07-30), which
+        // is why the non-scout line hands people to the paste prompt above
+        // instead (Mike, 2026-08-20).
+        ?'open Claude Code in your brain folder and type <code>/start</code>. Claude walks you through these steps and does them with you. '
+        :'copy the prompt above into Cowork and Claude walks you through these steps, doing them with you. ')
+      +'This page is the map; tick steps off in either place. '
       +'Don\'t have Cowork yet? <span class="tp-link" data-ext="https://claude.ai/download">Download it here</span>.</div>'
       +(isTeamRole||TP_SEL!=='team'?'':'<p class="tp-note">This is the path your team members follow. Ticks here are your own local progress, so feel free to try it.</p>')
       +'</div>';
 
-    p.tracks.forEach(function(t,ti){
+    tracks.forEach(function(t,ti){
       var done=t.steps.filter(function(s){return tpDone(s.id);}).length;
       var allDone=t.steps.length>0&&done===t.steps.length;
       var trackOpen=tpTrackOpen(t,ti,allDone);
@@ -143,7 +158,7 @@
         var kind=(s.type||'').toLowerCase();
         var kindLabel=kind?kind.charAt(0).toUpperCase()+kind.slice(1):'';
         if(s.prompt) TP_COPY[s.id]=s.prompt;
-        else if(s.quiz) TP_COPY[s.id]='Run /start and give me the "'+s.title+'" quiz from the "'+t.title+'" track. Ask me one question at a time, in your own words, and let me answer before telling me how I did.';
+        else if(s.quiz) TP_COPY[s.id]='Read the file .claude/skills/start/SKILL.md in this folder and follow it: give me the "'+s.title+'" quiz from the "'+t.title+'" track. Ask me one question at a time, in your own words, and let me answer before telling me how I did.';
         h+='<div class="tp-step'+(isDone?' done':'')+'" data-step="'+esc(s.id)+'">'
           +'<button class="tp-check" data-tp-toggle="'+esc(s.id)+'" title="'+(isDone?'Mark not done':'Mark done')+'">'+(isDone?'✓':'')+'</button>'
           +'<div class="tp-step-main">'

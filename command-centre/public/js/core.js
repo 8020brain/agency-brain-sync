@@ -176,15 +176,17 @@
       // until then, and if that record has no name, it shows the bare version
       // rather than falling back to ours.
       var verTxt=h.version?('v'+h.version):'';
-      $('ft-ver').textContent=(kind==='client')?verTxt:('Agency Brain'+(verTxt?' '+verTxt:''));
+      $('ft-ver').textContent=(uiKind(kind)==='client')?verTxt:('Agency Brain'+(verTxt?' '+verTxt:''));
       $('ft-path').textContent=h.brainRoot||'';
       // CCROLE + CCKIND must be assigned BEFORE applyRoleTabs — the client-brain
       // tab gating inside it reads both. They used to be set after, which is why
       // every kind check in the tab code was dead.
+      kind=uiKind(kind);
       CCROLE=role; CCKIND=kind; ME=(h.memberEmail||'').toLowerCase(); ME_NAME=(h.memberName||'').toLowerCase();
       if(h.scoutSeats!=null) SCOUT_SEATS=Number(h.scoutSeats);
       if(h.packageTier) PACKAGE_TIER=h.packageTier;
       applyClientChrome(kind);
+      renderClientStart(h.brainRoot);
       applyRoleTabs(h.memberRole);
       applyBranding(h);
       maybeBanner(); maybePortalNudge(); maybeIdentity(h);
@@ -194,12 +196,27 @@
         // on EVERY build (not just preview), so he can eyeball each role's view live
         // instead of maintaining static prototype HTML. View-only — the server still
         // enforces real permissions, so flipping the view grants no extra rights.
-        var SUPER_ADMINS=['mike@ads2ai.com','mike@mikerhodes.com.au'];
+        var SUPER_ADMINS=['mike@ads2ai.com','mike@mikerhodes.com.au','hello@mikerhodes.com.au'];
         var superAdmin=SUPER_ADMINS.indexOf((h.memberEmail||'').toLowerCase().trim())!==-1;
         var dev=/preview|dev/i.test(h.version||'');
         var showSwitch=superAdmin||dev;
         sw.hidden=!showSwitch;
         if(showSwitch){ var eff=uiRole((h.memberRole||'').toLowerCase()); sw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.role===eff); }); }
+        var kw=$('dev-kind');
+        if(kw){
+          kw.hidden=!showSwitch;
+          if(showSwitch){
+            var realKind=(h.teamKind||'agency');
+            var effKind=uiKind(realKind);
+            kw.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b.dataset.kind===effKind); });
+            var note=$('dev-kind-note');
+            if(note){
+              var previewing=(effKind!==realKind);
+              note.hidden=!previewing;
+              note.textContent=previewing?('previewing '+effKind+' — this brain is '+realKind):'';
+            }
+          }
+        }
       }
     }catch(e){}
   }
@@ -226,6 +243,12 @@
   var CLIENT_TEXT={
     'wc-eyebrow':'Your business brain',
     'wc-h':'Everything your business knows, in one place Claude can use.',
+    // The hero paragraph and the Cowork card said "your client context" and
+    // "how the agency does things" to a client's team member, on their first
+    // screen (the "new team member's first hour" review; wording is Mike's,
+    // 2026-08-20).
+    'wc-sub':'A shared workspace your whole team runs with Claude. What the business does, the tasks you do, and any data you use all live inside the brain folder that stays in sync automatically. You work inside the Claude Cowork app. The Command Centre app is just for the training help & to keep the files in sync (it stays running in the background on your computer).',
+    'wc-pillar-cowork-p':'Claude’s desktop app, pointed at your shared brain folder. The folder contains the files (that you’ll add to over time) that enable the AI to ‘remember’ info about you & the business.',
     'wc-app-p':'This app sits quietly up in your menu bar and keeps the shared folder in sync on your machine, automatically. Leave it running, that’s all it needs. No Git, no technical setup, nothing to remember.',
     'wc-scout-h':'You’ve got support',
     'wc-scout-p':'You don’t have to work any of this out on your own. Whoever set this brain up for you gets you connected and walks you through your first run. Ask them anything, that’s what they’re there for.',
@@ -233,7 +256,12 @@
     'bu-lead':'Update ready:'
   };
   var CLIENT_HTML={
-    'cw-p':'Your brain is open in <b>Cowork</b> or the <b>Claude desktop app</b>. Switch to it, paste (<kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>), and press enter. Claude works right inside your brain folder — no terminal or extra tools needed.'
+    'cw-p':'Your brain is open in <b>Cowork</b> or the <b>Claude desktop app</b>. Switch to it, paste (<kbd>⌘V</kbd> / <kbd>Ctrl V</kbd>), and press enter. Claude works right inside your brain folder — no terminal or extra tools needed.',
+    // Step 2 pointed a client at a Skills TAB (theirs lives inside Help) with
+    // an agency example skill; step 3 named "the Scout", agency vocabulary a
+    // client never hears.
+    'wc-step-2':'<strong>Ask in plain English.</strong> You can browse everything your brain already knows how to do under Help → Skills.',
+    'wc-step-3':'<strong>Flag anything that falls short</strong> under Help → Flag a skill. Whoever looks after your brain improves it for everyone.'
   };
   function applyClientChrome(kind, brandName){
     if(kind!=='client') return;
@@ -254,7 +282,8 @@
   }
 
   async function applyBranding(h){
-    var kind=(h&&h.teamKind)||'agency';
+    var realKind=(h&&h.teamKind)||'agency';
+    var kind=uiKind(realKind);
     // Client brains wear their client's brand; agency brains can wear their
     // OWN (the portal's Your Brand page, 2026-07-24 — Jaywing's ask). Any
     // other kind stays stock, and clears the pre-paint cache so it can't
@@ -316,10 +345,21 @@
       // fetch — without the cache, that re-run silently un-hid every tab the
       // agency had opted out of. applyClientTabs is the one place that decides.
       CC_PAGES=((b&&b.config)||{}).pages||{};
+      // Previewing a client brain from an agency one: there is no white-label
+      // record, so every opt-in tab would be hidden and the preview would show
+      // a layout no real client has. Treat the opt-ins as on for the preview
+      // only — a genuine client brain is untouched by this.
+      if(kind==='client'&&realKind!=='client'&&!Object.keys(CC_PAGES).length){
+        CC_PAGES={};
+        ['path','cowork'].forEach(function(k){
+          CC_PAGES[k]={owner:true,scout:true,team:true,agency:true};
+        });
+      }
       applyClientTabs();
       // Help contacts (2026-07-23): a client's Help tab leads with THEIR
       // agency's contact details, injected above the stock content.
       var help=((b&&b.config)||{}).help||[];
+      renderClientAsk(help);
       if(help.length){
         var pane=document.querySelector('#view-help .help-pane');
         var exist=document.getElementById('client-help-contacts');
@@ -342,6 +382,109 @@
         }
       }
     }catch(e){}
+  }
+
+
+  // ── Client brain: the Getting started tab a beginner actually needs ────────
+  //
+  // Lucy Walker, 19 Aug 2026: a client's team member landed on a panel asking
+  // her to place herself on six levels of AI adoption, spent four and a half
+  // minutes unable to tell whether a tick meant "I've done this" or "I want to
+  // do this", and never scrolled as far as the steps. Nothing had told her the
+  // brain was a folder, that the Claude desktop app has to be pointed at it, or
+  // how to do that. The connect instructions existed, correct and complete, as
+  // step three of an hour-long course three clicks away.
+  //
+  // Client brains only. An agency brain's Getting started tab is unchanged.
+  var CS_PROMPT='Read the file .claude/skills/start/SKILL.md in this folder and follow it exactly: walk me through getting started, one step at a time.';
+
+  function csEsc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function renderClientStart(brainRoot){
+    if(CCKIND!=='client') return;
+    var host=$('client-start'); if(!host||host.dataset.built) return;
+    var folder=String(brainRoot||'');
+    host.innerHTML=
+      '<div class="card cs-card">'
+       +'<span class="cs-badge">Start here &middot; 2 minutes</span>'
+       +'<h2 class="cs-h">The ‘brain’ is just a folder of files on your computer.</h2>'
+       +'<p class="cs-p">Once Claude can read those files, it has the context it needs to give you useful, personalised replies, not the usual generic AI slop. Those files act as its memory, of you, the business and the tasks. So when you open it tomorrow it remembers and you don’t have to keep repeating yourself.</p>'
+       +'<div class="cs-flow">'
+         +'<div class="cs-fbox"><h4>You ask</h4><p>In plain English, in a normal chat</p></div>'
+         +'<div class="cs-arrow" aria-hidden="true">&rarr;</div>'
+         +'<div class="cs-fbox"><h4>It reads your files</h4><p>What it knows about you &amp; your business</p></div>'
+         +'<div class="cs-arrow" aria-hidden="true">&rarr;</div>'
+         +'<div class="cs-fbox"><h4>It does the work</h4><p>You might need to connect it to some tools. We’ll get to that later.</p></div>'
+       +'</div>'
+      +'</div>'
+      +'<div class="card cs-card">'
+       +'<span class="cs-badge">Connect it &middot; about 5 minutes</span>'
+       +'<h2 class="cs-h">Open the Claude desktop app</h2>'
+       +'<p class="cs-p">One step to set up. After this you just open the app and start typing.</p>'
+       +'<div class="cs-step"><span class="cs-num">1</span><div><b>You’ll need a Claude account.</b> The Claude app is free to download, but for real work you need a paid plan. Start with the cheapest one and change the plan later if you need to.'
+         +'<div class="cs-row"><button class="btn small" data-ext="https://claude.ai/upgrade" type="button">Set up a Claude account</button><span class="cs-hint">Already have one? Skip to step 2.</span></div></div></div>'
+       +'<div class="cs-step"><span class="cs-num">2</span><div><b>Open the Claude desktop app</b> and switch to <b>Cowork</b>.'
+         +'<div class="cs-row"><button class="btn small" data-ext="https://claude.ai/download" type="button">I don’t have it yet</button></div></div></div>'
+       +'<div class="cs-step"><span class="cs-num">3</span><div><b>Just under the Chat/Cowork option there’s a dropdown that says “Project or folder”.</b> Click it, then choose to add a folder.</div></div>'
+       +'<div class="cs-step"><span class="cs-num">4</span><div><b>Browse to your brain folder.</b> It’s the folder you chose during setup:'
+         +'<div class="cs-path"><code>'+csEsc(folder)+'</code><button class="btn small" id="cs-open-folder" type="button">Show me where that is</button></div></div></div>'
+       +'<div class="cs-step"><span class="cs-num">5</span><div><b>Set the approval control next to it to “Automatically approve”,</b> so it just does the work instead of stopping to ask at every step.</div></div>'
+       +'<div class="cs-warn"><b>One thing to avoid:</b> don’t add the folder in Settings &gt; Cowork &gt; Cowork files. That’s for a different job, and pointing it at your brain folder causes an error that’s hard to undo. Use the dropdown described above.</div>'
+       +'<div class="cs-payoff">It doesn’t ever show you the folder or the files. But you can check you’re in the right place by asking <b>“list the files in the attached folder”</b> if you want.</div>'
+      +'</div>'
+      +'<div class="card cs-card">'
+       +'<span class="cs-badge">Then do this &middot; about 10 minutes</span>'
+       +'<h2 class="cs-h">Meet your brain</h2>'
+       +'<p class="cs-p">Now Cowork can see your folder. Paste this in and press enter. Claude shows you what’s already in there and walks you through your first steps.</p>'
+       +'<div class="cs-prompt"><code>'+csEsc(CS_PROMPT)+'</code></div>'
+       +'<div class="cs-row"><button class="btn" data-spawn="'+csEsc(CS_PROMPT)+'">Copy this prompt</button>'
+         +'<span class="cs-hint">Never used Cowork before? The Learn Cowork tab is a proper walkthrough, about an hour.</span></div>'
+       +'<div class="cs-payoff"><b>When you’ve done that:</b> you’ll have seen what’s in your brain and had it do something real with you. That’s day one finished, and it’s enough.</div>'
+      +'</div>';
+    host.dataset.built='1';
+    host.hidden=false;
+    // The old strip says the same thing in worse words (and carries an em dash).
+    // It has an inline display:flex, which beats the [hidden] rule, so hidden
+    // alone left it on screen — set both.
+    var oldStrip=$('tp-start-prompt');
+    if(oldStrip){ oldStrip.hidden=true; oldStrip.style.display='none'; }
+    var ob=$('cs-open-folder');
+    if(ob) ob.addEventListener('click',function(){
+      ob.disabled=true;
+      api('/api/open-brain-folder',{method:'POST'})
+        .then(function(){ ob.textContent='Opened'; })
+        .catch(function(){ ob.textContent='Couldn’t open it — the path is above'; })
+        .then(function(){ setTimeout(function(){ ob.disabled=false; ob.textContent='Show me where that is'; },2500); });
+    });
+  }
+
+  // A named person to ask, below the steps. Lucy recorded a four-and-a-half
+  // minute video because there was nowhere on the screen to say "I don't
+  // understand this". The white-label record already carries the contacts.
+  function renderClientAsk(help){
+    if(CCKIND!=='client') return;
+    var host=$('client-ask'); if(!host) return;
+    var list=Array.isArray(help)?help:[];
+    var first=list.length?String(list[0].value||''):'';
+    var who=list.length?String(list[0].label||'them'):'';
+    var rows=list.map(function(hc){
+      var label=csEsc(String(hc.label||hc.type||'Contact'));
+      var value=String(hc.value||'');
+      var href='';
+      if(/email/i.test(hc.type||'')||/@/.test(value)) href='mailto:'+value;
+      else if(/^https?:\/\//i.test(value)) href=value;
+      else if(/phone|tel/i.test(hc.type||'')) href='tel:'+value.replace(/[^+\d]/g,'');
+      return '<div class="cs-contact"><strong>'+label+':</strong> '
+        +(href?'<a href="'+csEsc(href)+'">'+csEsc(value)+'</a>':csEsc(value))+'</div>';
+    }).join('');
+    host.innerHTML='<div class="card cs-card cs-ask">'
+      +'<div class="cs-ask-ic" aria-hidden="true">?</div>'
+      +'<div><h2 class="cs-h">Stuck? Ask '+(who?csEsc(who):'whoever set this up for you')+'.</h2>'
+       +'<p class="cs-p">'+(first?csEsc(who)+' set this up for you and they’re the person to ask.':'Whoever set this brain up for you is the person to ask.')+' No question is too basic.</p>'
+       +(rows||'')
+       +'<p class="cs-hint" style="margin-top:10px">If something’s wrong with the output from a skill, you can ‘Flag a skill’ as needing improvement, and the person who set up the brain for you gets notified.</p>'
+      +'</div></div>';
+    host.hidden=false;
   }
 
   function buildIntegrity(d){
@@ -418,7 +561,30 @@
   // Owner-only preview helper: ?as=team|scout|owner overrides the role used for
   // UI gating, so an owner can see exactly what a team member sees. UI-only —
   // the API still enforces real permissions, so this can't escalate anything.
-  var DEV_ROLE_OVERRIDE=null;
+  // Persisted, because flipping the brain-kind switcher reloads the page and an
+  // in-memory override would drop the role you were previewing — you'd land back
+  // on your own role and have to re-pick it every flip (Mike, 2026-08-20).
+  var DEV_ROLE_KEY='cc-dev-role';
+  var DEV_ROLE_OVERRIDE=(function(){
+    try{ var v=localStorage.getItem(DEV_ROLE_KEY);
+      return ['owner','head-scout','scout','team','agency'].indexOf(v)>=0?v:null; }catch(e){ return null; }
+  })();
+  // Preview a different KIND of brain, not just a different role. "View as team"
+  // still showed the agency team page, so there was no way to look at what a
+  // client's team member actually gets without installing a client brain
+  // (Mike, 2026-08-20). Stored in localStorage rather than a variable: faq-live.js
+  // deliberately reads the kind before the CCKIND global is assigned, and a flip
+  // reloads the page anyway, because a kind change moves DOM nodes and swaps the
+  // whole FAQ source. View-only — the server still enforces real permissions.
+  var DEV_KIND_KEY='cc-dev-kind';
+  function devKindOverride(){
+    try{ var v=localStorage.getItem(DEV_KIND_KEY); return (v==='client'||v==='agency')?v:null; }catch(e){ return null; }
+  }
+  function uiKind(serverKind){
+    var o=devKindOverride(); if(o) return o;
+    var q=new URLSearchParams(location.search).get('kind');
+    return (q==='client'||q==='agency')?q:serverKind;
+  }
   function uiRole(serverRole){ if(DEV_ROLE_OVERRIDE) return DEV_ROLE_OVERRIDE; var a=new URLSearchParams(location.search).get('as'); return (a&&['owner','head-scout','scout','team','agency'].indexOf(a)>=0)?a:serverRole; }
   var ICON_EDIT='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
   var ICON_TRASH='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';

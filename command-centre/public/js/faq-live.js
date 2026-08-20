@@ -119,10 +119,49 @@
   // This asks the local server directly rather than reading the CCKIND global:
   // that global isn't assigned until /api/health resolves in core.js, and this
   // file's Firestore fetch races it. One extra loopback request, no race.
+  //
+  // A client brain gets its OWN questions instead, from .claude/faq/faq.json in
+  // the brain (served by /api/client-faq). Read-only for a team member by the
+  // existing sync rules, edited by a scout or owner, and it syncs like anything
+  // else. Nothing here reaches Firestore (Mike, 2026-08-20).
+  function applyClientFaq(payload) {
+    var faq = document.getElementById('help-faq');
+    if (!faq) return;
+    // help-os / help-team / the reseller block are removed by applyClientHelpNav
+    // before this runs, so whatever is left in here is the baked agency copy.
+    faq.innerHTML = '<h2 class="faq-h">Questions</h2>' +
+      ((payload && payload.available && payload.items.length)
+        ? renderGroups(payload.items, { noPills: true })
+        : '<p class="empty" id="client-faq-empty">No questions have been added yet. ' +
+          'Ask whoever looks after your brain anything, no question is too basic.</p>');
+  }
+
+  function loadClientFaq() {
+    fetch('/api/client-faq')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { applyClientFaq(d); })
+      .catch(function () { applyClientFaq(null); });
+  }
+
+  // Mike's brain-kind preview switcher (core.js uiKind) stores its choice here.
+  // Read it directly: this file runs its fetch before the CCKIND global is set.
+  function devKind() {
+    try {
+      var v = localStorage.getItem('cc-dev-kind');
+      if (v === 'client' || v === 'agency') return v;
+    } catch (e) { /* private mode */ }
+    var q = new URLSearchParams(location.search).get('kind');
+    return (q === 'client' || q === 'agency') ? q : null;
+  }
+
   function start() {
     fetch('/api/health')
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (h) { if (!h || h.teamKind !== 'client') loadLiveFaq(); })
+      .then(function (h) {
+        var kind = devKind() || (h && h.teamKind) || 'agency';
+        if (!h || kind !== 'client') { loadLiveFaq(); return; }
+        loadClientFaq();
+      })
       .catch(function () { /* health unreachable → leave the baked fallback alone */ });
   }
 

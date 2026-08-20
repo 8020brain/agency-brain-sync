@@ -287,3 +287,38 @@
   .prog-roll-fill{height:100%;background:var(--accent);}
   .prog-roll-score{font-weight:700;color:var(--ink);font-size:var(--fs-sm);min-width:34px;text-align:right;}
   .prog-roll-updated{color:var(--muted);font-size:var(--fs-2xs);min-width:52px;text-align:right;}
+
+/* ── Client-brain Getting started cards (core.js renderClientStart/Ask) ──────
+   Only a client brain renders these. See the comment above renderClientStart
+   for why they exist (Lucy Walker, 2026-08-19). */
+.cs-badge{display:inline-block;background:#fdece5;color:#c2410c;font-size:11px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:2px;margin-bottom:10px}
+.cs-h{font-size:21px;font-weight:700;margin:0 0 10px}
+.cs-p{font-size:15px;line-height:1.65;margin:0 0 12px;max-width:80ch}
+.cs-flow{display:flex;gap:0;align-items:stretch;margin:18px 0 4px;flex-wrap:wrap}
+.cs-fbox{flex:1;min-width:200px;border:1px solid var(--line,#e6e2dd);background:#fff;padding:14px 16px}
+.cs-fbox h4{margin:0 0 6px;font-size:14px;font-weight:700}
+.cs-fbox p{margin:0;font-size:13px;line-height:1.55;color:var(--muted,#6b6560)}
+.cs-arrow{display:flex;align-items:center;padding:0 10px;color:#c9c3bc;font-size:20px}
+.cs-step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid #f0ece7;
+  font-size:15px;line-height:1.6}
+.cs-step:first-of-type{border-top:none;padding-top:4px}
+.cs-num{width:26px;height:26px;background:var(--accent,#D64C00);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:700;flex:0 0 auto;border-radius:2px}
+.cs-row{display:flex;gap:12px;align-items:center;margin-top:9px;flex-wrap:wrap}
+.cs-hint{font-size:13px;color:var(--muted,#7a746e)}
+.cs-path{display:flex;gap:12px;align-items:center;background:#faf9f7;border:1px solid var(--line,#e6e2dd);
+  padding:12px 14px;margin:10px 0 2px;flex-wrap:wrap}
+.cs-path code{font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all}
+.cs-prompt{border:1px solid var(--line,#e6e2dd);background:#faf9f7;padding:14px 16px;margin:12px 0}
+.cs-prompt code{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.cs-warn{border-left:3px solid #b45309;background:#fffbeb;padding:12px 16px;margin-top:14px;font-size:14px;line-height:1.6}
+.cs-payoff{border-left:3px solid var(--accent,#D64C00);background:#fff7f3;padding:12px 16px;margin-top:14px;
+  font-size:14px;line-height:1.6}
+.cs-ask{display:flex;gap:16px;align-items:flex-start}
+.cs-ask-ic{width:38px;height:38px;background:var(--accent,#D64C00);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-weight:700;font-size:16px;flex:0 0 auto;border-radius:2px}
+.cs-contact{margin:3px 0;font-size:14px}
+
+/* Brain-kind preview switcher, footer (super-admin only). Mirrors .dev-switch. */
+.dev-switch .ds-note{margin-left:10px;font-size:11px;color:var(--muted,#7a746e);font-style:italic}

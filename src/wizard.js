@@ -39,7 +39,7 @@
   const launchIntent = new URLSearchParams(window.location.search).get('intent') || '';
 
   const DEMO_EMAIL = 'demo';
-  const TOTAL = 7;
+  const TOTAL = 6;
 
   // ---- rail ----
   const rail = document.getElementById('rail');
@@ -1599,6 +1599,23 @@
   // ====================================================================
   async function enterSurfaces() {
     show('scene-surfaces');
+    // Owners and scouts set the brain up and may well want a terminal or an
+    // editor extension. A team member is here to do their job, so they get the
+    // one way in and nothing to weigh up (Mike, 2026-08-20).
+    var joinRole = String((teamInfo && teamInfo.member && teamInfo.member.role) || '').toLowerCase();
+    // Solo installs have no roster role and are their own builder, so an empty
+    // role means "not a team member" and keeps all three cards.
+    var buildsIt = (joinRole !== 'team');
+    var term = document.getElementById('surface-terminal');
+    var edit = document.getElementById('surface-editor');
+    if (term) term.hidden = !buildsIt;
+    if (edit) edit.hidden = !buildsIt;
+    var t = document.getElementById('surfacesTitle');
+    var l = document.getElementById('surfacesLede');
+    if (buildsIt && t && l) {
+      t.textContent = 'Three ways to work with your brain.';
+      l.textContent = "Your brain is just files, so you can open it in whatever suits you, and use more than one. Nothing to choose here, this is just so you know your options. The Claude desktop app is where most work happens.";
+    }
     const tag = document.getElementById('claudeTag');
     const body = document.getElementById('claudeBody');
     const dl = document.getElementById('link-download-claude');
@@ -1619,47 +1636,15 @@
   }
   document.getElementById('link-download-claude').addEventListener('click', () => api.openExternalUrl('https://claude.com/download'));
   document.getElementById('link-recheck-claude').addEventListener('click', enterSurfaces);
-  document.getElementById('btn-surfaces-next').addEventListener('click', enterBusiness);
+  // The four business questions used to sit here. They asked for a name the app
+  // already knows (it writes CLAUDE.local.md from the roster at join) and wrote
+  // the answers straight over context/business/business-context.md, which every
+  // later joiner then overwrote again. Deleted for everyone (Mike, 2026-08-20);
+  // the business context is the agency's or the owner's to fill, once.
+  document.getElementById('btn-surfaces-next').addEventListener('click', enterDone);
 
   // ====================================================================
-  // 6 — business Q&A
-  // ====================================================================
-  const bizEls = ['bizName', 'bizBusiness', 'bizSell', 'bizServe'].map((id) => document.getElementById(id));
-  function updatePreview() {
-    const [n, b, s, srv] = bizEls.map((el) => el.value);
-    document.getElementById('mdPreview').innerHTML =
-      `<span class="h"># Business Context</span>\n\n` +
-      `Name: <span class="v">${escapeHtml(n)}</span>\n` +
-      `Business: <span class="v">${escapeHtml(b)}</span>\n\n` +
-      `<span class="h">## What I do</span>\n` +
-      `Sells: <span class="v">${escapeHtml(s)}</span>\n` +
-      `Serves: <span class="v">${escapeHtml(srv)}</span>\n\n` +
-      `<span style="color:#888">// written to context/business/business-context.md</span>`;
-  }
-  bizEls.forEach((el) => el.addEventListener('input', updatePreview));
-  function enterBusiness() { show('scene-business'); updatePreview(); }
-  document.getElementById('btn-business-skip').addEventListener('click', enterDone);
-  document.getElementById('btn-business-next').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-business-next');
-    clearError('err-business');
-    btn.disabled = true;
-    try {
-      if (!demoMode) {
-        await api.writeBusinessContext({
-          brainPath: chosenFolder,
-          ctx: { name: bizEls[0].value, business: bizEls[1].value, sells: bizEls[2].value, serves: bizEls[3].value },
-        });
-      }
-      enterDone();
-    } catch (err) {
-      errorIn('err-business', 'Could not write your business context. You can add it later from inside your brain.');
-    } finally {
-      btn.disabled = false;
-    }
-  });
-
-  // ====================================================================
-  // 7 — done
+  // 6 — done
   // ====================================================================
   async function enterDone() {
     show('scene-done');
@@ -1774,7 +1759,7 @@
     if (launchIntent === 'reconnect') {
       reconnectMode = true;
       // Quick re-auth of an existing agency brain, NOT first-time setup: hide the
-      // 7-step rail and start at a pre-filled email sign-in, skipping the invite
+      // 6-step rail and start at a pre-filled email sign-in, skipping the invite
       // code. After the code we just re-attach the existing folder + team.
       const railEl = document.getElementById('rail'); if (railEl) railEl.style.display = 'none';
       const scEl = document.getElementById('stepCount'); if (scEl) scEl.style.display = 'none';

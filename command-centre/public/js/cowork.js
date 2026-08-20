@@ -40,8 +40,12 @@
       +'<div class="sec">'+esc(p.title)+' <span class="note">'+doneCount+' of '+allSteps.length+' steps done</span></div>'
       +'<p class="tp-intro">'+esc(p.intro)+'</p>'
       +'<div class="tp-bar"><div class="tp-bar-fill" style="width:'+pct+'%"></div></div>'
-      +'<div class="tp-cowork"><b>The guided way:</b> open Cowork (pointed at your brain folder) and type <code>/start</code>, then say you want the Cowork course. '
-      +'Claude walks you through these steps and does them with you. This page is the map; tick steps off in either place. '
+      // Never tell anyone to TYPE /start in Cowork: repo skills aren't
+      // registered as commands there (Peter, 2026-07-30), so the way in is the
+      // per-step Copy for Cowork buttons below (Mike, 2026-08-20).
+      +'<div class="tp-cowork"><b>The guided way:</b> every step below has a <b>Copy for Cowork</b> button. '
+      +'Paste one into Cowork (the Claude desktop app pointed at your brain folder) and Claude does that step with you. '
+      +'This page is the map; tick steps off in either place. '
       +'Don\'t have Cowork yet? <span class="tp-link" data-ext="https://claude.ai/download">Download it here</span>.</div>'
       +'</div>';
 
@@ -65,7 +69,7 @@
         var kind=(s.type||'').toLowerCase();
         var kindLabel=kind?kind.charAt(0).toUpperCase()+kind.slice(1):'';
         if(s.prompt) CW_COPY[s.id]=s.prompt;
-        else if(s.quiz) CW_COPY[s.id]='Run /start, ask for the Cowork course, and give me the "'+s.title+'" quiz from the "'+t.title+'" track. Ask me one question at a time, in your own words, and let me answer before telling me how I did.';
+        else if(s.quiz) CW_COPY[s.id]='Read the file .claude/skills/start/SKILL.md in this folder and follow it for the Learn Cowork course: give me the "'+s.title+'" quiz from the "'+t.title+'" track. Ask me one question at a time, in your own words, and let me answer before telling me how I did.';
         h+='<div class="tp-step'+(isDone?' done':'')+'" data-step="'+esc(s.id)+'">'
           +'<button class="tp-check" data-cw-toggle="'+esc(s.id)+'" title="'+(isDone?'Mark not done':'Mark done')+'">'+(isDone?'✓':'')+'</button>'
           +'<div class="tp-step-main">'
@@ -78,7 +82,7 @@
           +'<div class="tp-step-body"'+(CW_OPEN[s.id]?'':' hidden')+'>'
           +s.body.split(/\n+/).filter(Boolean).map(function(par){ return '<p>'+tpLinkify(par)+'</p>'; }).join('')
           +(s.prompt?'<div class="tp-prompt" data-cw-copy="'+esc(s.id)+'" title="Click anywhere to copy"><code>'+esc(s.prompt)+'</code><button class="mini" type="button" tabindex="-1">Copy for Cowork</button></div>'
-            +'<p class="tp-hint">Paste it into Cowork, the Claude desktop app pointed at your brain folder. Or skip the pasting: type <code>/start</code> in Cowork and ask for the Cowork course, and Claude runs this whole thing with you.</p>':'')
+            +'<p class="tp-hint">Paste it into Cowork, the Claude desktop app pointed at your brain folder, and Claude does this step with you.</p>':'')
           +(s.quiz?'<div class="tp-quiz">'+s.quiz.map(function(q){return '<details><summary>'+esc(q.q)+'</summary><p>'+esc(q.a)+'</p></details>';}).join('')+'</div>'
             +'<div class="tp-prompt tp-quiz-copy" data-cw-copy="'+esc(s.id)+'" title="Click anywhere to copy"><code>Want it as a proper back-and-forth? Claude will quiz you.</code><button class="mini" type="button" tabindex="-1">Copy for Cowork</button></div>':'')
           +'</div></div></div>';

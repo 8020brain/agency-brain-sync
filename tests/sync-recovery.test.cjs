@@ -259,6 +259,40 @@ async function main() {
     }
   }
 
+  // ── H) which paths a team member is allowed to push ──────────────────────
+  // The Getting started rail writes one file per person under
+  // .team-config/progression/. That whole dot-path was blocked for a team role,
+  // and a blocked path is not just refused: stageAndCommit reverts it, and for a
+  // brand-new file that means deleting it. So every tick a team member made was
+  // wiped by the next sync tick, and the panel had never saved anything for
+  // anyone since it shipped (Lucy Walker, 2026-08-19). Team is the ONLY role
+  // that ticks there, so nothing else could have caught it.
+  {
+    console.log('\nH) team write permissions');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'watcher', 'team-brain-sync.js'), 'utf8');
+    const fn = src.match(/function pathBlockedForRole[\s\S]*?\n}/);
+    if (!fn) {
+      bad('H: pathBlockedForRole still exists in the watcher');
+    } else {
+      // eslint-disable-next-line no-eval
+      const pathBlockedForRole = eval(`(${fn[0]})`);
+      const cases = [
+        ['.team-config/progression/lucy.json', 'team', false, 'a team member can save their own progression'],
+        ['.team-config/feedback/skill.md', 'team', false, 'a team member can still file a skill flag'],
+        ['.team-config/progression/marco.json', 'scout', false, 'a scout can too'],
+        ['.team-config/roles.json', 'team', true, 'the roster stays read-only for a team member'],
+        ['.claude/skills/x/SKILL.md', 'team', true, 'skills stay read-only for a team member'],
+        ['.gitignore', 'team', true, 'root dotfiles stay read-only for a team member'],
+        ['context/business/notes.md', 'team', false, 'content folders stay writable'],
+      ];
+      for (const [rel, role, want, label] of cases) {
+        const got = pathBlockedForRole(rel, role);
+        if (got === want) ok(`H: ${label}`);
+        else bad(`H: ${label}`, `${rel} as ${role} → blocked=${got}, expected ${want}`);
+      }
+    }
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);
 }

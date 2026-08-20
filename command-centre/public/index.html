@@ -77,7 +77,7 @@
         <div class="wc-hero-main">
           <div class="wc-eyebrow" id="wc-eyebrow">Agency Brain</div>
           <h1 class="wc-h" id="wc-h">Everything your agency knows, in one place Claude can use.</h1>
-          <p class="wc-sub">A shared workspace your whole team runs with Claude. The skills you've built, your client context, and your live data connections all live in one folder that stays in sync automatically. You don't set it up or maintain it. You open it and get to work.</p>
+          <p class="wc-sub" id="wc-sub">A shared workspace your whole team runs with Claude. The skills you've built, your client context, and your live data connections all live in one folder that stays in sync automatically. You don't set it up or maintain it. You open it and get to work.</p>
           <div class="wc-stats">
             <div class="wc-stat"><span class="n" id="wc-skill-count">—</span><span class="l">skills ready to run</span></div>
             <div class="wc-stat"><span class="n">~5 min</span><span class="l">to get connected</span></div>
@@ -95,7 +95,7 @@
         <div class="wc-pillar">
           <div class="wc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8M12 17v4"/></svg></div>
           <h3>Cowork</h3>
-          <p>Claude's desktop workspace, pointed at the shared brain. It already knows your clients, your tone, and how the agency does things.</p>
+          <p id="wc-pillar-cowork-p">Claude's desktop workspace, pointed at the shared brain. It already knows your clients, your tone, and how the agency does things.</p>
         </div>
         <div class="wc-pillar">
           <div class="wc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></div>
@@ -113,8 +113,8 @@
         <div class="sec">Getting going <span class="note">three steps</span></div>
         <div class="wc-steps">
           <div class="wc-step"><span class="num">1</span><div><strong>Open Cowork</strong> and point it at the brain folder this app keeps in sync on your machine.</div></div>
-          <div class="wc-step"><span class="num">2</span><div><strong>Ask in plain English</strong>, or run a skill by name (for example <code>/client-monthly-review</code>). Browse them all on the Skills tab.</div></div>
-          <div class="wc-step"><span class="num">3</span><div><strong>Flag anything that falls short</strong> on the Flag a skill tab. The Scout improves it for the whole team.</div></div>
+          <div class="wc-step"><span class="num">2</span><div id="wc-step-2"><strong>Ask in plain English</strong>, or run a skill by name (for example <code>/client-monthly-review</code>). Browse them all on the Skills tab.</div></div>
+          <div class="wc-step"><span class="num">3</span><div id="wc-step-3"><strong>Flag anything that falls short</strong> on the Flag a skill tab. The Scout improves it for the whole team.</div></div>
         </div>
       </div>
 
@@ -130,7 +130,12 @@
 
   <!-- ============ GETTING STARTED (team path) ============ -->
   <section class="view" id="view-path">
-    <div id="prog-self-root"></div>
+    <!-- CLIENT BRAIN ONLY. Everything a beginner needs before the step list:
+         what a brain is, how to point the Claude desktop app at it, and one
+         thing to do today. Built by renderClientStart() in public/js/core.js,
+         which fills the folder path and the contact name and un-hides it.
+         An agency brain never shows this (Lucy Walker, 2026-08-19). -->
+    <div id="client-start" hidden></div>
     <!-- Typing /start works in Claude Code but not in Cowork (repo skills
          aren't registered as commands there), and it's the first thing a new
          person tries (Peter, 2026-07-30). A pasted prompt that names the
@@ -140,6 +145,13 @@
       <button class="btn" data-spawn="Read the file .claude/skills/start/SKILL.md in this folder and follow it exactly: walk me through getting started, one step at a time.">Copy the start prompt</button>
     </div>
     <div id="tp-root"><div class="card"><p class="tp-loading">Loading your path…</p></div></div>
+    <!-- The six-level self-report rail sits BELOW the guided path, not above it.
+         It used to be the first thing on the tab, which is where a brand-new
+         person got stuck instead of reaching the steps (Lucy Walker, 2026-08-19).
+         progression.js renders nothing here in a client brain. -->
+    <!-- CLIENT BRAIN ONLY: a named person to ask. Filled by renderClientAsk(). -->
+    <div id="client-ask" hidden></div>
+    <div id="prog-self-root"></div>
   </section>
 
   <!-- ============ LEARN COWORK (standalone Cowork course) ============ -->
@@ -377,6 +389,10 @@
 
   <!-- ============ SKILLS (team + scout) ============ -->
   <section class="view" id="view-skills">
+    <!-- Wrapped so the whole browser can be relocated in one move. In a client
+         brain Skills is not a top-level tab; nav-charts.js moves this node into
+         the Help pane, beside Flag a skill (Mike, 2026-08-20). -->
+    <div id="skills-root">
     <div class="start-here hidden" id="start-here"></div>
     <div class="card skills-page">
       <div class="sp-list">
@@ -386,6 +402,7 @@
       <div class="sp-detail" id="sp-detail">
         <div class="sp-empty">Pick a skill on the left to see what it does.</div>
       </div>
+    </div>
     </div>
   </section>
 
@@ -526,6 +543,7 @@
         <button class="help-navi" data-help="how">How it works</button>
         <button class="help-navi" data-help="updates" hidden>Updates</button>
         <button class="help-navi" data-help="cowork" hidden>Learn Cowork</button>
+        <button class="help-navi" data-help="skills" hidden>Skills</button>
         <button class="help-navi" data-help="flag">Flag a skill</button>
         <button class="help-navi" data-help="faq">FAQ</button>
         <input id="help-search" class="help-search" type="search" placeholder="Search the FAQ…" autocomplete="off">
@@ -535,6 +553,7 @@
              team members get it as a top-level tab instead. applyRoleTabs moves the one
              rendered #cw-root between this pane and #view-cowork. -->
         <div class="help-sec" id="help-cowork" hidden></div>
+        <div class="help-sec" id="help-skills" hidden></div>
         <div class="help-sec" id="help-setup">
     <div id="getset-owner">
       <div class="wc-hero" style="margin-bottom:22px">
@@ -1012,6 +1031,13 @@ For the first one, either take the flagged text out of the file it names, or add
         <details class="faq-item"><summary>My setup push was rejected with a "workflow scope" error. How do I fix it?</summary><div class="faq-a">Run <code>gh auth refresh -s workflow</code>, then push again (switching the remote to SSH also works). Your brain ships a file in <code>.github/workflows/</code>, and GitHub won't let a GitHub CLI token push a workflow file without the <code>workflow</code> scope. The setup prompt now refreshes this scope for you before it pushes, so you shouldn't hit it, but if you ever do, that's the one-line fix.</div></details>
         <details class="faq-item"><summary>I installed the GitHub App but my teammate still can't sync, or the app says my repo doesn't match. Why?</summary><div class="faq-a">There are two common causes. The first is ordering: the GitHub App has to be installed and linked to your team before the desktop app flips into team mode, otherwise the first sync can't get a token. The second is more subtle. If you'd installed the Agency Brain App on your GitHub account before your team existed, clicking Save on GitHub's "configure existing installation" screen does not link it to your team. The fix is to run the install link scoped to your team: <code>github.com/apps/agency-brain-sync/installations/new?state=&lt;your-team-slug&gt;</code>. That properly links it, and sync starts working.</div></details>
         <details class="faq-item"><summary>I want to add a teammate, but the button just shows a message instead of a form. What's wrong?</summary><div class="faq-a">That's expected before you've upgraded. As a solo owner you're not on a team yet, so the add-member form has nothing to add people to. Instead of throwing an error, the Command Centre shows a nudge pointing you at the tray item "Connect to my agency team…". Run that, finish turning your brain into an Agency Brain ready for a team, and the add-member form starts working.</div></details>
+        <details class="faq-item"><summary>My brain is on the wrong GitHub repo (my personal account, or an old one) and setup won't move it. How do I fix that?</summary><div class="faq-a">Message me and I'll clear it, because this one isn't self-serve. If you set your agency brain up in the early days, it recorded whatever repo you already had, because the original idea was that you'd keep your solo brain and bolt the agency parts onto it. That didn't work out, so setup now clones the agency template into a fresh repo instead. Teams from back then still have the old address stored, and setup never overwrites an address that's already there, so installing the app on a new organisation records the install and leaves the old address alone. The app then tries to clone a repo it can't reach, and you get "I couldn't find your brain's GitHub repo".
+
+Clearing that one field takes me a minute, and nothing else about your team is touched. Your GitHub install, your roster, your Scout seats and your client brains all stay exactly as they are.
+
+Then start fresh, which is the better route anyway if it's been a while, because a lot has changed in the template. If you already created an empty repo called <code>agency-brain</code> in the organisation, leave it alone, since setup looks for that name and fills it from the template rather than making another one. Rename your existing brain folder first (say <code>~/agencybrain</code> to <code>~/agencybrain-old</code>), because the app won't clone into a folder that already exists and you'll want the old one to hand.
+
+Once the new brain is up, run the migration prompt on the Install page (<a href="https://m.ads2ai.com/agency-brain/install" target="_blank" rel="noopener">https://m.ads2ai.com/agency-brain/install</a>) to bring across the skills and client work the rest of your team will find useful. It reads your old brain read-only, shows you a plan, and copies only what you approve.</div></details>
         <details class="faq-item"><summary>A team member can see the Ads dashboard but every client report is empty. Do they need to pull the data on their own machine?</summary><div class="faq-a">No, there's nothing to run on their machine, and no per-person setup. Once a client's data is in the shared brain, every teammate gets it.
 
 First work out which source that browser is using, because more than one can feed the Ads section. Open the Ads Settings page. A green box reading "Reading your data from the Agency Brain app on this Mac" means the data is coming off that machine's synced folder, and it shows the account count. No box means it's coming from the repo instead. Worth knowing: Safari can never read from the app, so it always falls back; use Brave, Chrome or Firefox.
@@ -1020,7 +1046,11 @@ Both of those read the same three things, so an empty report points at the same 
 
 To see exactly which clients are affected, ask Claude in the brain folder: "list every client in the ads map.json and tell me how many CSV files each one has in its data folder". Anything with none is a client whose files are landing outside the layout the Ads section reads.
 
-One more cause, and it's a sneaky one, for a machine reading through the Agency Brain app. When the Ads tab loads, the portal makes a quiet background request from the secure m.ads2ai.com page to the app on that same machine, and waits about a second and a half. If something stops that request, or slows it past that second and a half, the page gives up and falls back to the shared route, which is empty for a repo-method agency, so every report reads "no data". The confusing part is that opening the app's own address in the browser (<code>http://127.0.0.1:38917/ads/ping</code>) still works and shows the account count, because typing an address in is a direct visit every browser allows, while the background request is the fragile one. So a working ping does not rule this out. The usual culprits are Safari (it always refuses the background request; use Brave, Chrome or Firefox), a browser extension or privacy shield (test in a private or guest window, or drop Brave's shields for the site), or a VPN or security tool (pause it and reload). For a definitive answer, open the browser's developer tools on the Ads page, click Network, filter for 38917, and reload: no request there, or one showing red as failed or blocked, names the cause, and the Console tab says which.</div></details>
+One more cause, and it's the common one now on an up-to-date Chrome, for a machine reading through the Agency Brain app. When the Ads tab loads, the portal makes a quiet background request from the secure m.ads2ai.com page to the app on that same machine. Recent Chrome (version 142 and up) blocks that kind of request by default: a website is no longer allowed to reach a program running on your own computer until you personally grant it permission. When it's blocked, the page falls back to the shared route, which is empty for a repo-method agency, so every report reads "no data". The giveaway is in the browser's developer Console: "blocked by CORS policy: Permission was denied for this request to access the 'loopback' address space". Despite the wording, this is not a fault in your setup.
+
+The fix is a one-time permission per machine, and it sticks. On m.ads2ai.com in Chrome, click the icon at the left-hand end of the address bar, open Site settings, find the local-network permission (labelled "Local network access" or, on newer Chrome, "Apps on device"), set it to Allow, and reload the Ads tab. If a prompt appears first asking to connect to devices on your local network, just say Allow. A team on managed machines can pre-approve m.ads2ai.com for everyone at once with the Chrome policy LocalNetworkAccessAllowedForUrls, so nobody sees the prompt.
+
+A working ping is misleading here: opening the app's own address (<code>http://127.0.0.1:38917/ads/ping</code>) in the browser still shows the account count, because typing an address in is a direct visit Chrome allows, while the background request is the one it blocks. Rarer culprits for the same empty reports: Safari (it can never make that background request; use Chrome, Brave or Firefox), a browser extension or privacy shield (test in a private or guest window), or a VPN or security tool (pause it and reload). For a definitive answer either way, open developer tools on the Ads page, click Network, filter for 38917, and reload: no request there, or one showing red, names the cause, and the Console tab says which.</div></details>
         <details class="faq-item"><summary>The app says it's up to date, but the version in the Command Centre corners is older. Which one is right?</summary><div class="faq-a">The update box is right, and that's the version you're actually running. The Command Centre page gets its number from a small local server the app starts alongside itself, and after an update an old copy of that server can still be holding the port. The app checks that server is pointing at the right brain folder and the right team before replacing it, so a leftover one that matches on both is left alone and keeps serving its old pages. Restarting the machine clears it and the numbers line up again.</div></details>
       </div>
     </div>
@@ -1119,6 +1149,10 @@ One thing to know before you pick: choose a normal local folder, not iCloud Driv
   <a class="foot-link" href="https://ads2ai.com/terms" target="_blank" rel="noopener">Terms</a>
   <a class="foot-link" href="https://ads2ai.com/privacy" target="_blank" rel="noopener">Privacy</a>
   <span class="dev-switch" id="dev-switch" hidden><span class="ds-label">view as</span><button data-role="owner">Owner</button><button data-role="scout">Scout</button><button data-role="team">Team</button></span>
+  <!-- Preview the other KIND of brain. Same super-admin gate as the role row.
+       Flipping it reloads the page: a kind change moves DOM nodes and swaps the
+       FAQ source, so a live re-render would be half-applied (Mike, 2026-08-20). -->
+  <span class="dev-switch" id="dev-kind" hidden><span class="ds-label">brain</span><button data-kind="agency">Agency</button><button data-kind="client">Client</button><span class="ds-note" id="dev-kind-note" hidden></span></span>
   <span class="foot-id"><span id="who-role"></span><span id="who-email"></span></span>
   <button class="foot-signout" id="sign-out">Sign out</button>
   <span class="path" id="ft-path"></span>

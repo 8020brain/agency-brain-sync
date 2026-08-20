@@ -2,6 +2,36 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.26 — 2026-08-20
+
+- **A client's team gets a Getting started tab written for them, not for an agency.** It used to open with a panel asking someone to place themselves on six levels of AI adoption, which is a way for an agency to think about progress and no use at all to a business owner on their second day. That panel is gone from client brains, and in agency brains it now sits below the guided path instead of above it. What a client sees first is what the brain actually is, how to point the Claude desktop app at it, and one thing to do today.
+
+- **The steps a client's team works through are their own.** They were the agency steps, so they talked about client folders, scouts and the agency, and one of them told the reader to open a `clients/` folder that most businesses don't have. There are now twelve steps in three groups, every one of which works on the first day with nothing connected and nothing known about the reader yet. The five owner-only steps show to the owner and nobody else.
+
+- **Ticking a step on the six-level panel now saves.** It never did. The tick was written into the shared folder, a team member isn't allowed to save there, so the app quietly put the folder back and the ticks vanished about a minute later. Anyone who used that panel watched their answers disappear and assumed they'd clicked something by accident. That one path is now allowed, so a tick stays ticked.
+
+- **The Help tab no longer opens on a blank page in a client brain.** It was landing on a section that had been removed a moment earlier. It now lands on the questions.
+
+- **A brand-new client brain starts with its Getting started and Learn Cowork tabs showing.** They used to start hidden until the agency switched them on in the portal, so a client whose agency never opened that panel got an app whose setup promised a walkthrough that wasn't there. The agency can still switch either tab off per role from the portal's Customize panel.
+
+- **Nobody is told to type /start in Cowork any more.** Typing /start only works in Claude Code, and the banner on the Getting started and Learn Cowork tabs was still teaching it, right above the copy-and-paste prompt that exists because it doesn't work. The banners now hand you the paste-able way in, which works everywhere.
+
+- **The Welcome tab speaks to the business reading it.** In a client brain it no longer says "your client context" or "how the agency does things", and it stops pointing at a Skills tab a client brain doesn't have. Skills sit inside Help there, and the page now says so.
+
+- **The last screen of setup reads properly.** It said "You're set up" twice and squeezed three thoughts into one sentence. It now says what happens next in plain words: the brain stays up to date on its own, the Command Centre holds training and help, and Cowork is where the work happens.
+
+- **A client brain has its own questions and answers.** The Help tab used to pull the FAQ written for agencies and members, which correctly can't be shown to a client, and nothing replaced it. A client brain now reads `.claude/faq/faq.json` from its own folder, so the answers are yours to write. A scout or owner edits it; a team member can read it but can't change it, by accident or otherwise. A starter set ships with the template.
+
+- **Google Ads is gone from client brains, and Skills has moved.** The Google Ads tab was inherited from Agency Brain and isn't something to put in front of a client's team, so it's removed along with the switch that turned it on. Skills now lives inside Help, next to Flag a skill. A client's team sees four tabs: Welcome, Getting started, Learn Cowork, Help.
+
+- **Setup stopped asking four questions it already knew the answer to.** The last screen of setup asked every person who joined for their name, their business and what it sells, then wrote those four answers straight over the business context. The name was already known from the invite, and the second person to join was silently replacing the first person's work for everyone. That screen is gone, and the write behind it now refuses to replace a file it didn't create.
+
+- **A client's Getting started and Learn Cowork tabs are on unless you switch them off.** They used to be off unless you switched them on, so any client whose agency had never opened the Customize panel opened their Command Centre to almost nothing, including no route to the instructions for connecting Claude to their folder. They now show straight away, on the first paint rather than a moment later, and if you turn either one off for a role it stays off. Skills and Google Ads can't appear in a client brain at all any more, which is what makes showing these two by default safe.
+
+- **Mike-only: you can now preview the other kind of brain, not just the other roles.** The footer switcher could show you owner, scout and team, but always inside the kind of brain you were actually in, so there was no way to look at what a client's team member sees without installing a client brain. A second row switches between agency and client, it says which one you're previewing and what the brain really is, and the role you had chosen survives the flip. It's view-only, the same as the role switcher: the server still enforces real permissions.
+
+- **Setup stops offering three ways in to someone who has opened none of them.** A team member used to be shown a terminal, the Claude desktop app and an editor extension, and told there was nothing to choose. They now see the one way they'll actually use, and setup hands over to the Command Centre, which walks them through connecting it. Owners and scouts still see all three.
+
 ## 1.1.25 — 2026-08-18
 
 - **A file your computer refuses to save no longer stops everything else.** Some machines run a check of their own over every save, often to keep personal data out of a repository, and if it objects to one file it refuses the whole save. Until now that stopped the entire brain: nothing else could be saved, nothing new could come in, and only someone sitting at that machine could clear it. The app now sets aside just the file that was refused, saves the rest, and carries on. The refused file stays on your machine untouched and is named in the menu with your other changes set aside. Your own check is never overridden or bypassed.
