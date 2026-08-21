@@ -106,8 +106,8 @@
       +'<h3>Start at draft</h3><pre>---\nname: client-monthly-review\nmaturity: draft\n---</pre><p>Run it on real work, fix what comes out wrong, and move it to <code>live</code> only when it behaves.</p>'},
     'g-sharing':{html:'<h2>Sharing a skill with your team</h2><p class="gp-path">docs/scout-guide/sharing-skills.md</p>'
       +'<p>No publish button, no install step. A skill lives in the shared brain, so the moment it syncs, every teammate has it. The synced folder is the catalogue.</p>'
-      +'<h3>How it reaches them</h3><ol><li>Build or improve the skill.</li><li>Run <code>/save</code>; it pulls team changes, shows what you changed, commits and pushes.</li><li>Every teammate pulls within about a minute. They run it by name.</li></ol>'
-      +'<h3>Set maturity to say it\'s ready</h3><p><code>draft</code> = still building. <code>live</code> = works. <code>trusted</code> = you vouch for it. Flip the field and <code>/save</code>.</p>'
+      +'<h3>How it reaches them</h3><ol><li>Build or improve the skill.</li><li>The app saves and sends it on its own, about ninety seconds after you stop typing. Run <code>/save</code> to send it this second, or to put a real description on the change instead of a timestamp.</li><li>Every teammate has it within about a minute. They run it by name.</li></ol>'
+      +'<h3>Set maturity to say it\'s ready</h3><p><code>draft</code> = still building. <code>live</code> = works. <code>trusted</code> = you vouch for it. Flip the field and let it sync.</p>'
       +'<h3>The feedback loop</h3><p>Teammates flag with <code>/flag-skill</code>; the flag lands where you\'ll see it. Fix, save, the better version reaches everyone.</p>'},
     'g-onboard':{html:'<h2>Onboarding your team</h2><p class="gp-path">docs/scout-guide/onboarding-your-team.md</p>'
       +'<p>You add people from your <b>Dashboard</b> (Add member): name, email, role. That registers their email and emails them an invite. You can add team members, other scouts, even the owner.</p>'
