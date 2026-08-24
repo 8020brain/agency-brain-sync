@@ -500,6 +500,32 @@ function pathBlockedForRole(relPath, role) {
   return relPath.startsWith('.') || !relPath.includes('/');
 }
 
+// ───── .nosync: folders the watcher leaves for the person to commit ─────
+//
+// A brain can hold a running codebase next to its notes, and an auto-sync
+// timestamp is the wrong record for code: there the commit message is the only
+// place the reasoning lives (client field report, 2026-08-24). Dropping a file
+// named `.nosync` in a directory tells the watcher not to auto-commit that
+// subtree. The files still show as changed and the person commits them
+// deliberately (by hand, or with /save) with a real message. This is "don't
+// auto-commit", never "don't track": nothing here touches .gitignore or the
+// local exclude, pulls are unaffected, and the marker file itself always
+// auto-commits so the choice travels to every clone of the brain.
+//
+// A `.nosync` at the repo root is deliberately ignored (it would switch the
+// whole brain off silently, which reads as the app being broken), and role
+// rules still win: a protected path is reverted whether or not it sits under
+// a .nosync.
+function isNoSynced(rel) {
+  if (path.basename(rel) === '.nosync') return false; // the marker itself syncs
+  let dir = path.dirname(rel);
+  while (dir && dir !== '.' && dir !== '/') {
+    if (fs.existsSync(path.join(REPO, dir, '.nosync'))) return true;
+    dir = path.dirname(dir);
+  }
+  return false;
+}
+
 // ───── Large-file guard ─────
 
 // GitHub hard-rejects any single file over 100 MB, so an un-held big file would
@@ -687,8 +713,16 @@ function resolveConflictsAndCommit(stamp) {
       git('add', '--', f); // last resort: whatever's on disk, so the merge can finish
     }
   }
-  // Stage everything the merge auto-resolved too, then commit the merge.
+  // Stage everything the merge auto-resolved too, then commit the merge —
+  // except a .nosync file that's merely DIRTY. A file MERGE_HEAD actually
+  // changed stays staged (that's remote work arriving, which .nosync never
+  // blocks), but a local work-in-progress the merge didn't touch must not
+  // ride into the merge commit under an auto-sync message.
   git('add', '-A');
+  const remoteTouched = new Set(gitProbe('diff', '--name-only', 'HEAD', 'MERGE_HEAD').split('\n').filter(Boolean));
+  for (const f of gitProbe('diff', '--cached', '--name-only').split('\n').filter(Boolean)) {
+    if (!remoteTouched.has(f) && isNoSynced(f)) git('reset', '-q', 'HEAD', '--', f);
+  }
   let r = git('commit', '--no-edit');
   if (r === null) r = git('commit', '-m', `auto-sync merge ${ts()} (kept both sides where edits overlapped)`);
   return conflicts;
@@ -705,23 +739,42 @@ function mergeWithSidecars(branch) {
   // local change (a held big file, or a race) sits on a path the merge must
   // update. Left alone that wedges sync forever. Back each blocker up to a
   // sidecar, restore it, and retry the merge once so the pull always proceeds.
+  const putBack = []; // .nosync work-in-progress to restore once the merge is done
   if (!m.ok && midOperation() !== 'merge') {
     const blockers = parseMergeBlockers(m.err);
     if (blockers.length) {
-      for (const b of blockers) { backupHeldEdit(b); revertProtectedEdit(b); }
+      for (const b of blockers) {
+        const saved = backupHeldEdit(b);
+        // A .nosync path is deliberately uncommitted work-in-progress, so this
+        // net must not be the thing that disappears it: note it for restoring
+        // to the working tree the moment the merge is over. Other paths keep
+        // the old behaviour (recoverable from .git/agencybrain-held).
+        if (saved && isNoSynced(b)) putBack.push({ rel: b, saved });
+        revertProtectedEdit(b);
+      }
       m = gitTry('merge', '--no-edit', `origin/${branch}`);
     }
   }
+  // The remote version is in the merge (or untouched, if it refused) either
+  // way; the member's version goes back on disk as an ordinary pending change.
+  const restoreNosync = () => {
+    for (const r of putBack) {
+      try { fs.copyFileSync(r.saved, path.join(REPO, r.rel)); } catch (_) { /* held backup still has it */ }
+    }
+  };
 
   if (m.ok && midOperation() !== 'merge') {
+    restoreNosync();
     return { merged: true, conflicts: [] }; // clean merge
   }
   if (midOperation() !== 'merge') {
     // Merge refused without entering a merge and the safety net couldn't clear
     // it — never leave a half state, so report it for a human.
+    restoreNosync();
     return { merged: false, conflicts: [], error: m.err || 'merge refused' };
   }
   const conflicts = resolveConflictsAndCommit(stamp);
+  restoreNosync();
   return { merged: true, conflicts };
 }
 
@@ -856,6 +909,8 @@ function foreignPrecommitHook() {
   }
 }
 
+let lastNosyncNote = ''; // last .nosync skip set logged, to keep the tick log quiet
+
 function stageAndCommit(s) {
   // s.statusLines come from porcelain output. Parse the files to consider.
   // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
@@ -890,6 +945,18 @@ function stageAndCommit(s) {
       held.push({ file: f, why });
     }
   }
+
+  // .nosync folders: unstage those changes and leave them in the working tree
+  // for the person to commit with a real message. Quiet by design — a code
+  // folder someone is mid-way through is not a problem for the tray to flag,
+  // so it never joins `held`; the log notes it once per change of set.
+  const skippedNosync = gitProbe('diff', '--cached', '--name-only').split('\n').filter(Boolean).filter(isNoSynced);
+  for (const f of skippedNosync) git('reset', '-q', 'HEAD', '--', f);
+  const nosyncNote = skippedNosync.join(',');
+  if (skippedNosync.length && nosyncNote !== lastNosyncNote) {
+    console.log(`[${ts()}]   left ${skippedNosync.length} file(s) alone under a .nosync folder — yours to commit`);
+  }
+  lastNosyncNote = nosyncNote;
 
   // Hold oversized files among what's still staged: park in local exclude so
   // they stop reappearing, and leave them on disk untouched.

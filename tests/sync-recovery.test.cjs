@@ -33,6 +33,13 @@
  *   G) A foreign pre-commit hook (a data-protection scanner) refuses one file.
  *      That file is set aside and everything else keeps syncing, instead of the
  *      refusal wedging the whole brain the way it did for Poeppel Rechtsanwaelte.
+ *
+ * And the .nosync marker (client field report, 2026-08-24):
+ *   I) A folder holding a `.nosync` file is left out of auto-commits — its
+ *      changes stay in the working tree for a deliberate hand commit with a
+ *      real message, the marker itself syncs so the choice reaches every
+ *      clone, and a pull that must touch an uncommitted .nosync file puts the
+ *      member's version back on disk instead of disappearing it.
  */
 
 const { execSync, spawn } = require('child_process');
@@ -246,6 +253,57 @@ async function main() {
     }, 15000);
     if (gState) ok('G2: the brain stayed running and named the file it set aside');
     else bad('G2: refused file was not surfaced as a held change', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+
+    // ── I) .nosync: a marked folder is left out of auto-commits ──
+    // Drop a .nosync marker in code/, change a file there and a prose file
+    // outside it. The prose and the marker itself must sync; the code file must
+    // stay an ordinary pending change until the person commits it deliberately.
+    const codeDir = path.join(app, 'code');
+    fs.mkdirSync(codeDir, { recursive: true });
+    fs.writeFileSync(path.join(codeDir, '.nosync'), '');
+    fs.writeFileSync(path.join(codeDir, 'tool.js'), 'console.log("v1 mine")\n');
+    fs.writeFileSync(path.join(app, 'prose-beside-code.md'), 'notes sync freely\n');
+    const proseSynced = await until(() =>
+      originHasPath(origin, 'main', 'prose-beside-code.md') &&
+      originHasPath(origin, 'main', 'code/.nosync'),
+    15000);
+    const codeHeldBack = !originHasPath(origin, 'main', 'code/tool.js') &&
+      (gitTry(app, 'status --porcelain') || '').includes('code/tool.js');
+    if (proseSynced && codeHeldBack) ok('I1: .nosync folder skipped by auto-commit; prose and the marker itself still synced');
+    else bad('I1: .nosync was not honoured', `prose=${proseSynced}, tool-on-origin=${originHasPath(origin, 'main', 'code/tool.js')}, status=${gitTry(app, 'status --porcelain')}`);
+
+    // A deliberate hand commit in the marked folder pushes with its message kept.
+    git(app, 'add -- code/tool.js');
+    git(app, `${idflags} commit -q -m "real reasoning lives in this message"`);
+    const handCommitLanded = await until(() => originHasPath(origin, 'main', 'code/tool.js'), 15000);
+    const tipMsg = gitTry(origin, 'log -1 --format=%s main -- code/tool.js') || '';
+    if (handCommitLanded && tipMsg === 'real reasoning lives in this message') ok('I2: a hand commit inside the .nosync folder pushed with its real message kept');
+    else bad('I2: hand commit did not land with its message', `landed=${handCommitLanded}, msg="${tipMsg}"`);
+
+    // A pull that must touch an uncommitted .nosync file restores the member's
+    // version to the working tree instead of disappearing it into .git.
+    fs.writeFileSync(path.join(codeDir, 'tool.js'), 'console.log("v2 mine, uncommitted")\n');
+    await sleep(700); // let the watcher see the dirty file before the remote moves
+    git(other, `${idflags} pull -q origin main`);
+    fs.writeFileSync(path.join(other, 'code', 'tool.js'), 'console.log("v2 theirs")\n');
+    git(other, 'add -A');
+    git(other, `${idflags} commit -q -m theirs-code-change`);
+    git(other, 'push -q origin main');
+    const pulledOverDirty = await until(() =>
+      gitTry(app, 'rev-parse main') === gitTry(origin, 'rev-parse main') &&
+      fs.readFileSync(path.join(codeDir, 'tool.js'), 'utf8').includes('v2 mine') &&
+      (gitTry(app, 'status --porcelain') || '').includes('code/tool.js'),
+    15000);
+    const remoteTip = gitTry(origin, 'show main:code/tool.js') || '';
+    if (pulledOverDirty && remoteTip.includes('v2 theirs')) ok('I3: pull landed the remote version in history and put the uncommitted local version back on disk');
+    else bad('I3: uncommitted .nosync work did not survive the pull', `pulled=${pulledOverDirty}, tip=${remoteTip.trim()}, disk=${(gitTry(app, 'status --porcelain') || '')}`);
+
+    // And it stays the person's to commit: a few more cycles must not sweep it up.
+    await sleep(1500);
+    const stillTheirs = (gitTry(app, 'status --porcelain') || '').includes('code/tool.js') &&
+      (gitTry(origin, 'show main:code/tool.js') || '').includes('v2 theirs');
+    if (stillTheirs) ok('I4: the restored work stayed uncommitted across later sync cycles');
+    else bad('I4: a later cycle auto-committed the .nosync work', gitTry(app, 'status --porcelain') || '');
 
   } catch (err) {
     bad('harness error', err.message);
