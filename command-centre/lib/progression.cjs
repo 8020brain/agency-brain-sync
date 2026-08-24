@@ -30,9 +30,9 @@ const path = require('path');
 // Step ids are L<level>.<index> — stable, derived by position, safe to persist.
 const LEVELS = [
   { level: 1, name: 'Basic Tasks', blurb: 'using AI for real work', steps: [
-    { id: 'L1.1', label: 'How AI can help you', note: "A quick primer on what today's AI really is, and how much it can take off your plate. Start here." },
-    { id: 'L1.2', label: 'Install your brain', note: "Get it set up. It's yours." },
-    { id: 'L1.3', label: 'Complete one real task', note: 'Use the brain on actual work - ideally a recurring task.' },
+    { id: 'L1.1', label: 'How AI can help you. Today', note: "A quick primer on what today's AI really is, and how much it can take off your plate." },
+    { id: 'L1.2', label: 'Install your AI brain', note: "Get it set up. It's yours." },
+    { id: 'L1.3', label: 'Take a tour of the brain', note: "Get to know the folders and how it's laid out." },
     { id: 'L1.4', label: 'Use it for something most days', note: 'Make it your default tool, not a one-off.' },
   ] },
   { level: 2, name: 'Context', blurb: 'the brain knows you', steps: [
@@ -41,7 +41,7 @@ const LEVELS = [
     { id: 'L2.3', label: 'Tell it about your business', note: 'Explain what you sell and how you add value.' },
     { id: 'L2.4', label: 'Tell it about your customers', note: 'Explain who you serve & why they buy.' },
   ] },
-  { level: 3, name: 'Skills', blurb: 'tools you invoke', steps: [
+  { level: 3, name: 'Skills', blurb: 'tools you create', steps: [
     { id: 'L3.1', label: 'Use a skill', note: "Run one of the brain's skills on real work." },
     { id: 'L3.2', label: 'Edit a skill', note: 'Adapt a skill so it runs your way: your voice, your steps, your data.' },
     { id: 'L3.3', label: 'Build a skill', note: 'Create your own skill by doing a task, iterating, then creating the skill.' },
@@ -55,9 +55,9 @@ const LEVELS = [
   ] },
   { level: 5, name: 'Runs Without You', blurb: 'it runs on its own, hands off', steps: [
     { id: 'L5.1', label: 'Tasks run on a schedule', note: 'Tasks can run in the background on a schedule, even when your computer is off.' },
-    { id: 'L5.2', label: 'Reactive to events & data', note: 'These can be manually triggered by you, occur at a set time/date, or based on a change in data.' },
+    { id: 'L5.2', label: 'Define the finish line', note: 'What does finished look like? A task that runs without you has to know when to stop.' },
     { id: 'L5.3', label: 'Set guardrails, thresholds & limits', note: 'Define the acceptable limits for different types of task/data.' },
-    { id: 'L5.4', label: 'Get alerts as needed', note: 'Know when performance drifts out of those limits. Build trust and verify the system is running correctly.' },
+    { id: 'L5.4', label: 'Get alerts as needed', note: 'Some drift it corrects on its own. Past the line you set, it stops, asks you, and waits.' },
   ] },
   { level: 6, name: 'Self-Improving', blurb: 'the frontier, still mostly ahead of us', steps: [
     { id: 'L6.1', label: 'Build evaluation criteria', note: "What are you scoring work against? Defining 'done' is hard but vital at this stage." },
