@@ -67,7 +67,7 @@
   // Per-person identity nudge: show until CLAUDE.local.md exists, one click writes
   // it (the app already knows who they are from login). If the login name is
   // blank (the members DB has no name for some people), the banner asks for it
-  // inline instead of dead-ending on "sign in again" (Richard, 2026-07-03).
+  // inline instead of dead-ending on "sign in again" (client field report, 2026-07-03).
   function maybeIdentity(h){
     var b=$('identity-nudge'); if(!b) return;
     if(h && h.hasLocalIdentity){ b.hidden=true; return; }

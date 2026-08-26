@@ -32,7 +32,7 @@
  * And the 2026-08-18 fix for a check the CUSTOMER installed:
  *   G) A foreign pre-commit hook (a data-protection scanner) refuses one file.
  *      That file is set aside and everything else keeps syncing, instead of the
- *      refusal wedging the whole brain the way it did for Poeppel Rechtsanwaelte.
+ *      refusal wedging the whole brain the way it did in a 2026-08-18 field report.
  *
  * And the .nosync marker (client field report, 2026-08-24):
  *   I) A folder holding a `.nosync` file is left out of auto-commits — its

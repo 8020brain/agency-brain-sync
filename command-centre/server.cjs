@@ -750,7 +750,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/write-identity') {
       // The login name can be blank (the members DB holds no name for some
       // people), and "sign in again" can never fix that — so accept a typed
-      // name from the banner instead of dead-ending (Richard, 2026-07-03).
+      // name from the banner instead of dead-ending (client field report, 2026-07-03).
       // A TYPED name always beats the stored one: the member record's name is
       // whatever someone typed when the seat was staged (Peter's got the brand
       // name), and with the stored value winning there was no way to correct

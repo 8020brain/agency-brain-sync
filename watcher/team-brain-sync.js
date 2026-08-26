@@ -260,7 +260,7 @@ function writeState(state, reason, extra) {
   // recovered a second before the identical failure re-reports the stop, so an
   // agency watching a wedged brain sees it flicker green — and because both
   // reports are fire-and-forget, the pair can land out of order and SETTLE on
-  // green. (Poeppel Rechtsanwaelte, 2026-08-18: blocked for hours while the
+  // green. (client field report, 2026-08-18: blocked for hours while the
   // roster showed them healthy in the gaps between retries.) Only a cycle that
   // actually got somewhere calls clearStall(), so that is the single signal
   // worth reporting a recovery on. The tray still gets the honest live state,
@@ -568,7 +568,7 @@ function addToLocalExclude(rel) {
 // only half the job: `git add -A` would still stage them, so they need a git
 // exclude too. Doing it in .git/info/exclude rather than .gitignore means every
 // EXISTING brain self-heals on update, with no repo change and nothing for the
-// member to do. (Datasauce, 2026-07-31: a scout lost a morning to a wedged
+// member to do. (agency field report, 2026-07-31: a scout lost a morning to a wedged
 // commit with one of these churning in a client campaigns folder.)
 function ensureOfficeLockExclude() {
   const p = path.join(REPO, '.git', 'info', 'exclude');
@@ -903,7 +903,7 @@ function explainCommitFailure(err) {
 // and so never once fired. The reliable signal is the hook file. One that exists
 // and isn't the size guard this app installs belongs to whoever owns the machine
 // — a data-protection or secret scanner, most often — and the member deserves to
-// be told that rather than handed its raw output. (Poeppel Rechtsanwaelte,
+// be told that rather than handed its raw output. (client field report,
 // 2026-08-18: a scanner refusing an email address in a client note read as
 // "can't save your latest changes: E-MAIL <path>:76".)
 function foreignPrecommitHook() {
@@ -1022,7 +1022,7 @@ function stageAndCommit(s) {
   // wrong. The old code called git(), which discards the error and returned the
   // bare string 'commit failed' — so the notification, the tray and the log all
   // said "can't save your latest changes" with no cause, and the only way to
-  // find out was to email Mike and wait. (Chris at Datasauce, 2026-07-31, blocked
+  // find out was to email Mike and wait. (agency field report, 2026-07-31, blocked
   // for a whole morning by exactly this.)
   let cr = gitTry('commit', '-m', commitMsg);
   if (!cr.ok) {
@@ -1039,7 +1039,7 @@ function stageAndCommit(s) {
     // clear it. Treat it the way an oversized file is already treated. Set the
     // files it named aside, save everything else, and let the brain carry on.
     // Never retry with --no-verify: that check belongs to the customer, and
-    // overriding it is not this app's call. (Poeppel Rechtsanwaelte, a law firm,
+    // overriding it is not this app's call. (a client in a regulated industry,
     // 2026-08-18: one client note with an email address in it stopped their
     // brain for hours.)
     const refused = staged.filter((f) => (cr.err || '').includes(f));

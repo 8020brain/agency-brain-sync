@@ -2585,7 +2585,7 @@ function enrichedEnv() {
 
 // ---- managed Git (Windows) ----
 // Most members' Windows machines have no Git, and telling a non-technical team
-// member to install it themselves loses them (two Datasauce team seats burned a
+// member to install it themselves loses them (two team seats at one agency burned a
 // day each on this, 2026-08-03). So on Windows the app downloads its own
 // portable copy (MinGit, the official minimal Git for Windows build) into
 // userData and puts it LAST on PATH: a system Git always wins, the managed copy
@@ -2883,7 +2883,7 @@ async function ensureGitAvailable() {
 
 // macOS: an app running from Downloads or the mounted installer image can't
 // replace itself, so auto-update downloads and then fails with nothing visible
-// to the member (Rachael at Datasauce sat on v1.1.10 for a day this way,
+// to the member (a team member sat on v1.1.10 for a day this way,
 // 2026-08-03). Offer the fix at launch: Electron moves the bundle and
 // relaunches. Declining keeps the app fully working; it just asks again next
 // launch, which is rare for a menu-bar app.
