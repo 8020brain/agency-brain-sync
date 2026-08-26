@@ -115,7 +115,7 @@
       var kind=(h.teamKind||'agency');
       $('brand-team').textContent=(h.teamSlug||(kind==='client'?'':'Your agency'));
       var role=uiRole((h.memberRole||'').toLowerCase());
-      $('who-role').textContent=(role?cap(role):'No role')+' view';
+      $('who-role').textContent=roleLabel(h.memberRole);
       // Owners and scouts can add members right here (server-side invite via the
       // member's own token). Team members don't see the control.
       // Owner + scout both get the "Add member" control (owner-view IDs and the
@@ -592,6 +592,21 @@
     return (q==='client'||q==='agency')?q:serverKind;
   }
   function uiRole(serverRole){ if(DEV_ROLE_OVERRIDE) return DEV_ROLE_OVERRIDE; var a=new URLSearchParams(location.search).get('as'); return (a&&['owner','head-scout','scout','team','agency'].indexOf(a)>=0)?a:serverRole; }
+  // The footer used to read "Team view" whether that was the real role or a
+  // preview, in exactly the same words, and DEV_ROLE_OVERRIDE lives in
+  // localStorage so it survives restarts and app updates indefinitely. Mike read
+  // his own footer, concluded his test client brain had the team role, and it did
+  // not: the server said owner the whole time (2026-08-27). The kind switcher
+  // beside this already says "previewing client, this brain is agency"; the role
+  // switcher said nothing. If a preview can be mistaken for reality by the person
+  // who built it, an agency owner previewing a scout has no chance.
+  function roleLabel(serverRole){
+    var real=(serverRole||'').toLowerCase();
+    var shown=uiRole(real);
+    var base=(shown?cap(shown):'No role')+' view';
+    if(shown && real && shown!==real) return base+' · previewing, really '+cap(real);
+    return base;
+  }
   var ICON_EDIT='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
   var ICON_TRASH='<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
   function roleOptions(sel){
@@ -620,7 +635,7 @@
       if(rr && rr!==CCROLE){
         CCROLE=rr;
         applyRoleTabs((d.requester&&d.requester.role)||'');
-        $('who-role').textContent=(rr?cap(rr):'No role')+' view';
+        $('who-role').textContent=roleLabel((d.requester&&d.requester.role)||'');
       }
       var canEdit=(rr==='owner'||rr==='scout'||rr==='head-scout');
       th.innerHTML='<tr><th>Name</th><th>Email</th><th>Role</th><th>Activity</th>'+(canEdit?'<th></th>':'')+'</tr>';
