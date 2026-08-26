@@ -518,7 +518,12 @@ function pathBlockedForRole(relPath, role) {
 // a .nosync.
 function isNoSynced(rel) {
   if (path.basename(rel) === '.nosync') return false; // the marker itself syncs
-  let dir = path.dirname(rel);
+  // Start the walk at the path ITSELF, not its parent: `git status` collapses a
+  // wholly-untracked directory to a single "code/" entry, so the marked directory
+  // is often the entry rather than an ancestor of it. Starting a level up missed
+  // exactly that case and staged the whole folder. For an ordinary file the first
+  // check ("code/tool.js/.nosync") simply does not exist and the walk carries on.
+  let dir = rel.replace(/\/+$/, '');
   while (dir && dir !== '.' && dir !== '/') {
     if (fs.existsSync(path.join(REPO, dir, '.nosync'))) return true;
     dir = path.dirname(dir);
@@ -924,7 +929,43 @@ function stageAndCommit(s) {
   );
   if (!files.length) return { committed: false, held: [] };
 
-  git('add', '-A');
+  // Stage everything EXCEPT .nosync subtrees. Never `git add -A` and then take
+  // them back out: that briefly puts the person's folder in the index, and undoing
+  // it afterwards is what made this racy and unfixable. A path the watcher never
+  // stages needs no undoing, so there is nothing to get wrong.
+  //
+  // A .nosync folder is LEFT ALONE while someone works in it. They add the marker,
+  // they work, they delete the marker, and the folder syncs on the next tick. They
+  // never run git. (Mike, 2026-08-26: "I don't want a human user of Agency Brain or
+  // Client Brain to ever have to run something like `git add` manually... they can
+  // just manually put that file into a folder and know then that that folder
+  // wouldn't get pushed up while they were working on something in that folder.")
+  //
+  // The marker itself always stages: isNoSynced returns false for it, so the
+  // choice travels to every clone of the brain.
+  // Ask for untracked files INDIVIDUALLY for this decision. The status behind
+  // `files` collapses a wholly-untracked directory to a single "newthing/" entry,
+  // which hides a marker further down (newthing/vendor/.nosync) and stages the
+  // marked part along with everything else. -uall is only used to decide what to
+  // stage; the tray and the state machine keep the tidier collapsed view.
+  const stageList = gitProbe('status', '--porcelain', '-uall').split('\n').filter(Boolean)
+    .map((line) => line.replace(/^[ MADRCU!?]{1,2} /, '').split(' -> ').pop())
+    .filter(Boolean);
+  const candidates = stageList.length ? stageList : files;
+  const toStage = candidates.filter((f) => !isNoSynced(f));
+  const leftAlone = candidates.filter((f) => isNoSynced(f));
+  // Chunked: a brain with thousands of changed files would otherwise build a
+  // command line past the OS argument limit.
+  for (let i = 0; i < toStage.length; i += 500) {
+    git('add', '--', ...toStage.slice(i, i + 500));
+  }
+  // The markers themselves, explicitly. A wholly-untracked marked folder arrives
+  // from `git status` as one "code/" entry which the filter above drops whole, and
+  // the marker lives inside it, so it would never reach the team otherwise. It has
+  // to: the marker is what tells everyone else's app to leave that folder alone,
+  // so it must travel to every clone. gitTry because the pathspec matches nothing
+  // in a brain that has no markers, which is not an error worth logging.
+  gitTry('add', '--', ':(glob)**/.nosync');
   const held = [];
 
   if (MODE === 'agency') {
@@ -950,11 +991,12 @@ function stageAndCommit(s) {
   // for the person to commit with a real message. Quiet by design — a code
   // folder someone is mid-way through is not a problem for the tray to flag,
   // so it never joins `held`; the log notes it once per change of set.
-  const skippedNosync = gitProbe('diff', '--cached', '--name-only').split('\n').filter(Boolean).filter(isNoSynced);
-  for (const f of skippedNosync) git('reset', '-q', 'HEAD', '--', f);
-  const nosyncNote = skippedNosync.join(',');
-  if (skippedNosync.length && nosyncNote !== lastNosyncNote) {
-    console.log(`[${ts()}]   left ${skippedNosync.length} file(s) alone under a .nosync folder — yours to commit`);
+  // Nothing to unstage any more: the add above never put these in the index. This
+  // just says so once per change of set, so the log stays quiet while someone
+  // works in a marked folder.
+  const nosyncNote = leftAlone.join(',');
+  if (leftAlone.length && nosyncNote !== lastNosyncNote) {
+    console.log(`[${ts()}]   left ${leftAlone.length} file(s) alone under a .nosync folder — remove the marker when you want them synced`);
   }
   lastNosyncNote = nosyncNote;
 

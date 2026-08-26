@@ -57,8 +57,34 @@ function bad(name, detail) { fail++; console.log(`  FAIL ${name}${detail ? ` —
 function sh(cmd, cwd) {
   return execSync(cmd, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 }
-function git(repo, args) { return sh(`git -C "${repo}" ${args}`, undefined); }
-function gitTry(repo, args) { try { return git(repo, args); } catch { return null; } }
+// The watcher is RUNNING while these cases execute, and it runs git in the same
+// repo on its own timer. So a bare `git add`/`git commit` from the test races it
+// for .git/index.lock, and the loser throws. That threw out of the case and was
+// reported as a fatal "harness error", killing the rest of the run: cases E, F
+// and G never executed, which is why a bad run scored 18 instead of 21. It was
+// flaky about one run in three (measured 3 failures in 8 on 2026-08-26).
+//
+// Nothing was wrong with the app. Waiting for the lock is exactly what the real
+// watcher does, so the test does it too. Only lock contention is retried; every
+// other git failure still throws on the first try, because several cases depend
+// on a command failing (D2 expects the pre-commit hook to refuse a commit).
+// Lock contention ONLY. Deliberately does not match the read-only-origin errors
+// case C provokes on purpose ("unable to create temporary object directory"),
+// which must still fail the moment they happen.
+const LOCK_RE = /index\.lock|Another git process|cannot lock ref/i;
+function git(repo, args, { retryMs = 5000 } = {}) {
+  const deadline = Date.now() + retryMs;
+  for (;;) {
+    try {
+      return sh(`git -C "${repo}" ${args}`, undefined);
+    } catch (e) {
+      const text = `${e.stderr || ''}${e.stdout || ''}${e.message || ''}`;
+      if (!LOCK_RE.test(text) || Date.now() >= deadline) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150); // sync sleep
+    }
+  }
+}
+function gitTry(repo, args) { try { return git(repo, args, { retryMs: 0 }); } catch { return null; } }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 // Poll a predicate until truthy or timeout. Returns true on success.
@@ -272,13 +298,58 @@ async function main() {
     if (proseSynced && codeHeldBack) ok('I1: .nosync folder skipped by auto-commit; prose and the marker itself still synced');
     else bad('I1: .nosync was not honoured', `prose=${proseSynced}, tool-on-origin=${originHasPath(origin, 'main', 'code/tool.js')}, status=${gitTry(app, 'status --porcelain')}`);
 
-    // A deliberate hand commit in the marked folder pushes with its message kept.
-    git(app, 'add -- code/tool.js');
-    git(app, `${idflags} commit -q -m "real reasoning lives in this message"`);
-    const handCommitLanded = await until(() => originHasPath(origin, 'main', 'code/tool.js'), 15000);
-    const tipMsg = gitTry(origin, 'log -1 --format=%s main -- code/tool.js') || '';
-    if (handCommitLanded && tipMsg === 'real reasoning lives in this message') ok('I2: a hand commit inside the .nosync folder pushed with its real message kept');
-    else bad('I2: hand commit did not land with its message', `landed=${handCommitLanded}, msg="${tipMsg}"`);
+    // ── I1b) Nobody has to touch git ──
+    // The whole point of the marker: drop it in, keep working, and the folder is
+    // left alone. So the watcher must never put a marked path in the index at all.
+    // The first build did `git add -A` and then took them back out again, which
+    // briefly staged the person's folder and made the whole thing racy. Assert the
+    // invariant directly: across several cycles the index never holds it, origin
+    // never gets it, and it stays an ordinary pending change on disk.
+    let everStaged = '';
+    for (let i = 0; i < 6; i += 1) {
+      const idx = gitTry(app, 'diff --cached --name-only') || '';
+      if (idx.split('\n').includes('code/tool.js')) { everStaged = idx; break; }
+      await sleep(250);
+    }
+    const stillPending = (gitTry(app, 'status --porcelain') || '').includes('code/tool.js');
+    const neverPushed = !originHasPath(origin, 'main', 'code/tool.js');
+    if (!everStaged && stillPending && neverPushed) {
+      ok('I1b: a marked folder is never staged, never pushed, and stays a pending change');
+    } else {
+      bad('I1b: the watcher touched a marked folder',
+        `staged=${everStaged || '(never, good)'}, stillPending=${stillPending}, neverPushed=${neverPushed}`);
+    }
+
+    // ── I2) Remove the marker and the folder syncs, with no git from the person ──
+    // The other half of the journey Mike described: they add the marker, they
+    // work, they delete the marker, and it goes up on the next tick like anything
+    // else. Nothing here runs `git add` or `git commit` — deleting a file is the
+    // whole interface.
+    fs.rmSync(path.join(codeDir, '.nosync'));
+    const syncedAfterUnmark = await until(() => originHasPath(origin, 'main', 'code/tool.js'), 15000);
+    const contentLanded = (gitTry(origin, 'show main:code/tool.js') || '').includes('v1 mine');
+    if (syncedAfterUnmark && contentLanded) ok('I2: deleting the marker lets the folder sync normally, no git run by hand');
+    else bad('I2: the folder did not sync after the marker was removed', `synced=${syncedAfterUnmark}, content=${(gitTry(origin, 'show main:code/tool.js') || '').trim()}`);
+
+    // Put the marker back for the pull tests below.
+    fs.writeFileSync(path.join(codeDir, '.nosync'), '');
+    await until(() => originHasPath(origin, 'main', 'code/.nosync'), 15000);
+
+    // ── I5) A marker deeper inside a brand-new folder still counts ──
+    // `git status --porcelain` collapses a wholly-untracked directory to one
+    // "newthing/" entry, so a marker further down (newthing/vendor/.nosync) is
+    // invisible unless the staging list asks for untracked files individually.
+    // Without that, the whole folder gets staged and the marked part goes up.
+    const nested = path.join(app, 'newthing');
+    fs.mkdirSync(path.join(nested, 'vendor'), { recursive: true });
+    fs.writeFileSync(path.join(nested, 'readme.md'), 'this part syncs\n');
+    fs.writeFileSync(path.join(nested, 'vendor', '.nosync'), '');
+    fs.writeFileSync(path.join(nested, 'vendor', 'secret-wip.js'), 'not ready\n');
+    const outerSynced = await until(() => originHasPath(origin, 'main', 'newthing/readme.md'), 15000);
+    await sleep(1200); // give a couple more cycles a chance to get it wrong
+    const innerHeld = !originHasPath(origin, 'main', 'newthing/vendor/secret-wip.js');
+    if (outerSynced && innerHeld) ok('I5: a marker deeper inside a brand-new folder is honoured');
+    else bad('I5: nested marker missed', `outer=${outerSynced}, innerHeldBack=${innerHeld}`);
 
     // A pull that must touch an uncommitted .nosync file restores the member's
     // version to the working tree instead of disappearing it into .git.
