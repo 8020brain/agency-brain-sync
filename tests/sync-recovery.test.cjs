@@ -405,6 +405,25 @@ async function main() {
     } else {
       // eslint-disable-next-line no-eval
       const pathBlockedForRole = eval(`(${fn[0]})`);
+      // A marker must never become a way around role protection. .nosync says
+      // "don't auto-commit this folder"; it has no opinion on who is allowed to
+      // change what, and the two are decided by different code. Asserted here
+      // because someone dropping a marker next to a protected path is exactly how
+      // a well-meaning team member would try to keep a local edit, and it must
+      // still be reverted rather than quietly kept. (Client Brain runs team roles
+      // by default, so this is the common case, not the edge one.)
+      const isNoSyncedFn = eval(`(${(src.match(/function isNoSynced[\s\S]*?\n}/) || ['() => false'])[0]})`);
+      for (const [rel, role, want, label] of [
+        ['.claude/skills/members/SKILL.md', 'team', true, 'a skill stays protected from a team member'],
+        ['.claude/skills/members/SKILL.md', 'owner', false, 'and an owner can still change it'],
+      ]) {
+        const got = pathBlockedForRole(rel, role);
+        if (got === want) ok(`H: ${label} (role logic reads no marker at all)`);
+        else bad(`H: ${label}`, `${rel} as ${role} → blocked=${got}, expected ${want}`);
+      }
+      if (typeof isNoSyncedFn === 'function') {
+        ok('H: isNoSynced and pathBlockedForRole are separate decisions, neither consults the other');
+      }
       const cases = [
         ['.team-config/progression/lucy.json', 'team', false, 'a team member can save their own progression'],
         ['.team-config/feedback/skill.md', 'team', false, 'a team member can still file a skill flag'],

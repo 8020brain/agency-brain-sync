@@ -22,6 +22,32 @@ Members read it inside the app: the Command Centre footer's "What's new" link op
 
 The page needs no separate publishing step. It ships inside each build, so updating the file before tagging IS the automation.
 
+## The watcher shares one git index with a human. Never stage-then-unstage.
+
+`watcher/team-brain-sync.js` runs `git` in a folder a person is also working in.
+That makes one rule absolute: **decide what to stage, then stage only that.** Never
+`git add -A` and then reset the paths you did not want.
+
+Staging a path and taking it back puts the person's work in the index for a moment,
+and undoing it races anything else touching that index. When `.nosync` was first
+built that way the suite was red about a third of the time and the failure mode
+destroyed work someone had staged deliberately. Five separate patches each closed
+one window and opened another; the only fix was to stop staging those paths at all.
+
+Three things that follow, each with a test that fails if you break it:
+
+- **The marker file itself must always stage** (`isNoSynced` exempts it by basename),
+  or the choice never reaches the rest of the team and their apps keep syncing the
+  folder.
+- **`isNoSynced` starts its walk at the path itself, not its parent.** `git status`
+  collapses a wholly-untracked directory to one `newthing/` entry, so the marked
+  directory is often the entry rather than an ancestor of it.
+- **The staging decision asks for untracked files individually (`-uall`).** Without
+  it a marker deeper inside a new folder is invisible and the marked work is pushed.
+
+Role rules and the marker are separate decisions and neither consults the other. A
+protected path is still reverted for a role that cannot push it, marker or no marker.
+
 ## Command Centre source of truth
 
 `command-centre/lib/*` and `command-centre/scripts/*` are verbatim copies of the brain dashboard's files (`~/Projects/brain/tools/dashboard/`), and the same files also live in the members Workbench (`~/Projects/brain/tools/members/command-centre/`). A change to any copy must land in all three. See `command-centre/README.md`.
