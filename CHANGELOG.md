@@ -2,6 +2,18 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.28 — 2026-08-26
+
+- **A folder can now be left out of auto-syncing while you work in it.** Put an empty file called `.nosync` in any folder and the app stops pushing that folder up. Everything else in your brain carries on syncing as normal. Delete the `.nosync` file when you're ready and the folder goes up on the next cycle. There's nothing to run and nothing to configure: adding and removing that one file is the whole thing. The marker itself does sync, so once you add it, everyone else's app leaves that folder alone too. This came from an agency keeping a running codebase inside their brain, where an auto-sync timestamp is the wrong record for the work: the commit message is the only place the reasoning lives.
+
+- **A dispatched session now runs whichever assistant you have installed.** It looks for Claude Code first and falls back to ChatGPT's `codex` command, so a machine with only one of the two still opens a session instead of doing nothing. If you want to pin one, set `dispatchProvider` to `claude` or `codex` in the app's config.
+
+- **The app recognises a brain by its `AGENTS.md`.** Brains now keep their instructions in `AGENTS.md` with a short `CLAUDE.md` pointing at it, and the app looks for either. A converted brain can't be mistaken for an empty folder any more.
+
+- **The Getting started help said the wrong thing about saving.** It suggested you needed to save your work up manually. The app syncs on its own, and `/save` is for when you want to ship a change with a proper message, so the help now says that.
+
+- **Clearer wording on the guided path.** The first level now describes what it actually covers, the Skills step explains what it's for, the finish line on "runs without you" stays put so your ticks aren't lost, and the last step spells out the two thresholds instead of implying there's one.
+
 ## 1.1.27 — 2026-08-20
 
 - **The Skills list now shows people what they can actually run.** A skill can carry a line in its file marking it as owner and scout only, and setup, maintenance and admin skills have carried it since July. Nothing in the app ever read it, so everybody saw every skill regardless, including key rotation, which is the one that matters most. A team member's Skills list, the Flag a skill dropdown, and the "skills ready to run" number on Welcome now all leave out the ones that aren't theirs. Owners and scouts see everything, exactly as before. On a client brain this takes a team member from 22 skills to 14.
