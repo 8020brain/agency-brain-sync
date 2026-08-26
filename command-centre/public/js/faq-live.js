@@ -113,7 +113,7 @@
   // Neither doc belongs in a client brain. The agency FAQ is written to an
   // agency ("your agency hosts its own brain", our download and portal links)
   // and the Client Brain FAQ is the reseller pitch — it says the client never
-  // sees the Ads to AI name and that the agency keeps what it charges. A
+  // sees the Ads2AI name and that the agency keeps what it charges. A
   // client's own owner was being shown both, because the only gate was role.
   //
   // This asks the local server directly rather than reading the CCKIND global:

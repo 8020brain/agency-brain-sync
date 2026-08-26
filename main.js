@@ -469,6 +469,9 @@ function startWatcher() {
     // via the tray menu, default off, so in a team only the machines the owner
     // picks act on phone notes.
     BRAIN_DISPATCH: config.dispatchEnabled ? '1' : '0',
+    // Which assistant a dispatched session runs. Empty means take whichever is
+    // installed, Claude Code first; "claude" or "codex" pins one.
+    BRAIN_DISPATCH_PROVIDER: String(config.dispatchProvider || ''),
   };
 
   // Agency-mode: pass identity + a way to mint fresh tokens
@@ -1957,13 +1960,17 @@ ipcMain.handle('seed-demo-folder', async (_evt, targetFolder) => {
     if (existing.length > 0) {
       return { ok: true, seeded: false, note: 'folder not empty; left alone' };
     }
-    const readme = `# Welcome to your agency brain\n\nThis folder is shared with everyone on your agency's team. When you make a change, everyone else's copy updates within about a minute. When they make a change, yours updates.\n\n## First time? Try this in Cowork\n\n> What's in this folder? Give me a brief overview of what's here.\n\nThat'll confirm Cowork can see your team's brain. Once Claude answers, you're set.\n\n## What lives where\n\n- \`clients/\` — one folder per client, with notes, decisions, and call recordings\n- \`context/\` — team-wide context, conventions, and templates\n- \`projects/\` — active work with deadlines\n\n## A note on instructions\n\nCowork automatically reads the \`CLAUDE.md\` file in this folder, so Claude always knows your team's conventions without you having to explain them. Your scouts can update \`CLAUDE.md\` to teach Claude new things; everyone on the team picks up the change within about a minute.\n\n> Demo content: this folder was seeded by Agency Brain in demo mode. Replace these files when your real agency brain is set up.\n`;
-    const claudeMd = `# Claude instructions\n\nWhen working in this folder, you have access to your team's shared brain. The most useful places to start:\n\n- \`clients/\` — one folder per client, with notes, decisions, and call recordings\n- \`context/\` — team-wide context, conventions, and templates\n- \`projects/\` — active work with deadlines\n\nIf you're not sure where something belongs, ask in your team's Cowork session.\n`;
+    const readme = `# Welcome to your agency brain\n\nThis folder is shared with everyone on your agency's team. When you make a change, everyone else's copy updates within about a minute. When they make a change, yours updates.\n\n## First time? Try this in Cowork\n\n> What's in this folder? Give me a brief overview of what's here.\n\nThat'll confirm Cowork can see your team's brain. Once Claude answers, you're set.\n\n## What lives where\n\n- \`clients/\` — one folder per client, with notes, decisions, and call recordings\n- \`context/\` — team-wide context, conventions, and templates\n- \`projects/\` — active work with deadlines\n\n## A note on instructions\n\nYour assistant automatically reads the \`AGENTS.md\` file in this folder, so it always knows your team's conventions without you having to explain them. The \`CLAUDE.md\` beside it is a two-line pointer at \`AGENTS.md\`, so there's nothing to fill in there. Your scouts can update \`AGENTS.md\` to teach it new things; everyone on the team picks up the change within about a minute.\n\n> Demo content: this folder was seeded by Agency Brain in demo mode. Replace these files when your real agency brain is set up.\n`;
+    const agentsMd = `# Your brain's instructions\n\nWhen working in this folder, you have access to your team's shared brain. The most useful places to start:\n\n- \`clients/\` — one folder per client, with notes, decisions, and call recordings\n- \`context/\` — team-wide context, conventions, and templates\n- \`projects/\` — active work with deadlines\n\nIf you're not sure where something belongs, ask in your team's Cowork session.\n`;
+    // The pointer stub beside it, the same pair every real brain ships: Claude
+    // inlines the @-import, and Codex reads AGENTS.md directly.
+    const claudeMd = '@AGENTS.md\n\nRead AGENTS.md in this folder and follow it. All instructions for this brain live there.\n';
     const clientNotes = `# Example client notes\n\nUse this as a template for new clients.\n\n- Onboarded: [date]\n- Main contact: [name]\n- Services: [list]\n- Open work: [...]\n\n## Recent activity\n\n_Add notes here. Anyone on your team will see them within a minute._\n`;
     const contextWelcome = `# Team context\n\nThings every Claude session should know about how this team works.\n\n- Brand voice\n- Tools we use day to day\n- Conventions for naming, commit messages, communication\n`;
     const marker = `Seeded by Agency Brain demo mode at ${new Date().toISOString()}.\nReplace this folder when your real agency brain ships.\n`;
 
     fs.writeFileSync(path.join(targetFolder, 'README.md'), readme);
+    fs.writeFileSync(path.join(targetFolder, 'AGENTS.md'), agentsMd);
     fs.writeFileSync(path.join(targetFolder, 'CLAUDE.md'), claudeMd);
     fs.mkdirSync(path.join(targetFolder, 'clients', 'example-client'), { recursive: true });
     fs.writeFileSync(path.join(targetFolder, 'clients', 'example-client', 'notes.md'), clientNotes);
@@ -2195,6 +2202,16 @@ ipcMain.handle('set-team-repo-url', async (_evt, token, teamSlug, repoUrl) => {
   return r.json();
 });
 
+// The markers that say "a brain lives here". Instructions now ship in AGENTS.md
+// with a two-line CLAUDE.md pointer beside it; brains built before August 2026
+// still carry a full CLAUDE.md and no AGENTS.md. Either name counts, so a
+// converted brain is never mistaken for an empty repo.
+function folderHoldsBrain(targetFolder) {
+  return fs.existsSync(path.join(targetFolder, '.claude'))
+    || fs.existsSync(path.join(targetFolder, 'AGENTS.md'))
+    || fs.existsSync(path.join(targetFolder, 'CLAUDE.md'));
+}
+
 // Seed a not-yet-set-up agency repo from the agency-brain-template.
 // The API install-callback (Phase 1, AGENCY_AUTO_CREATE_REPO) makes the org repo
 // EMPTY; this fills it on first clone. Clones the private template with a brokered
@@ -2216,8 +2233,7 @@ async function seedAgencyBrainIfEmpty(targetFolder, memberToken, teamKind) {
   try {
     await runGit(['-C', targetFolder, 'rev-parse', 'HEAD']);
     hasCommits = true;
-    hasBrain = fs.existsSync(path.join(targetFolder, '.claude'))
-      || fs.existsSync(path.join(targetFolder, 'CLAUDE.md'));
+    hasBrain = folderHoldsBrain(targetFolder);
   } catch (e) {
     hasBrain = false; // unborn branch: an empty repo, the original case
   }

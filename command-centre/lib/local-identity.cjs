@@ -10,6 +10,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { readInstructions } = require('./instructions.cjs');
 
 const IDENTITY_POINTER = 'Read CLAUDE.local.md in this folder if it exists, and treat it as part of your instructions. It is a local file (never synced) that tells you who is using this copy of the brain.';
 
@@ -58,18 +59,20 @@ function ensureGitignored(brainRoot, name) {
   fs.appendFileSync(gi, (txt && !txt.endsWith('\n') ? '\n' : '') + name + '\n');
 }
 
-// Point the shared CLAUDE.md at the local file, once. Idempotent + safe: it's
-// the same line for everyone and is meant to sync.
+// Point the shared instruction file at the local file, once. Idempotent + safe:
+// it's the same line for everyone and is meant to sync. In a converted brain
+// that file is AGENTS.md and the CLAUDE.md beside it is a two-line pointer, so
+// resolve which is which: splicing a line into the pointer would leave the rule
+// in the one file that is supposed to hold nothing but the @-import.
 function ensureIdentityPointer(brainRoot) {
-  const cm = path.join(brainRoot, 'CLAUDE.md');
-  let txt;
-  try { txt = fs.readFileSync(cm, 'utf8'); } catch (e) { return; } // no CLAUDE.md → nothing to point from
-  if (txt.includes('CLAUDE.local.md')) return; // already points at it
-  const lines = txt.split('\n');
+  const found = readInstructions(brainRoot);
+  if (!found) return; // no instruction file → nothing to point from
+  if (found.text.includes('CLAUDE.local.md')) return; // already points at it
+  const lines = found.text.split('\n');
   let at = 0; // after the first top-level heading, else the very top
   for (let i = 0; i < lines.length; i++) { if (/^#\s/.test(lines[i])) { at = i + 1; break; } }
   lines.splice(at, 0, '', IDENTITY_POINTER);
-  fs.writeFileSync(cm, lines.join('\n'));
+  fs.writeFileSync(found.file, lines.join('\n'));
 }
 
 function writeLocalIdentity({ brainRoot, name, role, teamKind, teamName }) {

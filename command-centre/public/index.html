@@ -580,7 +580,7 @@
           <div class="act"><button class="btn mut" data-ext="https://m.ads2ai.com/mastery">Open the setup guide</button></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads to AI subscription. No API key needed.</p></div></div>
+          <div class="sh"><span class="snum">2</span><div><h4>Set up Claude Code</h4><p class="sd">Install Claude Code and log in with your Ads2AI subscription. No API key needed.</p></div></div>
           <div class="act"><button class="btn mut" data-ext="https://code.claude.com/docs/en/quickstart">Install Claude Code</button></div>
         </div>
         <div class="stage">
@@ -609,7 +609,7 @@
           <div class="bucket">
             <h3>In your brain</h3><p class="bsub">Run these any time; the written guides back them up.</p>
             <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Sets you up and seeds your owner-private repo.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared AGENTS.md.</div></div></div>
             <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
             <div class="res"><div><div class="rn">onboarding-owner.md</div><div class="rd">The full owner walkthrough.</div></div></div>
           </div>
@@ -654,8 +654,8 @@
           <div class="act"><button class="btn" data-spawn="What's in this folder? Give me a brief overview of what's here.">Copy a prompt: what's in this brain?</button></div>
         </div>
         <div class="stage">
-          <div class="sh"><span class="snum">2</span><div><h4>Teach the brain your agency</h4><p class="sd">Run <code>/agency-brain-context-setup</code>. It interviews you and fills the shared CLAUDE.md with your services, your voice, your departments, and the tools you use, so every teammate's Claude knows how your agency works.</p></div></div>
-          <div class="act"><button class="btn" data-spawn="Run /agency-brain-context-setup: interview me and fill the shared CLAUDE.md with our agency's services, voice, departments, and tools.">Copy a prompt: set up our context</button><button class="btn ghost" data-guide="g-claudemd">Read: your CLAUDE.md files</button></div>
+          <div class="sh"><span class="snum">2</span><div><h4>Teach the brain your agency</h4><p class="sd">Run <code>/agency-brain-context-setup</code>. It interviews you and fills the shared AGENTS.md with your services, your voice, your departments, and the tools you use, so every teammate's assistant knows how your agency works.</p></div></div>
+          <div class="act"><button class="btn" data-spawn="Run /agency-brain-context-setup: interview me and fill the shared AGENTS.md with our agency's services, voice, departments, and tools.">Copy a prompt: set up our context</button><button class="btn ghost" data-guide="g-claudemd">Read: your AGENTS.md files</button></div>
           <div class="guide-panel" id="g-claudemd"></div>
         </div>
         <div class="stage">
@@ -689,7 +689,7 @@
           <div class="bucket">
             <h3>In your brain</h3><p class="bsub">Skills you can run right now, and the written guides.</p>
             <div class="res"><div><div class="rn"><code>/agency-team-join</code></div><div class="rd">Onboards you or a teammate, role-aware.</div></div></div>
-            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared CLAUDE.md.</div></div></div>
+            <div class="res"><div><div class="rn"><code>/agency-brain-context-setup</code></div><div class="rd">Interviews you and fills the shared AGENTS.md.</div></div></div>
             <div class="res"><div><div class="rn"><code>/skill-creator</code></div><div class="rd">Builds a new skill from a plain description.</div></div></div>
             <div class="res"><div><div class="rn"><code>/client-setup</code></div><div class="rd">Sets up a new client folder and context.</div></div></div>
             <div class="res"><div><div class="rn">docs/scout-guide/</div><div class="rd">The six written guides linked above.</div></div></div>
@@ -1079,7 +1079,7 @@ A working ping is misleading here: opening the app's own address (<code>http://1
         <details class="faq-item"><summary>What is this Agency Brain app, and why did I get it?</summary><div class="faq-a">It's a small app that sits in your menu bar (Mac) or system tray (Windows) and keeps a shared folder of your agency's knowledge and skills in sync automatically. You do your actual work through Claude, usually in Cowork. The app just quietly shares your changes with the team and pulls theirs in. You never need to 'click save' or commit files.</div></details>
         <details class="faq-item"><summary>I got an invite with a 6-character code (like BR4-7XK). Now what?</summary><div class="faq-a">Install the Agency Brain app from the link in the invite email, open it, and paste the 6-character code into the setup screen. The code stays in your email, so you can come back to it if you need to. The app then creates your brain folder, connects you to the agency's brain, and the icon turns orange when it's syncing.</div></details>
         <details class="faq-item"><summary>Do I need a GitHub account, or to know what git is?</summary><div class="faq-a">No. Not unless you're a 'scout'. You never log into GitHub, you never see a developer screen, and you never run a git command. The agency owns the GitHub side, and the app borrows access for you behind the scenes. You install one app, paste your code, and start working.</div></details>
-        <details class="faq-item"><summary>Which apps do I install, and which Claude is the right one?</summary><div class="faq-a">Two apps, and they're separate downloads. The Agency Brain app, from the link in your invite. And the Claude desktop app, from claude.com/download. You don't need to install Git yourself any more: on Windows the app downloads its own private copy during setup (about 40 MB, once), and on a Mac you usually already have it, with the first git command quietly offering to add Apple's command line tools if you don't. If the automatic download ever fails, the app says so and points you at git-scm.com/download/win as the fallback. Most Team members do their work in Cowork inside the Claude desktop app.</div></details>
+        <details class="faq-item"><summary>Which apps do I install, and which Claude is the right one?</summary><div class="faq-a">Two apps, and they're separate downloads. The Agency Brain app, from the link in your invite. And the Claude desktop app, from claude.com/download. You don't need to install Git yourself any more: on Windows the app downloads its own private copy during setup (about 40 MB, once), and on a Mac you usually already have it, with the first git command quietly offering to add Apple's command line tools if you don't. If the automatic download ever fails, the app says so and points you at git-scm.com/download/win as the fallback. Most Team members do their work in Cowork inside the Claude desktop app. Prefer ChatGPT? Open the brain folder as a Codex project in the ChatGPT desktop app and it reads the same AGENTS.md and runs the same skills. Opening it as a Work task doesn't work: the folder arrives as an attachment rather than the project, so none of the brain's instructions load.</div></details>
         <details class="faq-item"><summary>Where do I do my work, and where are the files?</summary><div class="faq-a">You work in Cowork, inside the Claude desktop app. Just point it at the same Agency Brain folder the app is using.</div></details>
         <details class="faq-item"><summary>I already use a personal 8020brain. Should I merge Agency Brain into it?</summary><div class="faq-a">No, keep them separate. When you join an agency someone else set up, let the Agency Brain app create its own fresh folder for the shared brain, and leave any personal 8020brain you run as its own thing. They're separate repos with separate sync, so splicing one into the other causes confusion later. This is the opposite of the Owner case: an Owner moving their OWN solo brain onto Agency Brain deliberately turns that existing brain into the shared one. You're joining a brain that already exists, so you take a clean copy of it. If there's one file from your personal brain you want, copy it across by hand once Agency Brain is running.</div></details>
       </div>

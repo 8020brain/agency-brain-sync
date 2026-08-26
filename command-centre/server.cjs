@@ -745,7 +745,8 @@ const server = http.createServer(async (req, res) => {
     // Write THIS person's local identity (the Welcome-view "set up your identity"
     // button). The app already knows who they are from login, so this is one click:
     // it writes CLAUDE.local.md locally (git-ignored) and points the shared
-    // CLAUDE.md at it. No typing, no email, nothing to commit per-person.
+    // instruction file at it (AGENTS.md, or CLAUDE.md in a brain from before the
+    // conversion). No typing, no email, nothing to commit per-person.
     if (req.method === 'POST' && p === '/api/write-identity') {
       // The login name can be blank (the members DB holds no name for some
       // people), and "sign in again" can never fix that — so accept a typed

@@ -24,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
+const { readInstructions } = require('./instructions.cjs');
 
 const BRAIN_ROOT = process.env.BRAIN_ROOT || process.cwd();
 
@@ -369,11 +370,14 @@ function loadUsage(repoPath) {
 // "Made it yours": the template ships {{ AGENCY NAME }}-style uppercase brace
 // placeholders; the tune-brain prompt removes them. Lowercase {{ braces }} (the
 // instructional example in the template note) and markdown links never match.
+// The placeholders live in AGENTS.md in a converted brain and in CLAUDE.md in an
+// older one, so resolve the real instruction file rather than naming either: the
+// two-line CLAUDE.md pointer holds no placeholders, and reading it would tick
+// this milestone green on a brain nobody has touched.
 function isCustomised(repoPath) {
-  try {
-    const txt = fs.readFileSync(path.join(repoPath, 'CLAUDE.md'), 'utf8');
-    return !/\{\{\s*[A-Z][A-Z ]{2,}\s*\}\}/.test(txt);
-  } catch { return false; }
+  const found = readInstructions(repoPath);
+  if (!found) return false;
+  return !/\{\{\s*[A-Z][A-Z ]{2,}\s*\}\}/.test(found.text);
 }
 
 // The template ships ZERO client folders (just clients/CLAUDE.md), so any
