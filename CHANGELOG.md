@@ -2,7 +2,7 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## 1.1.28 — 2026-08-26
+## 1.1.28 — 2026-08-27
 
 - **A folder can now be left out of auto-syncing while you work in it.** Put an empty file called `.nosync` in any folder and the app stops pushing that folder up. Everything else in your brain carries on syncing as normal. Delete the `.nosync` file when you're ready and the folder goes up on the next cycle. There's nothing to run and nothing to configure: adding and removing that one file is the whole thing. The marker itself does sync, so once you add it, everyone else's app leaves that folder alone too. This came from an agency keeping a running codebase inside their brain, where an auto-sync timestamp is the wrong record for the work: the commit message is the only place the reasoning lives.
 
