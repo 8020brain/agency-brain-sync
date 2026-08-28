@@ -69,10 +69,10 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      - run: npm install
+      - run: npm ci
 
       # Windows signing prep (win leg only). CodeSignTool is a Java CLI, so it
       # needs a JRE; the SSL.com Windows zip is fetched from a pinned release and
