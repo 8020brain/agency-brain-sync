@@ -15,7 +15,8 @@
     "test": "node tests/agents-md.test.cjs && node tests/claude-detection.test.cjs && node tests/client-experience.test.cjs && node tests/client-kind.test.cjs && node tests/config-recovery.test.cjs && node tests/git-credential.test.cjs && node tests/github-account.test.cjs && node tests/local-identity.test.cjs && node tests/section-sync.test.cjs && node tests/shared-org.test.cjs && node tests/sync-recovery.test.cjs",
     "build:mac": "electron-builder --mac --publish never",
     "build:win": "electron-builder --win --publish never",
-    "build:all": "electron-builder --mac --win --publish never"
+    "build:all": "electron-builder --mac --win --publish never",
+    "build:staging:mac": "electron-builder --mac dmg --arm64 --publish never -c.appId=com.8020brain.agencybrain.staging -c.productName=Staging-AB -c.extraMetadata.productName=Staging-AB -c.extraMetadata.channel=staging -c.mac.icon=assets/brain-staging-1024.png -c.mac.notarize=false -c.mac.artifactName='Staging-AB-${version}-${arch}.${ext}'"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

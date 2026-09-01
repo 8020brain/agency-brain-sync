@@ -23,6 +23,18 @@ const { ensureCredentialHelper } = require('./lib/git-credential.cjs');
 const { normaliseAccountName, isValidAccountName, classifyAccount } = require('./lib/github-account.cjs');
 const { describeSharedOrg } = require('./lib/shared-org.cjs');
 
+// Build channel. A staging build (npm run build:staging:mac) injects
+// channel:"staging" into package.json via electron-builder extraMetadata. Staging
+// installs ALONGSIDE production (its own appId + productName, so its own data dir
+// and menu-bar entry) and must never auto-update from the production feed baked
+// into the app, or it would replace itself with the live release. Everything else
+// (dev via `electron .`, real production builds) reports 'production'.
+const BUILD_CHANNEL = (() => {
+  try { return require('./package.json').channel || 'production'; }
+  catch (e) { return 'production'; }
+})();
+const IS_STAGING = BUILD_CHANNEL === 'staging';
+
 const USER_DATA = app.getPath('userData');
 const CONFIG_FILE = path.join(USER_DATA, 'config.json');
 // Last known-good copy of config.json, rewritten on every successful save. Only
@@ -40,19 +52,23 @@ const CONFIG_BACKUP_FILE = path.join(USER_DATA, 'config.backup.json');
 // SEPARATE, later change (kept as-is so existing installs are untouched).
 let APP_NAME = computeAppName();
 function computeAppName() {
+  let name = 'Business Brain';
   try {
     const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    if (cfg && cfg.kind === 'client' && cfg.brandName) return String(cfg.brandName);
+    if (cfg && cfg.kind === 'client' && cfg.brandName) name = String(cfg.brandName);
   } catch (e) { /* no config yet — fresh install */ }
-  return 'Business Brain';
+  // Staging carries a visible suffix so Mike can tell the two menu-bar apps apart.
+  return IS_STAGING ? `${name} (Staging)` : name;
 }
 const LOG_FILE = path.join(USER_DATA, 'sync.log');
 const ERR_FILE = path.join(USER_DATA, 'sync.err');
 const STATE_FILE = path.join(USER_DATA, 'state.json');
 const WINDOW_STATE_FILE = path.join(USER_DATA, 'window-state.json');
 
-const ICON_ON  = path.join(__dirname, 'assets', 'brain-44.png');
-const ICON_OFF = path.join(__dirname, 'assets', 'brain-44-off.png');
+// Staging carries a distinct purple menu-bar icon so the two apps are never
+// confused. Production is unchanged (IS_STAGING is false in real builds).
+const ICON_ON  = path.join(__dirname, 'assets', IS_STAGING ? 'brain-44-staging.png' : 'brain-44.png');
+const ICON_OFF = path.join(__dirname, 'assets', IS_STAGING ? 'brain-44-off-staging.png' : 'brain-44-off.png');
 // Attention state: red variant. Asset not yet created; falls back to ICON_ON
 // for now so the build still works. To create: tint brain-44.png red.
 const ICON_ATTENTION = fs.existsSync(path.join(__dirname, 'assets', 'brain-44-attention.png'))
@@ -1817,6 +1833,7 @@ async function ensureAgencyRolesSeeded() {
 // in the packaged app (the node preview + `electron .` dev have no app-update.yml).
 function setupAutoUpdater() {
   if (!app.isPackaged) { ulog('not packaged — auto-update disabled'); return; }
+  if (IS_STAGING) { ulog('staging build — auto-update disabled (would overwrite itself with production)'); return; }
   let autoUpdater;
   try { ({ autoUpdater } = require('electron-updater')); }
   catch (e) { ulog('electron-updater unavailable: ' + e.message); return; }
