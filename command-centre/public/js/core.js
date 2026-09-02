@@ -414,7 +414,7 @@
       '<div class="card cs-card">'
        +'<span class="cs-badge">Start here &middot; 2 minutes</span>'
        +'<h2 class="cs-h">The ‘brain’ is just a folder of files on your computer.</h2>'
-       +'<p class="cs-p">Once Claude can read those files, it has the context it needs to give you useful, personalised replies, not the usual generic AI slop. Those files act as its memory, of you, the business and the tasks. So when you open it tomorrow it remembers and you don’t have to keep repeating yourself.</p>'
+       +'<p class="cs-p">Once Claude can read those files, it has the context it needs to give you useful, personalised replies instead of the generic answers a blank chatbot gives. Those files act as its memory, of you, the business and the tasks. So when you open it tomorrow it remembers, and you don’t have to keep repeating yourself. Tell it something once, and you never have to explain it twice.</p>'
        +'<div class="cs-flow">'
          +'<div class="cs-fbox"><h4>You ask</h4><p>In plain English, in a normal chat</p></div>'
          +'<div class="cs-arrow" aria-hidden="true">&rarr;</div>'
