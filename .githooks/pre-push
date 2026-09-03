@@ -1,0 +1,52 @@
+#!/bin/bash
+# pre-push — refuses to push a release tag (v*) that has not been through
+# `npm run staging` at this exact version and commit.
+#
+# Why: a tag push builds and ships the installer to every agency through
+# auto-update. Staging exists so a broken build is caught on this Mac first.
+# The check writes dist/staging-check.json; this hook reads it.
+#
+# Enabled per clone by `git config core.hooksPath .githooks`, which
+# `npm run staging` sets for you. Branch pushes are never touched.
+# Emergency bypass (say why in the commit): git push --no-verify
+
+top="$(git rev-parse --show-toplevel)"
+result="$top/dist/staging-check.json"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/tags/v*) ;;
+    *) continue ;;
+  esac
+  tag="${remote_ref#refs/tags/}"
+  want="${tag#v}"
+  commit="$(git rev-parse "${local_sha}^{commit}" 2>/dev/null)"
+
+  if [ ! -f "$result" ]; then
+    echo "✗ Refusing to push $tag: no staging check on record."
+    echo "  Run: npm run staging   (then install Staging-AB, click through, and tag again)"
+    exit 1
+  fi
+
+  node - "$result" "$want" "$commit" "$tag" <<'EOF' || exit 1
+const fs = require('fs');
+const [file, want, commit, tag] = process.argv.slice(2);
+let r;
+try { r = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {
+  console.error(`✗ Refusing to push ${tag}: dist/staging-check.json is unreadable (${e.message}).`);
+  process.exit(1);
+}
+const problems = [];
+if (!r.ok || r.testsPassed !== true) problems.push(`the last staging check was not green${r.reason ? ` (${r.reason})` : ''}`);
+if (r.version !== want) problems.push(`it checked v${r.version}, and this tag is v${want}`);
+if (r.commit !== commit) problems.push(`it checked commit ${String(r.commit || '').slice(0, 7)}, and this tag points at ${commit.slice(0, 7)}`);
+if (r.dirty) problems.push('it ran on a working tree with uncommitted changes, so it did not test what the tag points at');
+if (problems.length) {
+  console.error(`✗ Refusing to push ${tag}: ${problems.join('; ')}.`);
+  console.error('  Run `npm run staging` on the commit you are tagging, install Staging-AB, click through, then push again.');
+  process.exit(1);
+}
+console.log(`✓ ${tag} matches the staging check from ${r.checkedAt} (tests green, ${String(r.commit).slice(0, 7)}).`);
+EOF
+done
+exit 0

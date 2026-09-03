@@ -16,7 +16,8 @@
     "build:mac": "electron-builder --mac --publish never",
     "build:win": "electron-builder --win --publish never",
     "build:all": "electron-builder --mac --win --publish never",
-    "build:staging:mac": "electron-builder --mac dmg --arm64 --publish never -c.appId=com.8020brain.agencybrain.staging -c.productName=Staging-AB -c.extraMetadata.productName=Staging-AB -c.extraMetadata.channel=staging -c.mac.icon=assets/brain-staging-1024.png -c.mac.notarize=false -c.mac.artifactName='Staging-AB-${version}-${arch}.${ext}'"
+    "build:staging:mac": "electron-builder --mac dmg --arm64 --publish never -c.appId=com.8020brain.agencybrain.staging -c.productName=Staging-AB -c.extraMetadata.productName=Staging-AB -c.extraMetadata.channel=staging -c.mac.icon=assets/brain-staging-1024.png -c.mac.notarize=false -c.mac.artifactName='Staging-AB-${version}-${arch}.${ext}'",
+    "staging": "node scripts/staging-check.cjs"
   },
   "dependencies": {
     "chokidar": "^3.6.0",
