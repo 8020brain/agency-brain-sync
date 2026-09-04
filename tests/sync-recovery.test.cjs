@@ -45,6 +45,11 @@
  *      real message, the marker itself syncs so the choice reaches every
  *      clone, and a pull that must touch an uncommitted .nosync file puts the
  *      member's version back on disk instead of disappearing it.
+ *
+ * And the 2026-09-05 spaced-path fix (client field report):
+ *   K) A file whose path contains a space (which plain `git status --porcelain`
+ *      wraps in double quotes) is committed + pushed, and does not abort the
+ *      cycle or block the un-spaced file written beside it.
  */
 
 const { execSync, spawn } = require('child_process');
@@ -186,6 +191,23 @@ async function main() {
     const roundTripped = await until(() => originHasPath(origin, 'main', 'data/cowork-note.md'));
     if (roundTripped) ok('B: a file written straight into the brain was committed + pushed automatically');
     else bad('B: brain-written file never reached origin');
+
+    // ── K) A path with spaces no longer aborts the whole cycle (2026-09-05) ──
+    // Plain `git status --porcelain` double-quotes a spaced path; feeding that back
+    // to `git add` failed fatal and stalled every other pending change. Write a
+    // spaced-path file AND a plain one in the same beat: both must reach origin.
+    // (ls-tree -z on the check so it doesn't itself trip over the quoting.)
+    const spaced = 'context/assets/logos/RGB 2/logo - 11355.png';
+    fs.mkdirSync(path.join(app, 'context/assets/logos/RGB 2'), { recursive: true });
+    fs.writeFileSync(path.join(app, spaced), 'spaced\n');
+    fs.writeFileSync(path.join(app, 'context/assets/plain.png'), 'plain\n');
+    const originHasSpaced = () =>
+      (gitTry(origin, 'ls-tree -r --name-only -z main') || '').split('\0').includes(spaced);
+    const spacedSynced = await until(() =>
+      originHasSpaced() && originHasPath(origin, 'main', 'context/assets/plain.png')
+    );
+    if (spacedSynced) ok('K: a spaced-path file committed + pushed, and did not block the file beside it');
+    else bad('K: a path with spaces stalled the cycle', `status=${gitTry(app, 'status --porcelain')}`);
 
     // ── C) Stuck surfacing: an unrecoverable jam stops LOUDLY ──
     // Make pushes fail persistently (read-only remote) while fetch still works,

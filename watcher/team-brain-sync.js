@@ -177,6 +177,38 @@ function gitTry(...args) {
   return runGitRaw(args, true);
 }
 
+// Changed paths from porcelain output, as RAW, UNQUOTED strings safe to hand
+// straight back to `git add`. Plain `git status --porcelain` wraps any path that
+// holds a space or a non-ASCII byte in double quotes and C-escapes it, e.g.
+// "context/assets/RGB 2/logo - 1.png". Feeding that quoted string to `git add`
+// makes git look for a file whose name literally begins with a double quote, so
+// it matches nothing, exits `fatal: pathspec ... did not match any files`, and
+// the caller aborts the whole cycle — one spaced filename silently stalls every
+// other pending change. The `-z` form is NUL-delimited and NEVER quotes, so it's
+// the only safe way to turn a status line back into a pathspec. Read raw (not via
+// runGitRaw, which trims and would eat a leading blank status column), split on
+// NUL, take each path after its "XY " prefix, and skip the origin field a
+// rename/copy emits as the next NUL token (we stage the new path only).
+// (Client field report, 2026-09-05.)
+function porcelainPaths(...extraArgs) {
+  const r = spawnSync('git', ['-C', REPO, 'status', '--porcelain', '-z', ...extraArgs], {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore'],
+    maxBuffer: 1024 * 1024 * 50,
+  });
+  if (r.error || r.status !== 0) return [];
+  const tokens = (r.stdout || '').split('\0');
+  const paths = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (!tok) continue;
+    const xy = tok.slice(0, 2);
+    paths.push(tok.slice(3)); // "XY <path>": 2 status cols + 1 space, then the path
+    if (xy[0] === 'R' || xy[0] === 'C' || xy[1] === 'R' || xy[1] === 'C') i += 1; // skip origin field
+  }
+  return paths;
+}
+
 // A git process that dies mid-operation (notably a Cowork session, which can't
 // complete its own git step — verified 2026-05-26) leaves `.git/index.lock`
 // behind. While it sits there, EVERY add/commit/merge fails instantly ("Unable
@@ -949,16 +981,12 @@ function foreignPrecommitHook() {
 let lastNosyncNote = ''; // last .nosync skip set logged, to keep the tick log quiet
 
 function stageAndCommit(s) {
-  // s.statusLines come from porcelain output. Parse the files to consider.
-  // Format: "XY filename" (2 status cols + 1 space, then path); rename: "XY old -> new".
-  // git() .trim()s the whole status blob, which strips the leading space off the
-  // FIRST line when its index column is blank (" M path" -> "M path"). A fixed
-  // slice(3) then eats the first path char ("context/..." -> "ontext/..."), which
-  // also mis-classifies an allowed personal file as a protected violation. Strip
-  // the status field (1-2 cols, tolerating that trim) plus its single space instead.
-  const files = (s.statusLines || []).map((line) =>
-    line.replace(/^[ MADRCU!?]{1,2} /, '').split(' -> ').pop()
-  );
+  // Read the changed paths straight from `-z` porcelain (porcelainPaths), which
+  // is NUL-delimited and never quotes, rather than parsing the plain-porcelain
+  // s.statusLines: a spaced or non-ASCII path arrives from plain porcelain wrapped
+  // in double quotes, and the role checks below (isNoSynced, pathBlockedForRole)
+  // would then miss it just as `git add` did before this fix.
+  const files = porcelainPaths();
   if (!files.length) return { committed: false, held: [] };
 
   // Stage everything EXCEPT .nosync subtrees. Never `git add -A` and then take
@@ -980,9 +1008,7 @@ function stageAndCommit(s) {
   // which hides a marker further down (newthing/vendor/.nosync) and stages the
   // marked part along with everything else. -uall is only used to decide what to
   // stage; the tray and the state machine keep the tidier collapsed view.
-  const stageList = gitProbe('status', '--porcelain', '-uall').split('\n').filter(Boolean)
-    .map((line) => line.replace(/^[ MADRCU!?]{1,2} /, '').split(' -> ').pop())
-    .filter(Boolean);
+  const stageList = porcelainPaths('-uall');
   const candidates = stageList.length ? stageList : files;
   const toStage = candidates.filter((f) => !isNoSynced(f));
   const leftAlone = candidates.filter((f) => isNoSynced(f));

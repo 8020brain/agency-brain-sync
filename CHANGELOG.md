@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.30 — 2026-09-05
+
+- **A space in a file or folder name no longer stops your brain syncing.** If a file you'd changed sat in a path with a space in it (something like `RGB 2/logo - 11355.png`), the app couldn't handle that name, so the sync hit a fatal error and stopped. Until that one file was sorted, nothing else you'd changed could save or push either. Names with spaces now sync cleanly, like everything else.
+
 ## 1.1.29 — 2026-09-04
 
 - **One over-long filename can't stop your brain syncing any more.** If a file ended up with a very long name (usually a paragraph pasted into the name by accident), Windows couldn't handle the full path and the app stopped saving everything, with nothing in the log and no warning. Now the app sets that one file aside, keeps everything else syncing, and tells you which file it held and why, so you can rename it. Longer folder paths work properly now too, so only a wildly long name ever gets held.
