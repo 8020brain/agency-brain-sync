@@ -34,6 +34,11 @@
  *      That file is set aside and everything else keeps syncing, instead of the
  *      refusal wedging the whole brain the way it did in a 2026-08-18 field report.
  *
+ * And the 2026-09-02 over-long-path fix (MAX_PATH_CHARS=90 so a plain long name trips it):
+ *   J) A path too long to sync (a paragraph pasted into a filename) is HELD
+ *      locally instead of silently wedging the whole brain: the file beside it
+ *      still syncs, the state names what it set aside, and it stops churning.
+ *
  * And the .nosync marker (client field report, 2026-08-24):
  *   I) A folder holding a `.nosync` file is left out of auto-commits — its
  *      changes stay in the working tree for a deliberate hand commit with a
@@ -142,6 +147,7 @@ async function main() {
         STUCK_RETRY_MS: '1500',
         LOCK_STALE_MS: '500',
         MAX_FILE_MB: '1',
+        MAX_PATH_CHARS: '90', // so a plain long name trips the over-long-path guard
       },
     });
     watcher.stdout.on('data', (d) => logs.push(d.toString()));
@@ -279,6 +285,38 @@ async function main() {
     }, 15000);
     if (gState) ok('G2: the brain stayed running and named the file it set aside');
     else bad('G2: refused file was not surfaced as a held change', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+
+    // ── J) An over-long path is held, not silently wedged ──
+    // The 2026-09-02 field report: a filename with a pasted paragraph in it made
+    // the full path exceed Windows' 260-char cap, `git add` failed, and the failure
+    // was swallowed — the whole brain stopped committing for 28 hours with nothing
+    // in the log and no notification. The guard holds such a path locally (like an
+    // oversized file), so a normal file beside it still syncs and the state names
+    // what it set aside. MAX_PATH_CHARS=90 in this run, so a plain long name trips it.
+    const longName = `${'a'.repeat(120)}.md`;
+    fs.writeFileSync(path.join(app, longName), 'a paragraph pasted into a filename by accident\n');
+    fs.writeFileSync(path.join(app, 'beside-long.md'), 'an ordinary file next to it\n');
+    const heldLong = await until(() =>
+      originHasPath(origin, 'main', 'beside-long.md') &&
+      !originHasPath(origin, 'main', longName) &&
+      fs.existsSync(path.join(app, longName)),
+    15000);
+    if (heldLong) ok('J1: an over-long path was held locally; the file beside it still synced');
+    else bad('J1: over-long path was not held', `beside=${originHasPath(origin, 'main', 'beside-long.md')}, long-on-origin=${originHasPath(origin, 'main', longName)}`);
+
+    const jState = await until(() => {
+      if (!fs.existsSync(stateFile)) return false;
+      const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      return st.state !== 'stop' && Array.isArray(st.held) && st.held.some((h) => h.file === longName);
+    }, 15000);
+    if (jState) ok('J2: the brain stayed running and named the over-long path it set aside');
+    else bad('J2: over-long path not surfaced as a held change', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+
+    // It stops churning: a held over-long path lands in the local exclude, so a
+    // later cycle doesn't keep re-holding or re-logging it.
+    const longExcluded = (gitTry(app, 'status --porcelain') || '').indexOf(longName) === -1;
+    if (longExcluded) ok('J3: the held over-long path no longer shows as a pending change');
+    else bad('J3: held over-long path still churns in git status');
 
     // ── I) .nosync: a marked folder is left out of auto-commits ──
     // Drop a .nosync marker in code/, change a file there and a prose file

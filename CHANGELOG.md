@@ -2,6 +2,12 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.29 — 2026-09-04
+
+- **One over-long filename can't stop your brain syncing any more.** If a file ended up with a very long name (usually a paragraph pasted into the name by accident), Windows couldn't handle the full path and the app stopped saving everything, with nothing in the log and no warning. Now the app sets that one file aside, keeps everything else syncing, and tells you which file it held and why, so you can rename it. Longer folder paths work properly now too, so only a wildly long name ever gets held.
+
+- **When a save fails, you can see why.** If the app hit a problem saving, the reason used to go to a separate error file almost nobody opens, so the main log looked like a normal quiet day even while your work piled up unsent. Those errors now show up in the log you'd actually read, and a save that keeps failing raises the app's "needs attention" flag instead of staying silent.
+
 ## 1.1.28 — 2026-08-27
 
 - **A folder can now be left out of auto-syncing while you work in it.** Put an empty file called `.nosync` in any folder and the app stops pushing that folder up. Everything else in your brain carries on syncing as normal. Delete the `.nosync` file when you're ready and the folder goes up on the next cycle. There's nothing to run and nothing to configure: adding and removing that one file is the whole thing. The marker itself does sync, so once you add it, everyone else's app leaves that folder alone too. This came from an agency keeping a running codebase inside their brain, where an auto-sync timestamp is the wrong record for the work: the commit message is the only place the reasoning lives.

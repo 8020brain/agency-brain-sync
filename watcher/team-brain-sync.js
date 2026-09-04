@@ -61,6 +61,14 @@ const PULL_INTERVAL_MS = parseInt(process.env.PULL_INTERVAL_MS || '60000', 10);
 const MAX_DEFER_MS = parseInt(process.env.MAX_DEFER_MS || '180000', 10);
 const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '50', 10);
 const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+// Windows caps a full path at 260 chars (MAX_PATH). A file whose path is longer
+// can't be staged there at all, and a `git add` that fails on it used to wedge
+// sync in silence (see overlongPaths + stageAndCommit). Hold anything whose path
+// is at/over the limit — the relative path that reaches every clone, or the
+// absolute path on this machine. 240 default: a real path is rarely past ~120, so
+// this only trips on an accident, like a pasted paragraph in a filename.
+const MAX_PATH_CHARS = parseInt(process.env.MAX_PATH_CHARS || '240', 10);
+const WIN_MAX_PATH = 259; // 260 including the terminating null
 const KEEP_BACKUPS = parseInt(process.env.KEEP_BACKUPS || '30', 10);
 // A .git/index.lock older than this is treated as abandoned and removed (a live
 // git op holds it for well under a second). After this many consecutive wedged
@@ -548,6 +556,21 @@ function oversizedFiles(files) {
   return hits;
 }
 
+// Files whose path is too long to sync (Windows MAX_PATH). Checks BOTH the
+// relative path — what reaches every clone, so a shallow-folder Mac can mint one
+// that blows 260 on a teammate's deeper Windows folder — and the absolute path on
+// this machine, which is what a local `git add` actually chokes on. Held like an
+// oversized file so one accidental long name can never wedge the whole brain.
+function overlongPaths(files) {
+  const hits = [];
+  for (const rel of files) {
+    const relLen = rel.length;
+    const absLen = path.join(REPO, rel).length;
+    if (relLen >= MAX_PATH_CHARS || absLen >= WIN_MAX_PATH) hits.push({ rel, len: Math.max(relLen, absLen) });
+  }
+  return hits;
+}
+
 // Park a path in the repo's LOCAL exclude (.git/info/exclude) so it stops
 // showing up as a pending change every tick. This file is per-clone and is
 // never committed or synced, unlike .gitignore — so holding a member's big
@@ -580,6 +603,15 @@ function ensureOfficeLockExclude() {
     fs.appendFileSync(p, `${sep}# Office lock files, transient by nature\n~$*\n`);
     console.log(`[${ts()}] excluded Office lock files (~$*) from this clone`);
   } catch (_) { /* best-effort */ }
+}
+
+// Let git handle a path past Windows' 260-char default. Every clone runs this
+// app, so setting it per-clone turns long paths on team-wide; the overlongPaths
+// guard still backstops a genuinely pathological one. Harmless on macOS/Linux.
+// (agency field report, 2026-09-02: a long path git couldn't stage wedged sync.)
+function ensureLongPaths() {
+  if (gitProbe('config', 'core.longpaths') === 'true') return;
+  gitTry('config', 'core.longpaths', 'true');
 }
 
 // Any commit made OUTSIDE the app (a terminal, a Claude session in Cowork)
@@ -954,10 +986,37 @@ function stageAndCommit(s) {
   const candidates = stageList.length ? stageList : files;
   const toStage = candidates.filter((f) => !isNoSynced(f));
   const leftAlone = candidates.filter((f) => isNoSynced(f));
+  const held = [];
+
+  // Hold paths too long to sync BEFORE staging them. On Windows `git add` can't
+  // stage a path past the 260-char cap at all, and until 2026-09-02 that failure
+  // was swallowed: the batch dropped, the cycle reported "nothing to commit", and
+  // a stalled sync read identically to a quiet day — one pasted-paragraph filename
+  // wedged a desktop for 28 hours and stranded 146 files. Park each in the local
+  // exclude (like an oversized file) so it stops churning and can never block a
+  // commit, and name it in plain words so the member can fix it.
+  const overlong = overlongPaths(toStage);
+  const overlongSet = new Set(overlong.map((h) => h.rel));
+  for (const hit of overlong) {
+    addToLocalExclude(hit.rel);
+    held.push({ file: hit.rel, why: `the file path is ${hit.len} characters long, too long to sync safely (Windows caps a path at 260). It's kept on this computer only — shorten the name or move it to a shorter folder to sync it.` });
+  }
+  const stageNow = toStage.filter((f) => !overlongSet.has(f));
+
   // Chunked: a brain with thousands of changed files would otherwise build a
-  // command line past the OS argument limit.
-  for (let i = 0; i < toStage.length; i += 500) {
-    git('add', '--', ...toStage.slice(i, i + 500));
+  // command line past the OS argument limit. gitTry, not git(): a stage that
+  // fails must stop LOUDLY. The old git() logged to stderr and returned, and the
+  // caller ignored it, so a failed add fell through to "nothing staged" and read
+  // as a quiet day. The long-path guard above removed the known cause, so anything
+  // failing here is unexpected and the member needs to see git's own words.
+  for (let i = 0; i < stageNow.length; i += 500) {
+    const added = gitTry('add', '--', ...stageNow.slice(i, i + 500));
+    if (!added.ok) {
+      const raw = (added.err || '').trim();
+      console.log(`[${ts()}]   couldn't stage your latest changes — git said: ${raw || '(no output)'}`);
+      git('reset', '-q', 'HEAD');
+      return { committed: false, held, error: explainCommitFailure(raw), raw };
+    }
   }
   // The markers themselves, explicitly. A wholly-untracked marked folder arrives
   // from `git status` as one "code/" entry which the filter above drops whole, and
@@ -966,7 +1025,6 @@ function stageAndCommit(s) {
   // so it must travel to every clone. gitTry because the pathspec matches nothing
   // in a brain that has no markers, which is not an error worth logging.
   gitTry('add', '--', ':(glob)**/.nosync');
-  const held = [];
 
   if (MODE === 'agency') {
     const role = currentRole();
@@ -1466,6 +1524,7 @@ if (MODE === 'agency') {
 if (STATE_FILE) console.log(`[${ts()}] state file: ${STATE_FILE}`);
 ensureGitIdentity();
 ensureOfficeLockExclude();
+ensureLongPaths();
 installPrecommitSizeHook();
 writeState('running', 'starting up');
 

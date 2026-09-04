@@ -520,7 +520,15 @@ function startWatcher() {
     logStream.write(text);
     parseWatcherOutput(text);
   });
-  watcherProcess.stderr.on('data', (chunk) => errStream.write(chunk));
+  watcherProcess.stderr.on('data', (chunk) => {
+    errStream.write(chunk);
+    // Also tee into the main log a human actually opens. Until 2026-09-02 the
+    // watcher's git failures went ONLY to the separate error file: a member
+    // digging through the main log during a stalled sync found nothing, because
+    // every git failure is a console.error. So a stall read identically to a
+    // quiet day. Not parsed (that's for the state lines on stdout), just visible.
+    logStream.write(chunk);
+  });
   watcherProcess.on('exit', (code) => {
     logStream.end();
     errStream.end();
