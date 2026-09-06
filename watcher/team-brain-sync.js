@@ -251,6 +251,19 @@ function clearStaleIndexLock() {
 
 // ───── Observable state for the tray ─────
 
+// The single gate on what a stop reason may say to the server. It is
+// deliberately blind to extra.detail (git's raw stderr), so no code path can
+// leak git's own words up the wire: a caller whose human `reason` embeds git
+// output (a foreign pre-commit hook's message, say) passes a code-authored
+// classification in extra.serverReason, and that wins. Everyone else's reason
+// is already a fixed sentence and is safe as-is. Returns null when the stop is
+// not the loud, stabilised kind worth telling the server about. (privacy fix
+// 2026-09-06 — see writeState below and build-log 2026-08-18.)
+function serverStopReason(alarm, reason, extra) {
+  if (!alarm) return null;
+  return (extra && extra.serverReason) || reason || null;
+}
+
 // Written atomically when state changes so main.js can poll/watch the file
 // and update the tray icon (green/orange/red). `extra` carries optional
 // fields the tray reads but the icon ignores — notably held: [{file, why}]
@@ -280,20 +293,16 @@ function writeState(state, reason, extra) {
   // first live data on 2026-07-31 flagged two people red for a blip whose own
   // text said "will retry".
   const alarm = state === 'stop' && !!(extra && (extra.stuck || extra.authExpired));
-  // The reason names the failed step in words a member can act on; git's own
-  // words (extra.detail) are what tell the Workbench WHY. Append a scrubbed,
-  // trimmed copy for the server report only — the tray keeps the clean reason.
-  // Never send the raw string: a failed push can echo the authenticated remote
-  // URL, and that access token must never leave this machine.
-  let why = alarm ? (reason || null) : null;
-  if (alarm && extra && extra.detail) {
-    const scrubbed = String(extra.detail)
-      .replace(/x-access-token:[^@\s]*@/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 140);
-    if (scrubbed) why = `${why || 'stopped'} · ${scrubbed}`;
-  }
+  // Only a code-authored string ever leaves this machine for the server roster.
+  // git's own words (extra.detail — the raw stderr) stay LOCAL: they're written
+  // into the tray state file and the log for on-machine debugging, but they are
+  // NEVER sent up. A foreign pre-commit hook prints whatever it rejected, and on
+  // 2026-08-18 that was a client's named case-file path and private home address,
+  // which the old scrubbed-detail append carried straight into Neon and the
+  // Workbench AB tab (it stripped the git token and nothing else). The reason a
+  // member can act on is enough for the roster; the diagnostics stay here.
+  // (build-log 2026-08-18 "Still open"; closed 2026-09-06)
+  const why = serverStopReason(alarm, reason, extra);
   // A stop that has stabilised as stuck retries every STUCK_RETRY_MS, and every
   // one of those retries walks through writeState('pulling') on its way to
   // failing the same way again. Reporting that hop tells the server the brain
@@ -360,14 +369,17 @@ function clearStall() { stallStreak = 0; stuckSince = null; }
 // main.js fires a one-time desktop notification) and let doSync back off the
 // retry cadence, instead of flickering pulling↔stop every cycle and burying the
 // problem in a log nobody reads.
-function stopStuck(reason, detail) {
+// `serverReason` is the code-authored classification the roster may see when
+// `reason` itself quotes git's words (a commit refused by a foreign hook). Leave
+// it out and the reason is already a fixed sentence, safe to send as-is.
+function stopStuck(reason, detail, serverReason) {
   stallStreak += 1;
   const stuck = stallStreak >= ESCALATE_AFTER;
   if (stuck && !stuckSince) {
     stuckSince = Date.now();
     console.log(`[${ts()}] STUCK after ${stallStreak} attempts: ${reason}${detail ? ` — ${detail}` : ''}`);
   }
-  writeState('stop', reason, { stuck, attempts: stallStreak, detail: detail || null });
+  writeState('stop', reason, { stuck, attempts: stallStreak, detail: detail || null, serverReason: serverReason || null });
 }
 
 // ───── Agency-mode auth ─────
@@ -945,20 +957,35 @@ function parseMergeBlockers(errText) {
 // sees this in the notification and the tray, so it has to name the cause AND
 // the next move, in plain words. Anything unrecognised falls through to git's
 // real message, which is still far better than "commit failed".
+// Returns { member, server }. `member` is what the person sees on their own
+// machine (the tray, the log) and may quote git's own words so they can act on
+// it. `server` is what may go up to the roster: a classification only, NEVER
+// git's raw output, because that output can carry a client's private text (a
+// foreign secret/data-protection hook prints whatever it rejected — 2026-08-18,
+// a client's case-file path and home address). The specific branches below are
+// code-authored either way, so their two forms are identical; only the two
+// catch-alls that quote `first` diverge.
 function explainCommitFailure(err) {
   const e = String(err || '');
-  if (/index\.lock/i.test(e)) return "can't save: another program is holding your brain folder's git lock. Close Cowork and any open terminal, then it should clear on its own";
-  if (/no space left|disk quota|ENOSPC/i.test(e)) return "can't save: this computer has run out of disk space";
-  if (/gpg|signing failed|secret key not available/i.test(e)) return "can't save: git commit signing is switched on and failed. Turn it off with: git config --global commit.gpgsign false";
-  if (/tell me who you are|empty ident|user\.email/i.test(e)) return "can't save: git has no name or email set on this computer";
-  if (/permission denied|insufficient permission|EACCES|read-only file system|operation not permitted/i.test(e)) return "can't save: this computer can't write to your brain folder (permissions)";
-  if (/does not have a commit checked out|not a git repository|bad object|corrupt/i.test(e)) return "can't save: your brain folder's git data looks damaged, so it needs re-cloning";
+  const same = (m) => ({ member: m, server: m });
+  if (/index\.lock/i.test(e)) return same("can't save: another program is holding your brain folder's git lock. Close Cowork and any open terminal, then it should clear on its own");
+  if (/no space left|disk quota|ENOSPC/i.test(e)) return same("can't save: this computer has run out of disk space");
+  if (/gpg|signing failed|secret key not available/i.test(e)) return same("can't save: git commit signing is switched on and failed. Turn it off with: git config --global commit.gpgsign false");
+  if (/tell me who you are|empty ident|user\.email/i.test(e)) return same("can't save: git has no name or email set on this computer");
+  if (/permission denied|insufficient permission|EACCES|read-only file system|operation not permitted/i.test(e)) return same("can't save: this computer can't write to your brain folder (permissions)");
+  if (/does not have a commit checked out|not a git repository|bad object|corrupt/i.test(e)) return same("can't save: your brain folder's git data looks damaged, so it needs re-cloning");
   const first = e.split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
   // Last, because any cause above can coexist with a hook and is more specific.
   if (foreignPrecommitHook()) {
-    return `can't save: a check installed on this computer blocked the save${first ? `. It said: ${first}` : ''}`;
+    return {
+      member: `can't save: a check installed on this computer blocked the save${first ? `. It said: ${first}` : ''}`,
+      server: "can't save: a check installed on this computer blocked the save",
+    };
   }
-  return first ? `can't save your latest changes: ${first}` : "can't save your latest changes (git gave no reason)";
+  return {
+    member: first ? `can't save your latest changes: ${first}` : "can't save your latest changes (git gave no reason)",
+    server: "can't save your latest changes",
+  };
 }
 
 // Git relays a pre-commit hook's own words and adds nothing of its own, so the
@@ -1041,7 +1068,8 @@ function stageAndCommit(s) {
       const raw = (added.err || '').trim();
       console.log(`[${ts()}]   couldn't stage your latest changes — git said: ${raw || '(no output)'}`);
       git('reset', '-q', 'HEAD');
-      return { committed: false, held, error: explainCommitFailure(raw), raw };
+      const ex = explainCommitFailure(raw);
+      return { committed: false, held, error: ex.member, serverError: ex.server, raw };
     }
   }
   // The markers themselves, explicitly. A wholly-untracked marked folder arrives
@@ -1155,7 +1183,8 @@ function stageAndCommit(s) {
     const raw = (cr.err || '').trim();
     console.error(`[${ts()}]   commit failed — git said: ${raw || '(no output)'}`);
     git('reset', '-q', 'HEAD');
-    return { committed: false, held, error: explainCommitFailure(raw), raw };
+    const ex = explainCommitFailure(raw);
+    return { committed: false, held, error: ex.member, serverError: ex.server, raw };
   }
   console.log(`[${ts()}]   committed ${staged.length - refusedCount} file(s)${held.length ? `, held ${held.length}` : ''}`);
   return { committed: true, held };
@@ -1392,9 +1421,11 @@ async function doSync(trigger) {
       didContribute = r.committed === true;
       if (r.error) {
         console.log(`[${ts()}]   ${r.error}`);
-        // r.error now names the actual cause; r.raw carries git's own words for
-        // the log and the state file.
-        stopStuck(r.error, r.raw || null);
+        // r.error names the actual cause for the member; r.raw carries git's own
+        // words for the log and the local state file. r.serverError is the
+        // classification the roster may see — r.error/r.raw can quote a client's
+        // private text and must never leave this machine.
+        stopStuck(r.error, r.raw || null, r.serverError);
         return;
       }
     }
@@ -1441,7 +1472,7 @@ async function doSync(trigger) {
       if (lines.length) {
         const rc = stageAndCommit({ statusLines: lines });
         held = held.concat(rc.held || []);
-        if (rc.error) { stopStuck(rc.error, rc.raw || null); return; }
+        if (rc.error) { stopStuck(rc.error, rc.raw || null, rc.serverError); return; }
         didContribute = didContribute || rc.committed === true;
       }
     }
@@ -1541,6 +1572,11 @@ function ensureGitIdentity() {
 }
 
 // ───── Boot ─────
+// Guarded so a test can `require()` this file for its pure helpers
+// (serverStopReason, explainCommitFailure, foreignPrecommitHook) without
+// starting a real watcher, timers, or file watches. Body left un-reindented to
+// keep the diff surgical.
+if (require.main === module) {
 
 console.log(`[${ts()}] watching ${REPO}`);
 console.log(`[${ts()}] mode=${MODE} debounce=${DEBOUNCE_MS / 1000}s pull-every=${PULL_INTERVAL_MS / 1000}s max-file=${MAX_FILE_MB}MB`);
@@ -1616,3 +1652,8 @@ doSync('startup').then(afterSync).catch(() => {});
 
 process.on('SIGINT', () => { console.log(`\n[${ts()}] stopped.`); writeState('stop', 'sigint'); process.exit(0); });
 process.on('SIGTERM', () => { console.log(`\n[${ts()}] stopped.`); writeState('stop', 'sigterm'); process.exit(0); });
+
+} // ───── end boot guard ─────
+
+// Pure helpers, exported for the privacy regression test. No side effects.
+module.exports = { serverStopReason, explainCommitFailure, foreignPrecommitHook };

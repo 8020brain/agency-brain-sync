@@ -111,6 +111,24 @@ function originHasPath(originBare, branch, relPath) {
   return gitTry(originBare, `ls-tree -r --name-only ${branch}`)?.split('\n').includes(relPath) || false;
 }
 
+// Record every distinct state the watcher writes, from before a change until
+// stopped. Some held entries are ONE-SHOT: an over-long (or oversized) file is
+// added to the local exclude the same cycle it's held, so `git status` hides it
+// on the next cycle and it drops out of `held`. Polling the CURRENT state file
+// then races that single ~PULL_INTERVAL window and misses it about one run in
+// six (baseline too — nothing to do with the sync fixes). Recording the whole
+// sequence and asserting the entry appeared AT SOME POINT is deterministic.
+function recordStates(stateFile) {
+  const seen = [];
+  let last = '';
+  const timer = setInterval(() => {
+    let txt; try { txt = fs.readFileSync(stateFile, 'utf8'); } catch { return; }
+    if (txt && txt !== last) { last = txt; try { seen.push(JSON.parse(txt)); } catch (_) { /* mid-write */ } }
+  }, 30);
+  if (timer.unref) timer.unref();
+  return { seen, stop() { clearInterval(timer); } };
+}
+
 async function main() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ab-sync-'));
   const origin = path.join(root, 'origin.git');
@@ -316,6 +334,7 @@ async function main() {
     // oversized file), so a normal file beside it still syncs and the state names
     // what it set aside. MAX_PATH_CHARS=90 in this run, so a plain long name trips it.
     const longName = `${'a'.repeat(120)}.md`;
+    const jRec = recordStates(stateFile); // the over-long held entry is one-shot; capture it (see recordStates)
     fs.writeFileSync(path.join(app, longName), 'a paragraph pasted into a filename by accident\n');
     fs.writeFileSync(path.join(app, 'beside-long.md'), 'an ordinary file next to it\n');
     const heldLong = await until(() =>
@@ -326,13 +345,12 @@ async function main() {
     if (heldLong) ok('J1: an over-long path was held locally; the file beside it still synced');
     else bad('J1: over-long path was not held', `beside=${originHasPath(origin, 'main', 'beside-long.md')}, long-on-origin=${originHasPath(origin, 'main', longName)}`);
 
-    const jState = await until(() => {
-      if (!fs.existsSync(stateFile)) return false;
-      const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-      return st.state !== 'stop' && Array.isArray(st.held) && st.held.some((h) => h.file === longName);
-    }, 15000);
+    const jState = await until(() =>
+      jRec.seen.some((st) => st.state !== 'stop' && Array.isArray(st.held) && st.held.some((h) => h.file === longName)),
+    15000);
+    jRec.stop();
     if (jState) ok('J2: the brain stayed running and named the over-long path it set aside');
-    else bad('J2: over-long path not surfaced as a held change', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+    else bad('J2: over-long path not surfaced as a held change', `states seen=${jRec.seen.length}`);
 
     // It stops churning: a held over-long path lands in the local exclude, so a
     // later cycle doesn't keep re-holding or re-logging it.
