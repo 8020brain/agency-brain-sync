@@ -840,9 +840,23 @@ function buildMenu() {
   const headline = (config && config.kind === 'client' && config.brandName) ? config.brandName : APP_NAME;
   // Read-only status header: who this brain is, whether it's syncing, where it
   // lives, and what happened last.
+  // Attention state: the menu is built so the problem is the only live thing in
+  // it. Electron can't colour or bold a label, and a disabled (grey) status line
+  // reads as furniture, so a person whose brain had stopped could open the menu
+  // and see nothing wrong bar the icon (Mike, 2026-09-08, on the staging build:
+  // "It's not obvious at all that there's a problem"). So: the status line and
+  // the fix actions are ENABLED (black) with a red marker, everything routine is
+  // greyed out until it clears, and on a Mac the words sit beside the icon too.
+  const attention = watcherState === 'attention';
+  const dim = (item) => (attention ? { ...item, enabled: false } : item);
   const items = [
     { label: headline, enabled: false },
-    { label: statusLabel(), enabled: false },
+    ...(attention
+      ? [
+          { label: '🔴  NEEDS YOUR ATTENTION', click: () => helpMeFixThis() },
+          { label: lastStopReason || 'syncing has stopped', click: () => helpMeFixThis() },
+        ]
+      : [{ label: statusLabel(), enabled: false }]),
     ...(modeBadge ? [{ label: modeBadge, enabled: false }] : []),
     { type: 'separator' },
     { label: `Folder:  ${homeRel}`, enabled: false },
@@ -883,16 +897,17 @@ function buildMenu() {
     // The person's own Claude reads the local detail and walks them through the
     // fix (lib/fix-session.cjs). This is how real help reaches a blocked person
     // without git's words ever leaving the machine.
-    items.push({ label: 'Help me fix this…', click: () => helpMeFixThis() });
-    items.push({ label: 'See what needs attention', click: () => shell.openPath(LOG_FILE) });
+    items.push({ label: '➜  Help me fix this…', click: () => helpMeFixThis() });
+    items.push({ label: 'See what needs attention (the log)', click: () => shell.openPath(LOG_FILE) });
+    items.push({ label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) });
     items.push({ type: 'separator' });
   }
 
-  // ---- Primary actions ----
-  items.push(
-    { label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) },
-    { label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) },
-  );
+  // ---- Primary actions (greyed out while something needs the person) ----
+  items.push(dim({ label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) }));
+  if (!attention) {
+    items.push({ label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) });
+  }
 
   // ---- Brain switcher: only when this machine has more than one DISTINCT brain
   // FOLDER. Deduped by folder, so a brain re-tagged during testing (one folder
@@ -915,6 +930,7 @@ function buildMenu() {
     const others = realBrains.filter((b) => brainKey(b) !== brainKey(config));
     items.push({
       label: 'Switch brain',
+      enabled: !attention,
       submenu: [
         ...realBrains.map((b) => ({
           label: brainLabel(b) + (brainKey(b) === brainKey(config) ? '   ✓ active' : ''),
@@ -938,12 +954,12 @@ function buildMenu() {
   if (watcherState === 'paused') {
     items.push({ label: 'Resume syncing', click: () => { watcherState = 'stopped'; startWatcher(); } });
   } else {
-    items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' || watcherState === 'attention' });
+    items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' });
   }
   if (!logAtTop) {
     items.push({ label: 'Show log', click: () => shell.openPath(LOG_FILE) });
   }
-  items.push({ label: 'Check for updates…', click: () => checkForUpdatesManually() });
+  items.push(dim({ label: 'Check for updates…', click: () => checkForUpdatesManually() }));
 
   // A solo (personal-mode) owner ready to bring teammates in — a first-class
   // upgrade action, not buried in Settings. Opens the setup wizard, which
@@ -951,7 +967,7 @@ function buildMenu() {
   // if it already exists, signs in and flips this brain to agency mode.
   if (config && config.mode === 'personal') {
     items.push({ type: 'separator' });
-    items.push({ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') });
+    items.push(dim({ label: 'Connect to my agency team…', click: () => showSetupWizard('create-agency') }));
   }
 
   // Adding a SECOND brain from a setup code (an agency owner staging a client
@@ -962,13 +978,14 @@ function buildMenu() {
   // Wording deliberately matches the "I have a code" phrase used in the invite
   // emails and the setup instructions.
   if (config && config.brainPath) {
-    items.push({ label: 'I have a code (add a brain)…', click: () => showSetupWizard('join-code') });
+    items.push(dim({ label: 'I have a code (add a brain)…', click: () => showSetupWizard('join-code') }));
   }
 
   // ---- Settings: the on/off toggles + re-run setup, grouped in one home ----
   items.push({ type: 'separator' });
   items.push({
     label: 'Settings',
+    enabled: !attention,
     submenu: [
       { label: `Start at login: ${getLoginItem() ? 'On' : 'Off'}`, click: () => toggleLoginItem() },
       { label: 'Run setup again…', click: () => showSetupWindow() },
@@ -978,7 +995,7 @@ function buildMenu() {
   // ---- App ----
   items.push(
     { type: 'separator' },
-    { label: `About ${APP_NAME}`, click: () => showAbout() },
+    dim({ label: `About ${APP_NAME}`, click: () => showAbout() }),
     { label: `Quit ${APP_NAME}`, click: () => { isQuitting = true; stopWatcher(); setTimeout(() => app.quit(), 200); } },
   );
 
@@ -1053,7 +1070,7 @@ function updateTray() {
   // for anyone with macOS notifications off). macOS can put real words next to
   // the icon, so use them. Cleared the moment sync is healthy again.
   if (process.platform === 'darwin' && typeof tray.setTitle === 'function') {
-    tray.setTitle(signedOut ? ' Signed out' : '');
+    tray.setTitle(signedOut ? ' Signed out' : watcherState === 'attention' ? ' Needs attention' : '');
   }
   tray.setContextMenu(buildMenu());
   writeSyncBreadcrumb();
