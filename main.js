@@ -612,6 +612,25 @@ function iconSpot() {
 // to sync several times in a row and needs the user to act (usually: quit and
 // reopen the app, which restarts sync cleanly). Re-armed once sync recovers.
 function notifyStuck(reason) {
+  // Windows has no words beside a tray icon (tray.setTitle is macOS-only), so
+  // the equivalent of " Needs attention" in the menu bar is a balloon rising
+  // from the icon itself: it shows even when the icon is behind the ^ overflow,
+  // and clicking it opens "Help me fix this" directly. Same shape as the
+  // sign-in balloon in notifyReconnect. (Mike, 2026-09-08: "Confirm that'll be
+  // something similar for Windows users.")
+  if (process.platform === 'win32' && tray) {
+    try {
+      tray.displayBalloon({
+        icon: nativeImage.createFromPath(ICON_ATTENTION),
+        title: `${APP_NAME} needs attention`,
+        content: `${String(reason).replace(/\.\s*$/, '')}.\nClick here for Help me fix this.`,
+      });
+      if (!notifyStuck.__balloonWired) {
+        notifyStuck.__balloonWired = true;
+        tray.on('balloon-click', () => { if (watcherState === 'attention' && !signedOut) helpMeFixThis(); });
+      }
+    } catch (_) { /* balloons are best-effort */ }
+  }
   try {
     if (!Notification.isSupported()) return;
     // The reason now carries its own fix wherever the watcher can identify one,
