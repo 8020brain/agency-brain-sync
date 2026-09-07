@@ -2,6 +2,10 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.31 — 2026-09-07
+
+- **A stuck-sync message no longer carries an error's raw text off your machine.** When your brain can't save because a check installed on your own computer blocked it (a privacy or secret scanner, say), that check prints what it found. The app used to include that text in the short "why is this stuck" note it sends up so a team owner can see who's blocked. It now sends only a plain category, "a check on this computer blocked the save", and nothing the check printed. The full detail still shows on your own machine, in your app and its log, so you can fix it. Anything a local check flags, which can include private client content, stays with you and never reaches the shared roster.
+
 ## 1.1.30 — 2026-09-05
 
 - **A space in a file or folder name no longer stops your brain syncing.** If a file you'd changed sat in a path with a space in it (something like `RGB 2/logo - 11355.png`), the app couldn't handle that name, so the sync hit a fatal error and stopped. Until that one file was sorted, nothing else you'd changed could save or push either. Names with spaces now sync cleanly, like everything else.
