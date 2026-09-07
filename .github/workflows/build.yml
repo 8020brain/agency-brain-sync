@@ -43,7 +43,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          # Pinned, not macos-latest (2026-09-08): the macos-26 image that
+          # macos-latest resolved to was updated on 31 Aug (20260831.0337.3), and
+          # on it electron-builder's temporary signing keychain fails to unlock
+          # ("SecKeychainUnlock: The user name or passphrase you entered is not
+          # correct"), which failed the v1.1.32 Mac build twice in a row. The
+          # previous image (20260728) built v1.1.31 fine the same day. Re-try
+          # macos-latest deliberately, on a throwaway tag, before unpinning.
+          - os: macos-15
             script: build:mac
             artifact: mac
           - os: windows-latest

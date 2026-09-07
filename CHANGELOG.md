@@ -2,7 +2,7 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
-## 1.1.32 — 2026-09-08
+## 1.1.33 — 2026-09-08
 
 - **When syncing stops, the app now says why, as one of twenty named causes, instead of one generic line.** A check on your computer refused a save, GitHub refused an upload because a file looks like it holds a secret, your sign-in expired, a file is too big for GitHub, the connection keeps dropping, and so on. Every failed upload is classified for the first time; until now they all read "can't push your changes up". The category is the only thing that leaves your machine. The error itself stays on your computer, in the app and its log.
 
