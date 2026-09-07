@@ -868,20 +868,36 @@ function buildMenu() {
   // greyed out until it clears, and on a Mac the words sit beside the icon too.
   const attention = watcherState === 'attention';
   const dim = (item) => (attention ? { ...item, enabled: false } : item);
-  const items = [
-    { label: headline, enabled: false },
-    ...(attention
-      ? [
-          { label: '🔴  NEEDS YOUR ATTENTION', click: () => helpMeFixThis() },
-          { label: lastStopReason || 'syncing has stopped', click: () => helpMeFixThis() },
-        ]
-      : [{ label: statusLabel(), enabled: false }]),
-    ...(modeBadge ? [{ label: modeBadge, enabled: false }] : []),
-    { type: 'separator' },
-    { label: `Folder:  ${homeRel}`, enabled: false },
-    { label: lastEventLine ? `Last:  ${lastEventLine}` : 'Last:  (no activity yet)', enabled: false },
-    { type: 'separator' },
-  ];
+  // Attention is ONE block at the top: the red line carries the reason, and the
+  // fix, the sign-in (when that is the fix) and the log sit directly under it.
+  // The identity and folder lines drop below as their own grey block. The first
+  // cut spread those four things over three sections with grey lines between
+  // (Mike, 2026-09-08, second look: "four lines that are all disconnected...
+  // why wouldn't Help me fix this be next to that, and Show log next to all of
+  // that so it's all in one section?").
+  const reasonShort = (r) => { const t = String(r || 'syncing has stopped'); return t.length > 110 ? `${t.slice(0, 107)}…` : t; };
+  const folderLine = { label: `Folder:  ${homeRel}`, enabled: false };
+  const lastLine = { label: lastEventLine ? `Last:  ${lastEventLine}` : 'Last:  (no activity yet)', enabled: false };
+  const badgeLine = modeBadge ? [{ label: modeBadge, enabled: false }] : [];
+  const items = attention
+    ? [
+        { label: headline, enabled: false },
+        { label: `🔴  NEEDS YOUR ATTENTION:  ${reasonShort(lastStopReason)}`, click: () => helpMeFixThis() },
+        ...((needsReconnect(config) || authExpired) ? [{ label: '➜  Reconnect / sign in again…', click: () => showSetupWizard('reconnect') }] : []),
+        { label: '➜  Help me fix this…', click: () => helpMeFixThis() },
+        { label: 'Show log', click: () => shell.openPath(LOG_FILE) },
+        { type: 'separator' },
+        ...badgeLine, folderLine, lastLine,
+        { type: 'separator' },
+      ]
+    : [
+        { label: headline, enabled: false },
+        { label: statusLabel(), enabled: false },
+        ...badgeLine,
+        { type: 'separator' },
+        folderLine, lastLine,
+        { type: 'separator' },
+      ];
 
   // ---- Urgent, only when something needs the user (top of the action list) ----
 
@@ -892,11 +908,8 @@ function buildMenu() {
     items.push({ type: 'separator' });
   }
 
-  // Signed-out OR session-expired agency brain: the one action that fixes it.
-  if (needsReconnect(config) || authExpired) {
-    items.push({ label: 'Reconnect / sign in again…', click: () => showSetupWizard('reconnect') });
-    items.push({ type: 'separator' });
-  }
+  // (Signed-out / session-expired: the "Reconnect / sign in again…" action lives
+  // inside the attention block above, because that state IS the attention state.)
 
   // Files kept local (not pushed) — surface which and let the user open the folder.
   if (lastHeld && lastHeld.length) {
@@ -908,21 +921,11 @@ function buildMenu() {
     items.push({ type: 'separator' });
   }
 
-  // Needs-attention state gets the fix action up top; the log lives once, in the
-  // housekeeping group below, in every state.
-  const logAtTop = watcherState === 'attention';
-  if (logAtTop) {
-    // The person's own Claude reads the local detail and walks them through the
-    // fix (lib/fix-session.cjs). This is how real help reaches a blocked person
-    // without git's words ever leaving the machine.
-    // One action, three ways in: the red line, the reason and this item all open
-    // the fix. A log link and a folder link used to sit here too, and each did a
-    // different thing, so it wasn't clear which one to click (Mike, 2026-09-08,
-    // staging click-through). The log is inside fix-me.md, and "Show log" stays
-    // live in the housekeeping group below for anyone who wants the raw file.
-    items.push({ label: '➜  Help me fix this…', click: () => helpMeFixThis() });
-    items.push({ type: 'separator' });
-  }
+  // "Help me fix this" (lib/fix-session.cjs: the person's own Claude reads the
+  // local detail and walks them through the fix, nothing leaves the machine) and
+  // the log link live in the attention block above; the log appears once, so the
+  // housekeeping copy below is for the healthy states only.
+  const logAtTop = attention;
 
   // ---- Primary actions (greyed out while something needs the person) ----
   items.push(
@@ -977,7 +980,9 @@ function buildMenu() {
   } else {
     items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' });
   }
-  items.push({ label: 'Show log', click: () => shell.openPath(LOG_FILE) });
+  if (!logAtTop) {
+    items.push({ label: 'Show log', click: () => shell.openPath(LOG_FILE) });
+  }
   items.push(dim({ label: 'Check for updates…', click: () => checkForUpdatesManually() }));
 
   // A solo (personal-mode) owner ready to bring teammates in — a first-class
