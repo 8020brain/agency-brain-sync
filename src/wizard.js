@@ -162,7 +162,7 @@
         const installUrl = slug
           ? `github.com/apps/agency-brain-sync/installations/new?state=${encodeURIComponent(slug)}`
           : 'github.com/apps/agency-brain-sync';
-        if (role === 'owner') return `Almost there — you still need to install the GitHub App that keeps your brain in sync. Open ${installUrl}, click Install, choose your business organisation (not your personal account), then come back and click "Set up my brain" again.`;
+        if (role === 'owner' || role === 'scout' || role === 'head_scout' || role === 'head-scout') return `Almost there — someone still needs to install the GitHub App that keeps your brain in sync, and you can be that person. Open ${installUrl}, click Install, choose the agency's GitHub organisation (not a personal account), then come back and click "Set up my brain" again.`;
         return "Your team isn't fully set up yet — your owner still needs to install the GitHub App on the repo. Once they've done that, come back and click \"Set up my brain\" again.";
       }
       if (/repository not found|could not read from remote repository/i.test(msg)) {
@@ -257,8 +257,13 @@
       // first-time setup path — their repo doesn't exist yet, so route them
       // through connect-org (GitHub App install on the client's org creates +
       // seeds it), the same pipeline a self-created agency owner uses.
+      // Agency owners and scouts too (2026-09-08): their code now resolves
+      // before the install, and they are the people who can do that step.
       const inviteRole = (teamInfo.member.role || 'team').toLowerCase();
-      if (teamInfo.kind === 'client' && inviteRole === 'owner' && !teamInfo.repoUrl) {
+      const canBuildBrain = teamInfo.kind === 'client'
+        ? inviteRole === 'owner'
+        : (inviteRole === 'owner' || inviteRole === 'scout' || inviteRole === 'head_scout' || inviteRole === 'head-scout');
+      if (canBuildBrain && !teamInfo.repoUrl) {
         try {
           const st = await api.getInstallStatus(teamInfo.teamSlug);
           if (!st || !st.repoUrl || !st.installed) { enterConnectOrg(); return; }
@@ -499,12 +504,15 @@
       member: { email: authEmail, name: authName, role: team.role || 'team' },
     };
     renderFooterIdentity();
-    // An owner whose agency repo isn't created yet connects their GitHub org
-    // first; the app then creates + seeds the brain there. Everyone else — and
-    // owners already set up — go straight on (a not-ready repo for a scout shows
-    // as the "owner still finishing" message at clone time).
+    // An owner OR A SCOUT whose agency repo isn't created yet connects the
+    // GitHub org first; the app then creates + seeds the brain there. Scouts
+    // joined this path on 2026-09-08 (Mike: a team can now be stood up and
+    // filled on the portal before anyone installs the app, and the one-time
+    // GitHub step can be done by whoever gets here first). Team seats, and
+    // anyone already set up, go straight on (a not-ready repo for a Team seat
+    // shows as the "owner still finishing" message at clone time).
     const role = (team.role || 'team').toLowerCase();
-    if (role === 'owner' || role === 'head_scout' || role === 'head-scout') {
+    if (role === 'owner' || role === 'head_scout' || role === 'head-scout' || role === 'scout') {
       try {
         const st = await api.getInstallStatus(team.slug);
         // Route to connect-org whenever the GitHub App isn't linked yet, not
@@ -1128,6 +1136,13 @@
       if (createBtn) createBtn.textContent = 'Create the organisation on GitHub';
       if (orgInput) orgInput.placeholder = 'your-business';
       if (noteEl) noteEl.textContent = 'Already running your own brain? That one stays exactly as it is. This is a separate brain for your agency, and we can copy your skills and context across later.';
+      // A Scout doing the one-time GitHub step for the agency (2026-09-08).
+      // GitHub only lets an organisation owner install an app, so say so here
+      // rather than letting them find out on GitHub's side.
+      const myRole = String((teamInfo && teamInfo.member && teamInfo.member.role) || '').toLowerCase();
+      if (noteEl && (myRole === 'scout' || myRole === 'head_scout' || myRole === 'head-scout')) {
+        noteEl.textContent = 'You are doing this step as a Scout, which is fine. One thing to know: GitHub only lets an owner of the organisation install an app. If you are not an owner of the agency\'s GitHub organisation, GitHub will send a request to someone who is, and the install completes when they approve it.';
+      }
     }
     const connectBtn = document.getElementById('btn-connect-org');
     const recheckBtn = document.getElementById('btn-connect-recheck');
