@@ -13,21 +13,22 @@
 //   3. Verifies the built app's identity from the packaged files, because the
 //      first staging build in Sept 2026 silently shared production's data
 //      folder: bundle id, product name and channel must all be the staging ones.
-//   4. Copies the dmg to the Desktop.
+//   4. Installs it into /Applications and relaunches it (quits the old
+//      Staging-AB first, so replacing a running app never errors). Only ever
+//      touches Staging-AB, never the real "Agency Brain" app.
 //   5. Writes dist/staging-check.json (version, commit, results). The
 //      .githooks/pre-push hook refuses to push a v* tag unless that file
 //      matches the tag's version and commit and says the tests passed.
 //   6. Prints the click-through checklist.
 //
-// Order of a release: bump version → commit → `npm run staging` → install +
-// click through → `git tag vX.Y.Z` → push. The staging build IS the release
-// candidate at the exact commit that gets tagged.
+// Order of a release: bump version → commit → `npm run staging` (builds,
+// installs into /Applications, relaunches) → click through → `git tag vX.Y.Z`
+// → push. The staging build IS the release candidate at the exact commit tagged.
 //
 // Run: npm run staging     (also installs the git hooks path on first run)
 
 const { spawnSync, execSync } = require('child_process');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -102,18 +103,37 @@ if (inner.version !== version) problems.push(`packaged version is ${inner.versio
 if (problems.length) fail(`built app is not a safe staging app: ${problems.join('; ')}`);
 console.log(`  ok: ${bundleId}, productName ${inner.productName}, channel ${inner.channel}, v${inner.version}`);
 
-// 4. dmg to the Desktop.
-const dmg = path.join(DIST, `${EXPECT.productName}-${version}-arm64.dmg`);
-if (!fs.existsSync(dmg)) fail(`expected ${path.basename(dmg)} in dist/ and it is not there`);
-const desktopDmg = path.join(os.homedir(), 'Desktop', path.basename(dmg));
-fs.copyFileSync(dmg, desktopDmg);
+// 4. Install it the way an auto-update would: quit the running Staging-AB, copy
+//    the fresh build into /Applications, relaunch. No dmg to drag, no "the app
+//    is in use" error from replacing a running app by hand. This ONLY ever
+//    touches Staging-AB — a different app name AND bundle id from the real
+//    "Agency Brain", so the live app is never quit, replaced, or launched here.
+//    (Mike, 2026-09-07: the manual dmg drag kept failing because the old copy
+//    was still running; make staging feel like the real app's update instead.)
+const MACOS = `${EXPECT.productName}.app/Contents/MacOS`; // matches the staging bundle only
+const installed = path.join('/Applications', `${EXPECT.productName}.app`);
+console.log(`\n▶ Install ${EXPECT.productName} into /Applications and relaunch`);
+const isRunning = () => spawnSync('pgrep', ['-f', MACOS]).status === 0;
+if (isRunning()) {
+  spawnSync('osascript', ['-e', `tell application "${EXPECT.productName}" to quit`], { stdio: 'ignore' });
+  // Wait up to ~6s for a graceful quit to release its files, then force any straggler.
+  spawnSync('sh', ['-c', `for i in $(seq 1 6); do pgrep -f "${MACOS}" >/dev/null || exit 0; sleep 1; done; pkill -f "${MACOS}"; true`], { stdio: 'ignore' });
+}
+try {
+  fs.rmSync(installed, { recursive: true, force: true });
+  const cp = spawnSync('cp', ['-R', appDir, installed], { stdio: 'inherit' });
+  if (cp.status !== 0) throw new Error(`cp exited ${cp.status}`);
+} catch (e) { fail(`couldn't install into /Applications: ${e.message}`); }
+if (!fs.existsSync(installed)) fail(`install did not produce ${installed}`);
+spawnSync('open', [installed], { stdio: 'ignore' });
+console.log(`  installed and relaunched ${installed}`);
 
 // 5. Record.
 const result = writeResult({
   ok: true,
   testsPassed: true,
   app: path.relative(ROOT, appDir),
-  dmg: desktopDmg,
+  installed,
   bundleId,
   productName: inner.productName,
   channel: inner.channel,
@@ -123,11 +143,10 @@ const result = writeResult({
 console.log(`
 ✓ Staging check GREEN for v${version} at ${commit.slice(0, 7)}. Recorded in dist/staging-check.json.
 
-${path.basename(desktopDmg)} is on your Desktop. Before tagging v${version}:
-  1. Open the dmg and drag Staging-AB into Applications, replacing the old one.
-  2. Launch it (the purple menu-bar brain). Sign in with your real email and pick
+${EXPECT.productName} v${version} is installed and running. Before tagging v${version}:
+  1. In the app (the purple menu-bar brain), sign in with your real email and pick
      the team "Mike Test Brain" (~/staging-test-brain). Never point it at a real brain.
-  3. Click through what this release changed, then the Command Centre's eight views.
-  4. Then tag and push: git tag v${version} && git push origin main --tags
+  2. Click through what this release changed, then the Command Centre's eight views.
+  3. Then tag and push: git tag v${version} && git push origin main --tags
      The pre-push hook checks the tag against this file${result.dirty ? ' (it will REFUSE: the tree was dirty)' : ''}.
 `);
