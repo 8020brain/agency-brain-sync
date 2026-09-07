@@ -2,6 +2,16 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.32 — 2026-09-08
+
+- **When syncing stops, the app now says why, as one of twenty named causes, instead of one generic line.** A check on your computer refused a save, GitHub refused an upload because a file looks like it holds a secret, your sign-in expired, a file is too big for GitHub, the connection keeps dropping, and so on. Every failed upload is classified for the first time; until now they all read "can't push your changes up". The category is the only thing that leaves your machine. The error itself stays on your computer, in the app and its log.
+
+- **"Help me fix this" in the menu.** When the app needs your attention, its menu gains Help me fix this. It writes a file with the exact error, the last part of the app's log and a fix guide for that cause, then opens your own Claude on it (Claude Code if you have it, otherwise the Claude app for a Cowork session in your brain folder, otherwise the file itself) to walk you through the fix one step at a time. It never bypasses a check on your computer, never force-pushes and never deletes a file, and nothing leaves your machine.
+
+- **You get an email if it stays stuck.** If a block hasn't cleared after half an hour (two hours for the kinds that often clear themselves, like a dropped connection), the app has the plain-English cause and the fix steps emailed to you, once per problem. For a brain someone else set up for you, that email goes to the person who set it up. A closed laptop or a quit app never sends anything.
+
+- **A check on your computer that refuses a save without naming the file no longer stops everything.** The app saves one file at a time to find the one the check objects to, sets that one aside, and saves the rest. Until now this shape of refusal stopped the whole brain until someone at the machine cleared it.
+
 ## 1.1.31 — 2026-09-07
 
 - **The in-app FAQ reads properly now.** Answers show bold text and real paragraph breaks instead of raw `**` marks and one run-together block, and the Getting Started questions open with the ones you're most likely to need first.
