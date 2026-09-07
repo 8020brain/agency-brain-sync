@@ -31,7 +31,14 @@
     t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
     t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     t = t.replace(/(^|[\s(])(https?:\/\/[^\s)]+)(?=[\s).]|$)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+    t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     return t;
+  }
+
+  // Answer body: blank lines separate paragraphs; wrap each in <p> so an answer
+  // reads as paragraphs, not one run-together block. Mirrors sync-faq.cjs.
+  function paraHtml(s) {
+    return String(s).split(/\n{2,}/).map(function (p) { return '<p>' + inlineHtml(p.trim()) + '</p>'; }).join('');
   }
 
   var SECTION = { 'Roles & seats': 'Plans & seats', 'Billing': 'Plans & seats' };
@@ -50,7 +57,7 @@
       return '<div class="faq-group"><h3 class="faq-section">' + inlineHtml((opts.prefix || '') + s) + '</h3>' +
         bySec[s].map(function (it) {
           var pill = !opts.noPills && it.section === 'SHARED' ? ' <span class="faq-pill">Team</span>' : '';
-          return '<details class="faq-item"><summary>' + inlineHtml(it.q) + pill + '</summary><div class="faq-a">' + inlineHtml(it.a) + '</div></details>';
+          return '<details class="faq-item"><summary>' + inlineHtml(it.q) + pill + '</summary><div class="faq-a">' + paraHtml(it.a) + '</div></details>';
         }).join('') +
         '</div>';
     }).join('');

@@ -175,6 +175,9 @@
   .faq-item[open] summary::after{content:"\2013";}
   .faq-item summary:hover{color:var(--accent);}
   .faq-a{font-size:18px;line-height:1.6;color:#444;padding:0 0 16px;}
+  .faq-a p{margin:0 0 12px;}
+  .faq-a p:last-child{margin-bottom:0;}
+  .faq-a strong{font-weight:600;color:#222;}
   .faq-a code{font-family:ui-monospace,Menlo,monospace;font-size:16px;background:var(--surface,#f9fafb);border:1px solid var(--line);border-radius:2px;padding:1px 5px;}
   .faq-a a{color:var(--accent);text-decoration:none;}
   .faq-a a:hover{text-decoration:underline;}

@@ -4,6 +4,8 @@ What changed in each version of the Agency Brain app. You're reading the copy th
 
 ## 1.1.31 — 2026-09-07
 
+- **The in-app FAQ reads properly now.** Answers show bold text and real paragraph breaks instead of raw `**` marks and one run-together block, and the Getting Started questions open with the ones you're most likely to need first.
+
 - **A stuck-sync message no longer carries an error's raw text off your machine.** When your brain can't save because a check installed on your own computer blocked it (a privacy or secret scanner, say), that check prints what it found. The app used to include that text in the short "why is this stuck" note it sends up so a team owner can see who's blocked. It now sends only a plain category, "a check on this computer blocked the save", and nothing the check printed. The full detail still shows on your own machine, in your app and its log, so you can fix it. Anything a local check flags, which can include private client content, stays with you and never reaches the shared roster.
 
 ## 1.1.30 — 2026-09-05
