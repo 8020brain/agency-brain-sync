@@ -47,6 +47,11 @@
 //                role allow-list.
 
 const chokidar = require('chokidar');
+// The fixed vocabulary for WHY a brain stopped. A code is the only thing about a
+// stop that leaves this machine alongside a code-authored sentence; git's raw
+// words stay local. See cause-codes.js for the list and the server copy it must
+// match.
+const { CODES, classifyPushFailure } = require('./cause-codes');
 const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -77,6 +82,15 @@ const KEEP_BACKUPS = parseInt(process.env.KEEP_BACKUPS || '30', 10);
 const LOCK_STALE_MS = parseInt(process.env.LOCK_STALE_MS || '45000', 10);
 const ESCALATE_AFTER = parseInt(process.env.ESCALATE_AFTER || '3', 10);
 const STUCK_RETRY_MS = parseInt(process.env.STUCK_RETRY_MS || '300000', 10);
+// Person alert (Track B, 2026-09-08): once a LIVE block has run this long the
+// app asks the server to email the blocked person themselves. The per-code
+// default (30 or 120 minutes) is in cause-codes.js; ALERT_AFTER_MS overrides it
+// for tests only. A quit app or a sleeping laptop never fires, which is the
+// point of the app owning this clock rather than a server cron.
+const ALERT_AFTER_MS = parseInt(process.env.ALERT_AFTER_MS || '0', 10);
+// A check that refuses a commit WITHOUT naming a file is found one file at a
+// time, up to this many staged files (beyond that the pass is slow and noisy).
+const FOREIGN_HOOK_ONE_BY_ONE_MAX = parseInt(process.env.FOREIGN_HOOK_ONE_BY_ONE_MAX || '8', 10);
 const MODE = process.env.BRAIN_SYNC_MODE || 'personal';
 const API_BASE = process.env.AGENCY_API_BASE || 'https://api.ads2ai.com';
 const MEMBER_TOKEN = process.env.AGENCY_MEMBER_TOKEN || '';
@@ -110,6 +124,9 @@ let tokenCache = null; // { token, expiresAt: Date }
 let stallStreak = 0;       // consecutive wedged sync cycles (no forward progress)
 let stuckSince = null;     // set once we've stabilised as "stuck" (drives backoff + loud surfacing)
 let lastStuckAttempt = 0;  // last time we re-tried while stuck (backoff clock)
+let alertedFor = null;     // `code@since` once the person alert was requested for this episode
+let authExpiredSince = null; // first tick the sign-in was found dead (its own alert clock)
+let fetchFailedSince = null; // first tick GitHub was unreachable (alerts only after hours)
 
 function ts() {
   return new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -315,7 +332,7 @@ function writeState(state, reason, extra) {
   // worth reporting a recovery on. The tray still gets the honest live state,
   // which is written above this line.
   if (!alarm && stuckSince) return;
-  reportSyncState(alarm ? 'stop' : 'running', why);
+  reportSyncState(alarm ? 'stop' : 'running', why, alarm && extra ? extra.code : null);
 }
 
 // Only the BLOCKED edge is worth telling the server about: entering a stop, the
@@ -324,11 +341,14 @@ function writeState(state, reason, extra) {
 // would be up to four POSTs a minute per person (~700/min across the fleet) to
 // say nothing anyone reads. A healthy brain now sends zero.
 let lastReportedSync = null;
-function reportSyncState(state, reason) {
+let lastReportedCode = null;
+function reportSyncState(state, reason, code) {
   if (MODE !== 'agency' || !TEAM_SLUG || !MEMBER_TOKEN) return;
-  const key = state === 'stop' ? `stop::${reason || ''}` : 'running::';
+  code = state === 'stop' && code && CODES[code] ? code : (state === 'stop' ? 'UNKNOWN' : null);
+  const key = state === 'stop' ? `stop::${reason || ''}::${code}` : 'running::';
   if (key === lastReportedSync) return;
   lastReportedSync = key;
+  lastReportedCode = code;
   state = state === 'stop' ? 'stop' : 'running';
   reason = state === 'stop' ? reason : null;
   // Fire and forget. This is telemetry: it must never delay or break a sync,
@@ -337,16 +357,46 @@ function reportSyncState(state, reason) {
   fetch(`${API_BASE}/api/team-brain/sync-state`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MEMBER_TOKEN}` },
-    body: JSON.stringify({ teamSlug: TEAM_SLUG, syncState: state, stopReason: reason || null }),
+    body: JSON.stringify({ teamSlug: TEAM_SLUG, syncState: state, stopReason: reason || null, causeCode: code }),
   }).catch(() => { lastReportedSync = null; }); // let the next change retry
+}
+
+// Track B: once a live block has run past its code's threshold, ask the server
+// to email the blocked person (for a client brain, the agency scout who built
+// it). Once per episode: a recovery (clearStall) re-arms it, a lost request
+// retries on the next failing cycle. Body carries a code and a timestamp only.
+function maybeSendAlert(code, sinceMs) {
+  if (MODE !== 'agency' || !TEAM_SLUG || !MEMBER_TOKEN || !code || !sinceMs) return;
+  const def = CODES[code] || CODES.UNKNOWN;
+  const after = ALERT_AFTER_MS || def.alertAfterMin * 60000;
+  if (Date.now() - sinceMs < after) return;
+  const key = `${code}@${sinceMs}`;
+  if (alertedFor === key) return;
+  alertedFor = key;
+  fetch(`${API_BASE}/api/team-brain/sync-alert`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${MEMBER_TOKEN}` },
+    body: JSON.stringify({ teamSlug: TEAM_SLUG, causeCode: code, stuckSince: new Date(sinceMs).toISOString() }),
+  })
+    .then((r) => (r.ok ? r.json().catch(() => ({})) : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then((j) => console.log(`[${ts()}] blocked ${Math.round((Date.now() - sinceMs) / 60000)} min (${code}); asked the server to email ${j && j.sent ? 'the person who can fix it' : 'nobody'}${j && j.reason ? ` (${j.reason})` : ''}`))
+    .catch((e) => { alertedFor = null; console.log(`[${ts()}] alert request failed: ${e.message}; will retry`); });
 }
 
 // What the git-token heartbeat should carry, so a member whose immediate report
 // was lost still surfaces within the hour.
 function currentSyncHealth() {
   if (!lastReportedSync) return {};
-  const i = lastReportedSync.indexOf('::');
-  return { syncState: lastReportedSync.slice(0, i), stopReason: lastReportedSync.slice(i + 2) || null };
+  const parts = lastReportedSync.split('::');
+  const out = { syncState: parts[0], stopReason: parts[1] || null };
+  if (parts[0] === 'stop') {
+    out.causeCode = lastReportedCode || 'UNKNOWN';
+    // The server's backstop for a lost alert request: it can send the email
+    // itself when a heartbeat shows a live block past threshold.
+    const since = stuckSince || authExpiredSince;
+    if (since) out.stuckSince = new Date(since).toISOString();
+  }
+  return out;
 }
 
 // Held files keep the tray GREEN (still syncing) but surface a review line.
@@ -360,7 +410,7 @@ function reportRunning(held) {
 }
 
 // Forward progress this cycle — drop any stuck/stall bookkeeping.
-function clearStall() { stallStreak = 0; stuckSince = null; }
+function clearStall() { stallStreak = 0; stuckSince = null; alertedFor = null; authExpiredSince = null; fetchFailedSince = null; }
 
 // A cycle that couldn't complete a retryable git step (merge/commit/push). The
 // first ESCALATE_AFTER are treated as transients (a race, a brief offline) and
@@ -372,14 +422,18 @@ function clearStall() { stallStreak = 0; stuckSince = null; }
 // `serverReason` is the code-authored classification the roster may see when
 // `reason` itself quotes git's words (a commit refused by a foreign hook). Leave
 // it out and the reason is already a fixed sentence, safe to send as-is.
-function stopStuck(reason, detail, serverReason) {
+// `code` is the cause code from cause-codes.js; the roster, the person alert and
+// the tray's "Help me fix this" all key off it. Missing means UNKNOWN.
+function stopStuck(reason, detail, serverReason, code) {
   stallStreak += 1;
   const stuck = stallStreak >= ESCALATE_AFTER;
+  code = code && CODES[code] ? code : 'UNKNOWN';
   if (stuck && !stuckSince) {
     stuckSince = Date.now();
-    console.log(`[${ts()}] STUCK after ${stallStreak} attempts: ${reason}${detail ? ` — ${detail}` : ''}`);
+    console.log(`[${ts()}] STUCK after ${stallStreak} attempts (${code}): ${reason}${detail ? ` — ${detail}` : ''}`);
   }
-  writeState('stop', reason, { stuck, attempts: stallStreak, detail: detail || null, serverReason: serverReason || null });
+  writeState('stop', reason, { stuck, attempts: stallStreak, detail: detail || null, serverReason: serverReason || null, code });
+  if (stuck) maybeSendAlert(code, stuckSince);
 }
 
 // ───── Agency-mode auth ─────
@@ -965,27 +1019,48 @@ function parseMergeBlockers(errText) {
 // a client's case-file path and home address). The specific branches below are
 // code-authored either way, so their two forms are identical; only the two
 // catch-alls that quote `first` diverge.
+// Returns { member, server, code }: member may quote git (local only), server is
+// a fixed sentence, code is from cause-codes.js. Only server and code leave the
+// machine.
 function explainCommitFailure(err) {
   const e = String(err || '');
-  const same = (m) => ({ member: m, server: m });
-  if (/index\.lock/i.test(e)) return same("can't save: another program is holding your brain folder's git lock. Close Cowork and any open terminal, then it should clear on its own");
-  if (/no space left|disk quota|ENOSPC/i.test(e)) return same("can't save: this computer has run out of disk space");
-  if (/gpg|signing failed|secret key not available/i.test(e)) return same("can't save: git commit signing is switched on and failed. Turn it off with: git config --global commit.gpgsign false");
-  if (/tell me who you are|empty ident|user\.email/i.test(e)) return same("can't save: git has no name or email set on this computer");
-  if (/permission denied|insufficient permission|EACCES|read-only file system|operation not permitted/i.test(e)) return same("can't save: this computer can't write to your brain folder (permissions)");
-  if (/does not have a commit checked out|not a git repository|bad object|corrupt/i.test(e)) return same("can't save: your brain folder's git data looks damaged, so it needs re-cloning");
+  const same = (m, code) => ({ member: m, server: m, code });
+  if (/index\.lock/i.test(e)) return same("can't save: another program is holding your brain folder's git lock. Close Cowork and any open terminal, then it should clear on its own", 'INDEX_LOCK');
+  if (/no space left|disk quota|ENOSPC/i.test(e)) return same("can't save: this computer has run out of disk space", 'DISK_FULL');
+  if (/gpg|signing failed|secret key not available/i.test(e)) return same("can't save: git commit signing is switched on and failed. Turn it off with: git config --global commit.gpgsign false", 'GPG_SIGN');
+  if (/tell me who you are|empty ident|user\.email/i.test(e)) return same("can't save: git has no name or email set on this computer", 'NO_GIT_IDENT');
+  if (/permission denied|insufficient permission|EACCES|read-only file system|operation not permitted/i.test(e)) return same("can't save: this computer can't write to your brain folder (permissions)", 'PERMISSIONS');
+  if (/does not have a commit checked out|not a git repository|bad object|corrupt/i.test(e)) return same("can't save: your brain folder's git data looks damaged, so it needs re-cloning", 'REPO_CORRUPT');
   const first = e.split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
   // Last, because any cause above can coexist with a hook and is more specific.
   if (foreignPrecommitHook()) {
     return {
       member: `can't save: a check installed on this computer blocked the save${first ? `. It said: ${first}` : ''}`,
       server: "can't save: a check installed on this computer blocked the save",
+      code: 'FOREIGN_HOOK',
     };
   }
   return {
     member: first ? `can't save your latest changes: ${first}` : "can't save your latest changes (git gave no reason)",
     server: "can't save your latest changes",
+    code: 'UNKNOWN',
   };
+}
+
+// The push-side twin. Until 2026-09-08 every failed push was the one sentence
+// "can't push your changes up", so the roster could not tell GitHub refusing a
+// secret from a flaky VPN, and a person sat blocked for six hours with nobody
+// able to say which fix applied (Hamish Becker, Jaywing). The raw stderr is
+// quoted in `member` for the tray and the log on this machine only; `server`
+// is built from the code's label, never from git's words.
+function explainPushFailure(err) {
+  const e = String(err || '');
+  const code = classifyPushFailure(e);
+  const label = (CODES[code] || CODES.UNKNOWN).label;
+  const server = /^can't push/i.test(label) ? label : `can't push your changes up: ${label}`;
+  const first = e.split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
+  const member = first ? `${server} (git said: ${first.slice(0, 160)})` : server;
+  return { member, server, code };
 }
 
 // Git relays a pre-commit hook's own words and adds nothing of its own, so the
@@ -1069,7 +1144,7 @@ function stageAndCommit(s) {
       console.log(`[${ts()}]   couldn't stage your latest changes — git said: ${raw || '(no output)'}`);
       git('reset', '-q', 'HEAD');
       const ex = explainCommitFailure(raw);
-      return { committed: false, held, error: ex.member, serverError: ex.server, raw };
+      return { committed: false, held, error: ex.member, serverError: ex.server, code: ex.code, raw };
     }
   }
   // The markers themselves, explicitly. A wholly-untracked marked folder arrives
@@ -1156,6 +1231,38 @@ function stageAndCommit(s) {
     // brain for hours.)
     const refused = staged.filter((f) => (cr.err || '').includes(f));
     refusedCount = refused.length;
+    // The check refused the commit but named NO file (it prints a policy line, or
+    // it reads the working tree). Until 2026-09-08 that stopped the whole brain
+    // dead (Niklas Deller, Dellerate: one flagged file, nothing else could save
+    // for the morning). Find the file the way a person would: commit one at a
+    // time, hold whichever the check refuses, save the rest. Never --no-verify.
+    // Every file the check refuses on its own is held, exactly as a NAMED refusal
+    // is held below, so the two shapes of the same check behave the same: a held
+    // file stays dirty and is re-tried every cycle, and on the cycle after the
+    // rest has saved the held files are the only ones left, which must not read
+    // as "the check refuses everything" (the first cut did, and flipped the brain
+    // red the cycle after it had just recovered).
+    if (!refused.length && foreignPrecommitHook() && staged.length <= FOREIGN_HOOK_ONE_BY_ONE_MAX) {
+      git('reset', '-q', 'HEAD');
+      let savedAlone = 0;
+      const refusedAlone = [];
+      for (const f of staged) {
+        const a = gitTry('add', '--', f);
+        if (!a.ok) { refusedAlone.push({ file: f, said: (a.err || '').split('\n')[0] || '' }); continue; }
+        const c1 = gitTry('commit', '-m', commitMsg);
+        if (c1.ok) { savedAlone += 1; continue; }
+        git('reset', '-q', 'HEAD', '--', f);
+        refusedAlone.push({ file: f, said: (c1.err || '').split('\n').map((l) => l.trim()).filter(Boolean)[0] || '' });
+      }
+      if (refusedAlone.length) {
+        console.log(`[${ts()}]   a check on this computer refused the save without naming a file; tried one at a time, saved ${savedAlone}, set aside ${refusedAlone.length}`);
+        for (const r of refusedAlone) {
+          held.push({ file: r.file, why: `a check on this computer refused this file, so it was set aside and the rest of your work saved${r.said ? `. It said: ${r.said.slice(0, 160)}` : ''}` });
+        }
+      }
+      for (const h of held) console.log(`[${ts()}]   held: ${h.file} — ${h.why}`);
+      return { committed: savedAlone > 0, held };
+    }
     if (refused.length) {
       console.log(`[${ts()}]   a check on this computer refused ${refused.length} file(s); setting aside and saving the rest`);
       const said = (cr.err || '').split('\n').map((l) => l.trim()).filter(Boolean)[0] || '';
@@ -1184,7 +1291,7 @@ function stageAndCommit(s) {
     console.error(`[${ts()}]   commit failed — git said: ${raw || '(no output)'}`);
     git('reset', '-q', 'HEAD');
     const ex = explainCommitFailure(raw);
-    return { committed: false, held, error: ex.member, serverError: ex.server, raw };
+    return { committed: false, held, error: ex.member, serverError: ex.server, code: ex.code, raw };
   }
   console.log(`[${ts()}]   committed ${staged.length - refusedCount} file(s)${held.length ? `, held ${held.length}` : ''}`);
   return { committed: true, held };
@@ -1331,7 +1438,10 @@ async function doSync(trigger) {
       resolveConflictsAndCommit(tsCompact());
     } else if (mid) {
       console.log(`[${ts()}] STOP: mid-${mid} in progress (started by hand); finish it and sync resumes`);
-      writeState('stop', `a ${mid} is in progress — finish it in a terminal and sync resumes`);
+      // Through stopStuck so a half-finished rebase left for hours stabilises,
+      // shows in the roster and reaches the person, instead of a quiet stop
+      // repeating every tick forever.
+      stopStuck(`a ${mid} is in progress — finish it in a terminal and sync resumes`, null, null, 'REBASE_IN_PROGRESS');
       return;
     }
 
@@ -1344,7 +1454,12 @@ async function doSync(trigger) {
 
     if (s.state === 'fetch_failed') {
       console.log(`[${ts()}] ${trigger}: fetch failed -- ${s.detail}`);
-      writeState('stop', 'offline or fetch failed, will retry');
+      // Not a stuck state (offline is normal), but a brain that cannot reach
+      // GitHub for hours is worth one email: a firewall or VPN rule looks exactly
+      // like this and never clears by itself.
+      fetchFailedSince = fetchFailedSince || Date.now();
+      writeState('stop', 'offline or fetch failed, will retry', { code: 'FETCH_FAILED', detail: s.detail || null });
+      maybeSendAlert('FETCH_FAILED', fetchFailedSince);
       return;
     }
     if (s.state === 'clean_in_sync') {
@@ -1361,7 +1476,7 @@ async function doSync(trigger) {
         // Shouldn't happen (no local commits), but if it does, a real merge
         // handles it without losing anything.
         const res = mergeWithSidecars(s.branch);
-        if (!res.merged) { stopStuck('can\'t pull in the latest changes', res.error || 'fast-forward failed'); return; }
+        if (!res.merged) { stopStuck('can\'t pull in the latest changes', res.error || 'fast-forward failed', null, 'MERGE_STUCK'); return; }
         clearStall();
         reportRunning(res.conflicts.map((c) => ({ file: c.file, why: `overlapping edit — kept both, see ${path.basename(c.sidecar)}` })));
       } else {
@@ -1379,7 +1494,7 @@ async function doSync(trigger) {
       const pushed = await withAuthenticatedRemote(() => git('push', '-u', 'origin', s.branch)).catch(() => null);
       if (pushed === null) {
         console.log(`[${ts()}]   first publish failed; will retry next tick`);
-        writeState('stop', 'first publish pending (push failed, retrying)');
+        writeState('stop', 'first publish pending (push failed, retrying)', { code: 'FIRST_PUBLISH_PENDING' });
       } else {
         console.log(`[${ts()}]   first publish landed`);
         writeState('ok', 'first publish landed');
@@ -1388,7 +1503,7 @@ async function doSync(trigger) {
     }
     if (s.state === 'unknown') {
       console.log(`[${ts()}] ${trigger}: unrecognised git state; skipping this tick`);
-      writeState('stop', 'unrecognised git state');
+      stopStuck('unrecognised git state', null, null, 'UNKNOWN');
       return;
     }
 
@@ -1425,7 +1540,7 @@ async function doSync(trigger) {
         // words for the log and the local state file. r.serverError is the
         // classification the roster may see — r.error/r.raw can quote a client's
         // private text and must never leave this machine.
-        stopStuck(r.error, r.raw || null, r.serverError);
+        stopStuck(r.error, r.raw || null, r.serverError, r.code);
         return;
       }
     }
@@ -1436,7 +1551,7 @@ async function doSync(trigger) {
       console.log(`[${ts()}] ${trigger}: remote moved (behind ${s.behind}); merging`);
       const res = mergeWithSidecars(s.branch);
       if (!res.merged) {
-        stopStuck('can\'t pull in the latest changes', res.error || 'merge failed');
+        stopStuck('can\'t pull in the latest changes', res.error || 'merge failed', null, 'MERGE_STUCK');
         return;
       }
       if (res.conflicts.length) {
@@ -1460,7 +1575,7 @@ async function doSync(trigger) {
       backupRef('oversize');
       const rr = gitTry('reset', '--mixed', `origin/${s.branch}`);
       if (!rr.ok) {
-        stopStuck('can\'t set aside a file that\'s too big to sync', rr.err);
+        stopStuck('can\'t set aside a file that\'s too big to sync', rr.err, null, 'PUSH_TOO_BIG');
         return;
       }
       for (const b of bigs) {
@@ -1472,7 +1587,7 @@ async function doSync(trigger) {
       if (lines.length) {
         const rc = stageAndCommit({ statusLines: lines });
         held = held.concat(rc.held || []);
-        if (rc.error) { stopStuck(rc.error, rc.raw || null, rc.serverError); return; }
+        if (rc.error) { stopStuck(rc.error, rc.raw || null, rc.serverError, rc.code); return; }
         didContribute = didContribute || rc.committed === true;
       }
     }
@@ -1496,7 +1611,8 @@ async function doSync(trigger) {
       // persistent failure (ESCALATE_AFTER in a row) stabilises as stuck.
       console.error(`  git push -> ${pushR.err}`);
       console.log(`[${ts()}]   push failed; will retry next tick`);
-      stopStuck('can\'t push your changes up', pushR.err || 'push failed, usually a brief race or offline');
+      const px = explainPushFailure(pushR.err);
+      stopStuck(px.member, pushR.err || 'push failed, usually a brief race or offline', px.server, px.code);
       return;
     }
     console.log(`[${ts()}]   pushed.`);
@@ -1512,14 +1628,16 @@ async function doSync(trigger) {
       // This reason is rendered straight into the tray status line and tooltip,
       // which are otherwise branded from the app's own name. Naming the product
       // here was the one string that put "Agency Brain" in a client's menu bar.
-      writeState('stop', 'Your sign-in has expired. Open the app in your menu bar and choose "Reconnect / sign in again"', { authExpired: true });
+      authExpiredSince = authExpiredSince || Date.now();
+      writeState('stop', 'Your sign-in has expired. Open the app in your menu bar and choose "Reconnect / sign in again"', { authExpired: true, code: 'SESSION_EXPIRED' });
+      maybeSendAlert('SESSION_EXPIRED', authExpiredSince);
     } else if (err && err.syncRefused) {
       // The server said no, in words meant for this person. Show those words.
       // stopStuck keeps retrying each tick (a GitHub blip clears itself) and only
       // escalates to "needs attention" once the refusal has stabilised.
-      stopStuck(err.userMessage || "the server refused to give this machine a key for the brain", err.message);
+      stopStuck(err.userMessage || "the server refused to give this machine a key for the brain", err.message, null, 'SERVER_REFUSED');
     } else {
-      writeState('stop', `error: ${err.message}`);
+      writeState('stop', `error: ${err.message}`, { code: 'UNKNOWN' });
     }
   } finally {
     syncing = false;
@@ -1656,4 +1774,4 @@ process.on('SIGTERM', () => { console.log(`\n[${ts()}] stopped.`); writeState('s
 } // ───── end boot guard ─────
 
 // Pure helpers, exported for the privacy regression test. No side effects.
-module.exports = { serverStopReason, explainCommitFailure, foreignPrecommitHook };
+module.exports = { serverStopReason, explainCommitFailure, explainPushFailure, foreignPrecommitHook };

@@ -33,6 +33,9 @@
  *   G) A foreign pre-commit hook (a data-protection scanner) refuses one file.
  *      That file is set aside and everything else keeps syncing, instead of the
  *      refusal wedging the whole brain the way it did in a 2026-08-18 field report.
+ *   G3) The same, when the check names NO file (a bare policy line). The watcher
+ *      finds the refused file by committing one at a time (2026-09-08, Niklas
+ *      Deller's block), holds it, and saves the rest. Never --no-verify.
  *
  * And the 2026-09-02 over-long-path fix (MAX_PATH_CHARS=90 so a plain long name trips it):
  *   J) A path too long to sync (a paragraph pasted into a filename) is HELD
@@ -325,6 +328,45 @@ async function main() {
     }, 15000);
     if (gState) ok('G2: the brain stayed running and named the file it set aside');
     else bad('G2: refused file was not surfaced as a held change', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+
+    // ── G3) The check refuses the commit but names no file ──
+    // A policy scanner that prints "BLOCKED: policy violation" and nothing else.
+    // Until 2026-09-08 this stopped the whole brain: nothing named a path, so the
+    // isolate-and-continue in G had nothing to unstage. The watcher now commits one
+    // file at a time when the hook is foreign and the set is small, holds the
+    // refused one, saves the rest.
+    const blindScanner = [
+      '#!/bin/sh',
+      'for f in $(git diff --cached --name-only --diff-filter=AM); do',
+      '  if git show ":$f" 2>/dev/null | grep -q -E "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"; then',
+      '    echo "BLOCKED: policy violation" >&2; exit 1',
+      '  fi',
+      'done',
+      'exit 0',
+      '',
+    ].join('\n');
+    fs.writeFileSync(hookPath, blindScanner, { mode: 0o755 });
+    fs.chmodSync(hookPath, 0o755);
+    fs.writeFileSync(path.join(app, 'client-note-2.md'), 'second note\nemail them at other@example.com\n');
+    fs.writeFileSync(path.join(app, 'innocent-2.md'), 'still nothing personal\n');
+    const isolatedBlind = await until(() =>
+      originHasPath(origin, 'main', 'innocent-2.md') &&
+      !originHasPath(origin, 'main', 'client-note-2.md') &&
+      fs.existsSync(path.join(app, 'client-note-2.md')),
+    20000);
+    if (isolatedBlind) ok('G3: a check that named no file still only held the refused file; the rest synced');
+    else bad('G3: an unnamed refusal wedged the sync', `innocent-2=${originHasPath(origin, 'main', 'innocent-2.md')}, refused-on-origin=${originHasPath(origin, 'main', 'client-note-2.md')}`);
+    const g3State = await until(() => {
+      if (!fs.existsSync(stateFile)) return false;
+      const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      return st.state !== 'stop' && Array.isArray(st.held) && st.held.some((h) => h.file === 'client-note-2.md');
+    }, 15000);
+    if (g3State) ok('G3: the brain stayed running and named the file the check would not');
+    else bad('G3: unnamed refusal not surfaced as held', fs.existsSync(stateFile) ? fs.readFileSync(stateFile, 'utf8').slice(0, 300) : 'no state file');
+    if (gitTry(app, 'log --oneline -50')?.includes('auto-sync')) ok('G3: never used --no-verify (the refused files are absent from origin, see above)');
+    // Back to the named-file scanner so the sections after this see the same hook G left.
+    fs.writeFileSync(hookPath, scanner, { mode: 0o755 });
+    fs.chmodSync(hookPath, 0o755);
 
     // ── J) An over-long path is held, not silently wedged ──
     // The 2026-09-02 field report: a filename with a pasted paragraph in it made

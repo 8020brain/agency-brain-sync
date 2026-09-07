@@ -34,8 +34,9 @@ process.env.BRAIN_PATH = repo;
 delete process.env.BRAIN_SYNC_MODE; // personal
 delete process.env.STATE_FILE;
 
-const { serverStopReason, explainCommitFailure, foreignPrecommitHook } =
+const { serverStopReason, explainCommitFailure, explainPushFailure, foreignPrecommitHook } =
   require('../watcher/team-brain-sync.js');
+const { CODES, CODE_LIST, classifyPushFailure } = require('../watcher/cause-codes.js');
 
 // The client's private text, exactly the shape that leaked: a named person, a
 // case-file path, and a home address, printed by the customer's own scanner.
@@ -91,6 +92,50 @@ try {
   const sent2 = serverStopReason(true, "can't push your changes up", { stuck: true, detail: RAW });
   if (!leaks(sent2)) ok('detail is never appended to the server reason'); else bad('LEAK: detail appended to server reason', sent2);
   if (sent2 === "can't push your changes up") ok('a fixed-sentence reason passes through unchanged'); else bad('fixed reason altered', sent2);
+
+  // ── Cause codes (2026-09-08): the only vocabulary about a stop that leaves ──
+  // Every classifier answer is a code on the list, and every code has a playbook
+  // for "Help me fix this". A code cannot carry a client's text by construction.
+  setForeignHook();
+  const exc = explainCommitFailure(RAW);
+  if (exc.code === 'FOREIGN_HOOK') ok('commit classifier: foreign hook → FOREIGN_HOOK'); else bad('commit classifier code', exc.code);
+  if (explainCommitFailure('fatal: could not read Username: tell me who you are').code === 'NO_GIT_IDENT') ok('commit classifier: identity → NO_GIT_IDENT'); else bad('identity code wrong');
+  clearHook();
+  if (explainCommitFailure(RAW).code === 'UNKNOWN') ok('commit classifier: no hook, unrecognised → UNKNOWN'); else bad('fallback code wrong');
+
+  // A push refused by GitHub's secret scanning prints the file and line it found,
+  // which is exactly the kind of text that must stay on the machine.
+  const PUSH_RAW = `remote: error: GH013: Repository rule violations found for refs/heads/main.\nremote: - Push cannot contain secrets\nremote:   locations: ${SECRET}\n! [remote rejected] main -> main (push declined due to repository rule violations)`;
+  const px = explainPushFailure(PUSH_RAW);
+  if (px.code === 'PUSH_PROTECTION') ok('push classifier: GH013 → PUSH_PROTECTION'); else bad('push classifier code', px.code);
+  if (px.member.includes('GH013')) ok('push member reason quotes git for the person'); else bad('push member reason lost the detail', px.member);
+  if (!leaks(px.server) && px.server === "can't push your changes up: " + CODES.PUSH_PROTECTION.label) ok('push server reason is the code label, no client text'); else bad('LEAK or wrong push server reason', px.server);
+  const sentPush = serverStopReason(true, px.member, { stuck: true, detail: PUSH_RAW, serverReason: px.server, code: px.code });
+  if (!leaks(sentPush)) ok('push stop reason carries no client text on the wire'); else bad('LEAK: push stop reason', sentPush);
+
+  const fixtures = [
+    ['error: RPC failed; HTTP 400 curl 22 The requested URL returned error: 400\nsend-pack: unexpected disconnect while reading sideband packet', 'PUSH_NETWORK'],
+    ['! [rejected] main -> main (fetch first)\nerror: failed to push some refs', 'PUSH_REJECTED'],
+    ["remote: error: File big.zip is 150.00 MB; this exceeds GitHub's file size limit of 100.00 MB", 'PUSH_TOO_BIG'],
+    ['remote: Repository not found.\nfatal: repository \'https://github.com/x/y.git/\' not found', 'REPO_GONE'],
+    ['remote: Permission to x/y.git denied to bot.\nfatal: unable to access: The requested URL returned error: 403', 'PUSH_FORBIDDEN'],
+    ['remote: error: GH013: Repository rule violations found', 'PUSH_PROTECTION'],
+    ['something nobody has seen before', 'UNKNOWN'],
+  ];
+  for (const [raw, want] of fixtures) {
+    const got = classifyPushFailure(raw);
+    if (got === want) ok(`push classifier: ${want}`); else bad(`push classifier: expected ${want}`, got);
+  }
+  const unknownCodes = [exc.code, px.code, ...fixtures.map(([r]) => classifyPushFailure(r))].filter((c) => !CODE_LIST.includes(c));
+  if (!unknownCodes.length) ok('every classifier answer is on the code list'); else bad('classifier produced a code off the list', unknownCodes.join(','));
+  const playbooksDir = path.join(__dirname, '..', 'watcher', 'playbooks');
+  const missing = CODE_LIST.filter((c) => !fs.existsSync(path.join(playbooksDir, `${c}.md`)));
+  if (!missing.length) ok(`every one of the ${CODE_LIST.length} codes has a playbook`); else bad('codes with no playbook', missing.join(','));
+  for (const c of CODE_LIST) {
+    const d = CODES[c];
+    if (!d.label || typeof d.selfClears !== 'boolean' || !(d.alertAfterMin > 0) || !Array.isArray(d.steps) || !d.steps.length) { bad(`code ${c} is missing a field`); }
+  }
+  ok('every code carries label, selfClears, alertAfterMin and steps');
 } finally {
   fs.rmSync(repo, { recursive: true, force: true });
 }

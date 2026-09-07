@@ -12,7 +12,7 @@
 //   - Watcher writes its state to a known file; this process polls and drives
 //     the tray icon (running / paused / needs-attention)
 
-const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain, Notification } = require('electron');
+const { app, Tray, Menu, BrowserWindow, dialog, shell, nativeImage, ipcMain, Notification, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -20,6 +20,7 @@ const { spawn, execFile, execFileSync } = require('child_process');
 const { inspectBrainFolder } = require('./lib/inspect-brain.cjs');
 const { adoptBrain } = require('./lib/adopt-brain.cjs');
 const { ensureCredentialHelper } = require('./lib/git-credential.cjs');
+const { buildFixMe, fixPrompt, openClaudeCodeSession } = require('./lib/fix-session.cjs');
 const { normaliseAccountName, isValidAccountName, classifyAccount } = require('./lib/github-account.cjs');
 const { describeSharedOrg } = require('./lib/shared-org.cjs');
 
@@ -573,6 +574,9 @@ function parseWatcherOutput(text) {
 // the tray so users see a clear "needs your attention" signal.
 let stateFileWatcher = null;
 let lastStopReason = null;
+// The whole last stop payload from the watcher (reason, cause code, git's raw
+// detail, held files). Read by "Help me fix this"; never sent anywhere.
+let lastStopPayload = null;
 // Fire the "stuck" desktop notification at most once per stuck episode; re-armed
 // when the watcher reports sync has recovered.
 let lastStuckNotified = false;
@@ -680,6 +684,45 @@ function writeSyncBreadcrumb() {
   } catch (_) { /* best-effort — a breadcrumb must never break the tray */ }
 }
 
+// ---------- "Help me fix this" ----------
+// Order: Claude Code in a Terminal in the brain folder (if installed), else the
+// Claude desktop app with the prompt on the clipboard for a Cowork session with
+// the brain folder connected, else the fix-me.md file itself. A signed-out brain
+// has no watcher payload, so it gets SESSION_EXPIRED; anything else unknown is
+// UNKNOWN and the playbook says to diagnose from the evidence.
+async function helpMeFixThis() {
+  const config = loadConfig();
+  const payload = lastStopPayload || { state: 'stop', reason: lastStopReason, code: signedOut ? 'SESSION_EXPIRED' : 'UNKNOWN' };
+  let fixPath;
+  try {
+    fixPath = buildFixMe({
+      userData: USER_DATA, logFile: LOG_FILE, brainPath: config && config.brainPath, payload, appName: APP_NAME,
+      playbooksDir: path.join(__dirname, 'watcher', 'playbooks'),
+    });
+  } catch (e) {
+    dialog.showErrorBox(APP_NAME, `Couldn't put the details together: ${e.message}`);
+    return;
+  }
+  const prompt = fixPrompt(fixPath, { clientBrain: !!(config && config.kind === 'client') });
+  if (config && config.brainPath && openClaudeCodeSession({ repoPath: config.brainPath, prompt, title: `${APP_NAME}: help me fix this` })) return;
+  try { clipboard.writeText(prompt); } catch (_) { /* best-effort */ }
+  const hasClaudeApp = process.platform === 'darwin'
+    ? fs.existsSync('/Applications/Claude.app')
+    : (process.platform === 'win32' && typeof findClaudeWindows === 'function' && !!findClaudeWindows());
+  if (hasClaudeApp) {
+    const r = await dialog.showMessageBox({
+      type: 'info', buttons: ['Open Claude', 'Just show me the details'], defaultId: 0, title: APP_NAME,
+      message: 'Your own Claude can walk you through this.',
+      detail: 'A short prompt is on your clipboard. Open Claude, switch to Cowork with your brain folder connected, and paste it. It reads the details saved on this computer and helps you fix it, step by step. Nothing leaves your machine.',
+    });
+    if (r.response === 0) {
+      if (process.platform === 'darwin') execFile('open', ['-a', 'Claude']); else shell.openExternal('claude://');
+      return;
+    }
+  }
+  shell.openPath(fixPath);
+}
+
 function applyWatcherState(payload) {
   if (!payload || typeof payload.state !== 'string') return;
   const heldNext = Array.isArray(payload.held) ? payload.held : [];
@@ -690,6 +733,7 @@ function applyWatcherState(payload) {
   const isAttention = payload.state === 'stop';
   if (isAttention) {
     lastStopReason = payload.reason || 'needs your attention';
+    lastStopPayload = payload;
     let changed = false;
     if (payload.authExpired) {
       // The watcher's git-token mint got a 401: the sign-in session is dead. Route
@@ -713,6 +757,7 @@ function applyWatcherState(payload) {
   } else if (watcherState === 'attention') {
     // Watcher reports it cleared the stop; resume normal display.
     lastStopReason = null;
+    lastStopPayload = null;
     lastStuckNotified = false;
     authExpired = false;
     reconnectNotified = false;
@@ -835,6 +880,10 @@ function buildMenu() {
   // "Open log…" / "Show log" duplicate).
   const logAtTop = watcherState === 'attention';
   if (logAtTop) {
+    // The person's own Claude reads the local detail and walks them through the
+    // fix (lib/fix-session.cjs). This is how real help reaches a blocked person
+    // without git's words ever leaving the machine.
+    items.push({ label: 'Help me fix this…', click: () => helpMeFixThis() });
     items.push({ label: 'See what needs attention', click: () => shell.openPath(LOG_FILE) });
     items.push({ type: 'separator' });
   }
