@@ -908,25 +908,27 @@ function buildMenu() {
     items.push({ type: 'separator' });
   }
 
-  // Needs-attention state gets ONE log link, up top. In every other state the log
-  // lives once in the housekeeping group below — never both (that was the old
-  // "Open log…" / "Show log" duplicate).
+  // Needs-attention state gets the fix action up top; the log lives once, in the
+  // housekeeping group below, in every state.
   const logAtTop = watcherState === 'attention';
   if (logAtTop) {
     // The person's own Claude reads the local detail and walks them through the
     // fix (lib/fix-session.cjs). This is how real help reaches a blocked person
     // without git's words ever leaving the machine.
+    // One action, three ways in: the red line, the reason and this item all open
+    // the fix. A log link and a folder link used to sit here too, and each did a
+    // different thing, so it wasn't clear which one to click (Mike, 2026-09-08,
+    // staging click-through). The log is inside fix-me.md, and "Show log" stays
+    // live in the housekeeping group below for anyone who wants the raw file.
     items.push({ label: '➜  Help me fix this…', click: () => helpMeFixThis() });
-    items.push({ label: 'See what needs attention (the log)', click: () => shell.openPath(LOG_FILE) });
-    items.push({ label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) });
     items.push({ type: 'separator' });
   }
 
   // ---- Primary actions (greyed out while something needs the person) ----
-  items.push(dim({ label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) }));
-  if (!attention) {
-    items.push({ label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) });
-  }
+  items.push(
+    dim({ label: 'Open Command Centre', click: () => openCommandCentre(), enabled: !!(config && config.brainPath) }),
+    dim({ label: 'Open brain folder', click: () => { if (config && config.brainPath) shell.openPath(config.brainPath); }, enabled: !!(config && config.brainPath) }),
+  );
 
   // ---- Brain switcher: only when this machine has more than one DISTINCT brain
   // FOLDER. Deduped by folder, so a brain re-tagged during testing (one folder
@@ -975,9 +977,7 @@ function buildMenu() {
   } else {
     items.push({ label: 'Pause syncing', click: () => stopWatcher(), enabled: watcherState === 'running' });
   }
-  if (!logAtTop) {
-    items.push({ label: 'Show log', click: () => shell.openPath(LOG_FILE) });
-  }
+  items.push({ label: 'Show log', click: () => shell.openPath(LOG_FILE) });
   items.push(dim({ label: 'Check for updates…', click: () => checkForUpdatesManually() }));
 
   // A solo (personal-mode) owner ready to bring teammates in — a first-class
