@@ -48,5 +48,10 @@ if (problems.length) {
 }
 console.log(`✓ ${tag} matches the staging check from ${r.checkedAt} (tests green, ${String(r.commit).slice(0, 7)}).`);
 EOF
+
+  # Second gate (2026-09-08): the same commit must have built and signed GREEN on
+  # GitHub's runners already (the push to main runs the workflow as a canary).
+  # Staging can't see a runner-image change; this can. v1.1.32 is why.
+  node "$top/scripts/ci-canary-check.cjs" "$commit" || exit 1
 done
 exit 0
