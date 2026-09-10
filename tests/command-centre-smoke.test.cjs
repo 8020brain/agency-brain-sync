@@ -21,7 +21,7 @@ const fs = require('fs');
 const PORT = 38970;
 const BASE = `http://127.0.0.1:${PORT}`;
 // The shipped nav, in order. Keep in sync with command-centre/public/index.html.
-const NAV = ['welcome', 'path', 'cowork', 'owner', 'scout', 'skills', 'gads', 'help'];
+const NAV = ['welcome', 'setup', 'path', 'cowork', 'owner', 'scout', 'skills', 'gads', 'help'];
 
 async function waitReady(ms = 8000) {
   const deadline = Date.now() + ms;

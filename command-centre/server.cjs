@@ -294,6 +294,43 @@ const localIdentity = require('./lib/local-identity.cjs');
 function hasLocalIdentity() {
   return localIdentity.hasLocalIdentity(BRAIN_ROOT);
 }
+
+// Onboarding board: the question bank (its content), the synced store under
+// .team-config/onboarding/, and the deterministic filer that writes each answer
+// into its destination context file.
+const onboardingQuestions = require('./lib/onboarding-questions.cjs');
+const onboardingStore = require('./lib/onboarding-store.cjs');
+const onboardingFiler = require('./lib/onboarding-filer.cjs');
+
+// The roster (offline, synced) for the person switcher and pass-to. Reads
+// .team-config/roles.json directly — no token, works before anyone signs in.
+function onboardingRoster() {
+  try {
+    const roles = JSON.parse(fs.readFileSync(path.join(BRAIN_ROOT, '.team-config', 'roles.json'), 'utf8'));
+    return (roles.members || [])
+      .filter((m) => m && m.email)
+      .map((m) => ({ email: String(m.email).toLowerCase(), name: m.name || m.email, role: (m.role || '').toLowerCase() }));
+  } catch (e) { return []; }
+}
+
+// Rebuild the human-readable .claude/context-setup-status.md from the store, so
+// the conversational setup skill and anyone reading the file see the same
+// picture the board does. One destination file counts as done when every one of
+// its questions is answered or passed.
+function onboardingSyncStatusDoc(state) {
+  const byFile = {};       // dest file -> { answered, total }
+  const contradictions = state._contradictions || [];
+  onboardingQuestions.TOPICS.forEach((t) => {
+    t.qs.forEach((q) => {
+      const file = q.dest.file.replace(/TEMPLATE-/, '');
+      byFile[file] = byFile[file] || { answered: 0, total: 0 };
+      byFile[file].total++;
+      if (state.answers[q.id] || state.assignments[q.id]) byFile[file].answered++;
+    });
+  });
+  const files = Object.keys(byFile).map((f) => ({ label: f, done: byFile[f].answered === byFile[f].total }));
+  try { onboardingFiler.syncStatusDoc(BRAIN_ROOT, { files, contradictions }); } catch (e) { /* status doc is best-effort */ }
+}
 function agencyName() {
   const fromRoster = localIdentity.teamNameFromRoster(BRAIN_ROOT);
   if (fromRoster) return fromRoster;
@@ -608,6 +645,116 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(progress, null, 2) + '\n');
       return send(res, 200, { ok: true, path: key, progress });
+    }
+
+    // ---- Onboarding board ("Set up your brain") ---------------------------
+    // The board's content, the current person, the roster (for pass-to), and
+    // the synced status. Returns a working payload even with an empty brain
+    // (the smoke test boots this server with no files), so no throw on missing.
+    if (req.method === 'GET' && p === '/api/onboarding') {
+      const state = onboardingStore.read(BRAIN_ROOT);
+      const roster = onboardingRoster();
+      const owner = roster.find((m) => m.role === 'owner');
+      // The board never needs the destination file paths; strip them so the
+      // UI (and a future client-facing skin) never shows an internal path.
+      const topics = onboardingQuestions.TOPICS.map((t) => ({
+        id: t.id, title: t.title, kick: t.kick, sub: t.sub, thanks: t.thanks, optional: !!t.optional,
+        qs: t.qs.map((q) => ({ id: q.id, q: q.q, receipt: q.receipt, topic: t.id }))
+      }));
+      return send(res, 200, {
+        teamName: agencyName(),
+        me: { email: (MEMBER_EMAIL || '').toLowerCase(), name: MEMBER_NAME || '', role: liveRole() },
+        ownerEmail: owner ? owner.email : ((MEMBER_EMAIL || '').toLowerCase()),
+        roster: roster,
+        topics: topics,
+        drafts: state.drafts,
+        answers: state.answers,
+        assignments: state.assignments,
+        skipped: state.skipped
+      });
+    }
+
+    // Autosave a typed answer as a DRAFT (on blur). Nothing is filed yet, so an
+    // answered question can still be re-opened and edited before submitting.
+    if (req.method === 'POST' && p === '/api/onboarding/draft') {
+      const b = await readBody(req);
+      const qid = String(b.qid || '').trim();
+      if (!onboardingQuestions.BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
+      const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
+      onboardingStore.recordDraft(BRAIN_ROOT, qid, b.text, by, (MEMBER_EMAIL || '').toLowerCase());
+      return send(res, 200, { ok: true, qid: qid });
+    }
+
+    // Save a whole card ("Save my context"): finalise and file every answered
+    // question in the topic that this person owns. The board sends the current
+    // answers with the request, so a just-typed last answer is never missed
+    // (fixes the "click Save, last question reopens" race). Falls back to any
+    // saved draft when the payload omits one.
+    if (req.method === 'POST' && p === '/api/onboarding/submit') {
+      const b = await readBody(req);
+      const topic = onboardingQuestions.TOPICS.find((t) => t.id === String(b.topicId || '').trim());
+      if (!topic) return send(res, 400, { error: 'unknown topic' });
+      const answers = (b && b.answers) || {};
+      const me = (MEMBER_EMAIL || '').toLowerCase();
+      const by = MEMBER_NAME || me.split('@')[0] || 'someone';
+      const pre = onboardingStore.read(BRAIN_ROOT);
+      const owner = onboardingRoster().find((m) => m.role === 'owner');
+      const ownerEmail = owner ? owner.email : me;
+      const filed = [];
+      const contradictions = [];
+      let state = pre;
+      for (const q of topic.qs) {
+        const assigned = pre.assignments[q.id];
+        const ownedByMe = assigned ? assigned === me : (me === ownerEmail || me === '');
+        if (!ownedByMe) continue;
+        const text = String(answers[q.id] != null ? answers[q.id] : ((pre.drafts[q.id] && pre.drafts[q.id].text) || '')).trim();
+        if (!text) continue;
+        const r = onboardingStore.recordFinalAnswer(BRAIN_ROOT, q.id, text, by, me);
+        state = r.state;
+        try {
+          const f = onboardingFiler.fileAnswer(BRAIN_ROOT, q, text, by);
+          filed.push({ qid: q.id, file: f.file });
+          if (f.contradiction) contradictions.push({ qid: q.id, label: q.receipt, was: f.contradiction.was, now: f.contradiction.now, by: by, at: new Date().toISOString() });
+        } catch (e) { return send(res, 500, { error: 'could not file an answer: ' + e.message }); }
+      }
+      if (contradictions.length) state._contradictions = contradictions;
+      onboardingSyncStatusDoc(state);
+      return send(res, 200, { ok: true, topicId: topic.id, filed: filed, contradictions: contradictions });
+    }
+
+    // Pass a question to a teammate: an assignment change in the shared file.
+    if (req.method === 'POST' && p === '/api/onboarding/pass') {
+      const b = await readBody(req);
+      const qid = String(b.qid || '').trim();
+      const toEmail = String(b.toEmail || '').trim().toLowerCase();
+      if (!onboardingQuestions.BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
+      const roster = onboardingRoster();
+      if (!roster.some((m) => m.email === toEmail)) return send(res, 400, { error: 'unknown teammate' });
+      const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
+      onboardingStore.recordPass(BRAIN_ROOT, qid, toEmail, by, (MEMBER_EMAIL || '').toLowerCase());
+      return send(res, 200, { ok: true, qid: qid, toEmail: toEmail });
+    }
+
+    // Take a passed question back onto your own list.
+    if (req.method === 'POST' && p === '/api/onboarding/reclaim') {
+      const b = await readBody(req);
+      const qid = String(b.qid || '').trim();
+      if (!onboardingQuestions.BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
+      const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
+      onboardingStore.recordReclaim(BRAIN_ROOT, qid, by, (MEMBER_EMAIL || '').toLowerCase());
+      return send(res, 200, { ok: true, qid: qid });
+    }
+
+    // Skip or un-skip an optional section (brand voice, first client).
+    if (req.method === 'POST' && p === '/api/onboarding/skip') {
+      const b = await readBody(req);
+      const topicId = String(b.topicId || '').trim();
+      const topic = onboardingQuestions.TOPICS.find((t) => t.id === topicId);
+      if (!topic) return send(res, 400, { error: 'unknown topic' });
+      if (!topic.optional) return send(res, 400, { error: 'that section is not optional' });
+      const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
+      onboardingStore.recordSkip(BRAIN_ROOT, topicId, b.skip !== false, by, (MEMBER_EMAIL || '').toLowerCase());
+      return send(res, 200, { ok: true, topicId: topicId, skipped: b.skip !== false });
     }
     // ---- Open the brain folder in the OS file browser ---------------------
     // The Getting started tab shows a client their folder path and a button, so

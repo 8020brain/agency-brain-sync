@@ -45,6 +45,7 @@
     </div>
     <div class="tabs">
       <button class="tab" data-view="welcome" hidden>Welcome</button>
+      <button class="tab" data-view="setup" hidden>Set up your brain</button>
       <button class="tab" data-view="path" hidden>Getting started</button>
       <button class="tab" data-view="cowork" hidden>Learn Cowork</button>
       <button class="tab active" data-view="owner">Dashboard</button>
@@ -126,6 +127,14 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <!-- ============ SET UP YOUR BRAIN (onboarding board, concept 9) ============ -->
+  <!-- One card at a time; every question answered or passed before the next
+       section opens. Engine + renderer in public/js/setup-brain.js; storage +
+       deterministic filer server-side (/api/onboarding*). -->
+  <section class="view" id="view-setup">
+    <div id="sb-root"><div class="card"><p class="tp-loading">Loading the setup board…</p></div></div>
   </section>
 
   <!-- ============ GETTING STARTED (team path) ============ -->
@@ -1093,6 +1102,7 @@
 <script src="js/path.js"></script>
 <script src="js/cowork.js"></script>
 <script src="js/nav-charts.js"></script>
+<script src="js/setup-brain.js"></script>
 <script src="js/faq-live.js"></script>
 <script src="js/connectors.js"></script>
 <script src="js/dashboard.js"></script>

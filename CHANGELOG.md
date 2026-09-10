@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.34 — 2026-09-11
+
+- **A new "Set up your brain" screen fills in your brain's context for you, one question at a time.** It's the first tab in the Command Centre, for owners and scouts. It walks you through the basics of the agency, your team, the business, how you sound, and a first client, one section at a time. You answer in your own words (or tap the mic key and talk), and each answer is written straight into the right context file, so your brain learns how the agency works without anyone editing a file by hand. A row of pills along the bottom ticks off as you go.
+
+- **You can pass a question to the right person.** If someone else on the team is better placed to answer, hand it to them and it turns up on their own setup screen once their app syncs. You can take it back, or hand it to someone else, at any time.
+
+- **Your answers are safe and you're never rushed.** Answers save when you save a section, an answered question folds down to a line you can reopen and edit, and you can close the screen and carry on later from where you left off.
+
 ## 1.1.33 — 2026-09-08
 
 - **When syncing stops, the app now says why, as one of twenty named causes, instead of one generic line.** A check on your computer refused a save, GitHub refused an upload because a file looks like it holds a secret, your sign-in expired, a file is too big for GitHub, the connection keeps dropping, and so on. Every failed upload is classified for the first time; until now they all read "can't push your changes up". The category is the only thing that leaves your machine. The error itself stays on your computer, in the app and its log.
