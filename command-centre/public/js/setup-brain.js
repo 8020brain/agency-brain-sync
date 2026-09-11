@@ -22,9 +22,26 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function clip(s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  // Client-facing rule: never bare "the brain" — a client brain calls it "your
+  // AI brain". Agency owners are fine with "your brain".
+  function brainWord() { return SB.kind === 'client' ? 'your AI brain' : 'your brain'; }
+  // The agency scout, inside a client brain, is setting the client up. Make it
+  // obvious they can answer on the client's behalf and where to tailor it.
+  function isAgencyPrefill() { return SB.kind === 'client' && SB.data && SB.data.me && SB.data.me.role === 'scout'; }
+  function leadHtml() {
+    if (isAgencyPrefill()) {
+      var who = escHtml((SB.data && SB.data.teamName) || 'this client');
+      return '<div class="sb-scoutlead">'
+        + '<div class="sb-scoutlead-h">You can fill this in for ' + who + '</div>'
+        + '<div class="sb-scoutlead-p">You know them from working together, so answer what you can from what you already know, and pass anything you’re not sure of to their team. Anything you fill in now, they won’t be asked again after handover. To change what’s asked, tell Claude Code to add, drop or reword the questions.</div>'
+        + '</div>';
+    }
+    return '<p class="sb-resume">Take your time, and answer in your own words. If you’d rather talk than type, tap the mic key on your keyboard and speak.</p>';
+  }
 
   var SB = {
-    data: null,       // { teamName, me, ownerEmail, roster, topics, drafts, answers, assignments, skipped }
+    data: null,       // { kind, teamName, me, ownerEmail, roster, topics, drafts, answers, assignments, skipped }
+    kind: 'agency',   // 'agency' or 'client' — drives the board's own wording
     person: null,     // email of the list being viewed
     openTopic: {},    // person email -> topic id they chose to open
     editing: {},      // qid -> true while a collapsed row is re-opened for editing
@@ -390,8 +407,8 @@
     var open = !$id('sb-receipts').hidden;
     var n = filedCount();
     $id('sb-filedbtn').innerHTML = (n
-      ? n + ' answer' + (n === 1 ? '' : 's') + ' saved into your brain so far. You’ll never be asked any of them again.'
-      : 'Nothing saved yet. Answers are saved into your brain when you save a card.')
+      ? n + ' answer' + (n === 1 ? '' : 's') + ' saved into ' + brainWord() + ' so far. You’ll never be asked any of them again.'
+      : 'Nothing saved yet. Answers are saved into ' + brainWord() + ' when you save a card.')
       + '<span class="sb-chev">' + (open ? '▴' : '▾') + '</span>';
     var html = '<ul>';
     receipts.slice(0, 12).forEach(function (r) { html += '<li><span class="sb-rt">✓</span>' + escHtml(r) + '</li>'; });
@@ -407,10 +424,10 @@
     return '<div class="sb-app">'
       + '<header class="sb-appbar"><div class="sb-brand"><div class="sb-mark" id="sb-mark"></div>'
       + '<div><div class="sb-brandname" id="sb-brandname"></div>'
-      + '<div class="sb-brandsub">A few questions, so your brain gets things right</div></div></div>'
+      + '<div class="sb-brandsub">A few questions, so ' + brainWord() + ' gets things right</div></div></div>'
       + '<div class="sb-hright"><button class="sb-whobtn" id="sb-whobtn" type="button" hidden></button>'
       + '<div class="sb-whomenu" id="sb-whomenu" hidden></div></div></header>'
-      + '<p class="sb-resume">Take your time, and answer in your own words. If you’d rather talk than type, tap the mic key on your keyboard and speak.</p>'
+      + leadHtml()
       + '<section id="sb-stage"></section>'
       + '<div class="sb-upnext" id="sb-upnext"></div>'
       + '<div class="sb-filedline"><button class="sb-filedbtn" id="sb-filedbtn" type="button"></button>'
@@ -435,6 +452,7 @@
     var root = $id('sb-root'); if (!root) return;
     api('/api/onboarding').then(function (d) {
       SB.data = d;
+      SB.kind = d.kind === 'client' ? 'client' : 'agency';
       SB.data.drafts = d.drafts || {}; SB.data.answers = d.answers || {};
       SB.data.assignments = d.assignments || {}; SB.data.skipped = d.skipped || {};
       SB.person = (d.me && d.me.email) || d.ownerEmail || (d.roster[0] && d.roster[0].email) || '';

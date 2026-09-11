@@ -247,6 +247,7 @@
   // applyRoleTabs (so nothing agency-facing paints) and again from applyBranding
   // with the brand name, which becomes the Welcome eyebrow when it's known.
   var CLIENT_TEXT={
+    'tab-setup':'Set up your AI brain',
     'wc-eyebrow':'Your business brain',
     'wc-h':'Everything your business knows, in one place Claude can use.',
     // The hero paragraph and the Cowork card said "your client context" and

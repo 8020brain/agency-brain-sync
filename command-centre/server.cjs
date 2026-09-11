@@ -301,6 +301,11 @@ function hasLocalIdentity() {
 const onboardingQuestions = require('./lib/onboarding-questions.cjs');
 const onboardingStore = require('./lib/onboarding-store.cjs');
 const onboardingFiler = require('./lib/onboarding-filer.cjs');
+// The effective question bank for THIS brain: its own
+// `.team-config/onboarding/questions.json` override if a scout has tailored it,
+// otherwise the built-in bank for its kind (agency, or the client bank). Read
+// per request so an edit takes effect without restarting the app.
+function currentBank() { return onboardingQuestions.resolveBank(BRAIN_ROOT, TEAM_KIND); }
 
 // The roster (offline, synced) for the person switcher and pass-to. Reads
 // .team-config/roles.json directly — no token, works before anyone signs in.
@@ -320,7 +325,7 @@ function onboardingRoster() {
 function onboardingSyncStatusDoc(state) {
   const byFile = {};       // dest file -> { answered, total }
   const contradictions = state._contradictions || [];
-  onboardingQuestions.TOPICS.forEach((t) => {
+  currentBank().TOPICS.forEach((t) => {
     t.qs.forEach((q) => {
       const file = q.dest.file.replace(/TEMPLATE-/, '');
       byFile[file] = byFile[file] || { answered: 0, total: 0 };
@@ -657,11 +662,12 @@ const server = http.createServer(async (req, res) => {
       const owner = roster.find((m) => m.role === 'owner');
       // The board never needs the destination file paths; strip them so the
       // UI (and a future client-facing skin) never shows an internal path.
-      const topics = onboardingQuestions.TOPICS.map((t) => ({
+      const topics = currentBank().TOPICS.map((t) => ({
         id: t.id, title: t.title, kick: t.kick, sub: t.sub, thanks: t.thanks, optional: !!t.optional,
         qs: t.qs.map((q) => ({ id: q.id, q: q.q, receipt: q.receipt, topic: t.id }))
       }));
       return send(res, 200, {
+        kind: TEAM_KIND,
         teamName: agencyName(),
         me: { email: (MEMBER_EMAIL || '').toLowerCase(), name: MEMBER_NAME || '', role: liveRole() },
         ownerEmail: owner ? owner.email : ((MEMBER_EMAIL || '').toLowerCase()),
@@ -679,7 +685,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/onboarding/draft') {
       const b = await readBody(req);
       const qid = String(b.qid || '').trim();
-      if (!onboardingQuestions.BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
+      if (!currentBank().BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
       const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
       onboardingStore.recordDraft(BRAIN_ROOT, qid, b.text, by, (MEMBER_EMAIL || '').toLowerCase());
       return send(res, 200, { ok: true, qid: qid });
@@ -692,7 +698,7 @@ const server = http.createServer(async (req, res) => {
     // saved draft when the payload omits one.
     if (req.method === 'POST' && p === '/api/onboarding/submit') {
       const b = await readBody(req);
-      const topic = onboardingQuestions.TOPICS.find((t) => t.id === String(b.topicId || '').trim());
+      const topic = currentBank().TOPICS.find((t) => t.id === String(b.topicId || '').trim());
       if (!topic) return send(res, 400, { error: 'unknown topic' });
       const answers = (b && b.answers) || {};
       const me = (MEMBER_EMAIL || '').toLowerCase();
@@ -727,7 +733,7 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const qid = String(b.qid || '').trim();
       const toEmail = String(b.toEmail || '').trim().toLowerCase();
-      if (!onboardingQuestions.BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
+      if (!currentBank().BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
       const roster = onboardingRoster();
       if (!roster.some((m) => m.email === toEmail)) return send(res, 400, { error: 'unknown teammate' });
       const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
@@ -739,7 +745,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/onboarding/reclaim') {
       const b = await readBody(req);
       const qid = String(b.qid || '').trim();
-      if (!onboardingQuestions.BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
+      if (!currentBank().BY_ID[qid]) return send(res, 400, { error: 'unknown question' });
       const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';
       onboardingStore.recordReclaim(BRAIN_ROOT, qid, by, (MEMBER_EMAIL || '').toLowerCase());
       return send(res, 200, { ok: true, qid: qid });
@@ -749,7 +755,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && p === '/api/onboarding/skip') {
       const b = await readBody(req);
       const topicId = String(b.topicId || '').trim();
-      const topic = onboardingQuestions.TOPICS.find((t) => t.id === topicId);
+      const topic = currentBank().TOPICS.find((t) => t.id === topicId);
       if (!topic) return send(res, 400, { error: 'unknown topic' });
       if (!topic.optional) return send(res, 400, { error: 'that section is not optional' });
       const by = MEMBER_NAME || (MEMBER_EMAIL || '').split('@')[0] || 'someone';

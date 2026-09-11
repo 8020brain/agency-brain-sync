@@ -141,9 +141,10 @@
     var isTeam=(role==='team'), isOwner=(role==='owner'), isScout=(role==='scout');
     var setTab=function(v,show){ var t=document.querySelector('.tab[data-view="'+v+'"]'); if(t) t.hidden=!show; };
     setTab('welcome', isTeam);
-    // Set up your brain (onboarding board): owners and scouts fill in context;
-    // agency brains only for now (client brains white-label it in phase 2).
-    setTab('setup', (isOwner||isScout) && CCKIND!=='client');
+    // Set up your brain (onboarding board): owners and scouts fill in context.
+    // Shows on agency and client brains alike; the board white-labels itself and
+    // asks client-worded questions when the brain kind is 'client'.
+    setTab('setup', isOwner||isScout);
     setTab('path', true);   // the team path: team members run it, owners/scouts preview what their team sees
     setTab('cowork', isTeam);   // Learn Cowork: team members work in Cowork so they get the tab; owners/scouts find it under Help (optional for them)
     setTab('owner', isOwner);
@@ -215,7 +216,7 @@
   // to Flag a skill, so the two sit together. That leaves a client with
   // Welcome, Getting started, Learn Cowork, Help.
   var CLIENT_OPT_IN_TABS=['path','cowork'];
-  var CLIENT_NEVER_TABS=['gads','skills','setup'];  // 'setup' white-labels in phase 2
+  var CLIENT_NEVER_TABS=['gads','skills'];
   // The portal's Customize panel offers owner / scout / team / agency. head-scout
   // is a legacy alias of scout everywhere else (applyRoleTabs collapses it just
   // above), so it has to collapse here too: otherwise a head-scout matches no

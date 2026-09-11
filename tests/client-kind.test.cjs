@@ -48,13 +48,10 @@ const HTML = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
 // Tabs that are OPT-IN for a client brain (hidden unless the agency turns them
 // on per role). Kept in step with CLIENT_OPT_IN_TABS in js/nav-charts.js.
 const OPT_IN = ['path', 'cowork', 'skills', 'gads'];
-// Tabs a client brain always keeps: the role's own home view, plus Help (which
-// is where the agency's own contact details are injected).
-const ALWAYS = ['welcome', 'owner', 'scout', 'help'];
-// Tabs a client brain NEVER shows. 'setup' (the onboarding board) is agency-only
-// for now; it white-labels for clients in phase 2. Kept in step with
-// CLIENT_NEVER_TABS in js/nav-charts.js.
-const NEVER = ['setup'];
+// Tabs a client brain always keeps: the role's own home view, Help (which is
+// where the agency's own contact details are injected), and Set up your brain
+// (the onboarding board, which white-labels itself for a client brain).
+const ALWAYS = ['welcome', 'owner', 'scout', 'help', 'setup'];
 
 // ---- a DOM small enough to hand-roll, real enough to run the shipped JS -----
 // Only what the Command Centre's own code touches. Unknown selectors return
@@ -418,10 +415,10 @@ function domTests() {
   console.log('\nF) every shipped tab has a client-kind decision');
   {
     const { tabViews } = fixtureFromHtml();
-    const undecided = tabViews.filter((v) => !OPT_IN.includes(v) && !ALWAYS.includes(v) && !NEVER.includes(v));
+    const undecided = tabViews.filter((v) => !OPT_IN.includes(v) && !ALWAYS.includes(v));
     check(undecided.length === 0,
-      'no tab in index.html is missing from the opt-in / always-on / never lists',
-      `undecided: ${undecided.join(', ')} — add each to CLIENT_OPT_IN_TABS/CLIENT_NEVER_TABS in nav-charts.js or to ALWAYS/NEVER here`);
+      'no tab in index.html is missing from the opt-in / always-on lists',
+      `undecided: ${undecided.join(', ')} — add each to CLIENT_OPT_IN_TABS in nav-charts.js or to ALWAYS here`);
   }
 }
 

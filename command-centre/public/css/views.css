@@ -337,6 +337,10 @@
    width. Shrinks freely on mobile. */
 #view-setup .sb-app{ max-width:1080px; margin:0 auto; }
 #view-setup .sb-resume{ margin:10px 2px 0; font-size:var(--fs-xs); color:var(--muted); }
+/* Agency scout, inside a client brain: you can fill this in for the client */
+#view-setup .sb-scoutlead{ background:var(--accent-soft); border:1px solid var(--accent); border-radius:var(--sb-radius); padding:14px 18px; margin-top:12px; }
+#view-setup .sb-scoutlead-h{ font-size:var(--fs-md); font-weight:800; color:var(--accent); margin-bottom:4px; }
+#view-setup .sb-scoutlead-p{ font-size:var(--fs-sm); color:var(--ink); line-height:1.5; }
 
 #view-setup .sb-appbar{
   display:flex; justify-content:space-between; align-items:center; gap:16px;

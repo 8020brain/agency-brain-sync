@@ -2,6 +2,14 @@
 
 What changed in each version of the Agency Brain app. You're reading the copy that ships inside the app, so it always matches the version you have installed. New versions install themselves automatically.
 
+## 1.1.35 — 2026-09-11
+
+- **"Set up your brain" now works on a client's brain too, in the client's own brand.** When you deploy a Client Brain, the same guided board is there, but the questions ask about the client's own business, and it's worded and coloured as their brand, not yours. Their people see it as "Set up your AI brain".
+
+- **You can fill a client's brain in for them before you hand it over.** Open the client's brain as the scout and the board leads with a clear prompt: answer what you already know about the client from working together, pass anything you're not sure of to their team, and save. Every answer is written into the right context file, and the client is never asked again for anything you've filled in. You hand over a brain that knows the business from day one.
+
+- **Tailor a client's questions to fit them.** In Claude Code on the client's brain, tell Claude to drop a question, reword one, or add your own (for example "which suburbs do you serve?"). The board shows your set from then on, and a bad edit can't break it, because it falls back to the standard questions.
+
 ## 1.1.34 — 2026-09-11
 
 - **A new "Set up your brain" screen fills in your brain's context for you, one question at a time.** It's the first tab in the Command Centre, for owners and scouts. It walks you through the basics of the agency, your team, the business, how you sound, and a first client, one section at a time. You answer in your own words (or tap the mic key and talk), and each answer is written straight into the right context file, so your brain learns how the agency works without anyone editing a file by hand. A row of pills along the bottom ticks off as you go.
